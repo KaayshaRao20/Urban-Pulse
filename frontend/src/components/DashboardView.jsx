@@ -300,21 +300,22 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
 
   const searchResults = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
+    const directivesList = recommendationsList || [];
     if (!q) {
       return {
         views: allNavigationItems.slice(0, 3),
         corridors: allCorridorItems.slice(0, 3),
-        directives: aiRecommendationsList.slice(0, 2),
-        alerts: activeAlertsList.slice(0, 2)
+        directives: directivesList.slice(0, 2),
+        alerts: (activeAlertsList || []).slice(0, 2)
       };
     }
     return {
       views: allNavigationItems.filter(v => v.label.toLowerCase().includes(q) || v.desc.toLowerCase().includes(q)),
       corridors: allCorridorItems.filter(c => c.label.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q)),
-      directives: aiRecommendationsList.filter(d => d.title.toLowerCase().includes(q) || d.targetCorridor.toLowerCase().includes(q) || d.actionPlan.toLowerCase().includes(q)),
-      alerts: activeAlertsList.filter(a => a.title.toLowerCase().includes(q) || a.location.toLowerCase().includes(q))
+      directives: directivesList.filter(d => d.title.toLowerCase().includes(q) || d.targetCorridor.toLowerCase().includes(q) || d.actionPlan.toLowerCase().includes(q)),
+      alerts: (activeAlertsList || []).filter(a => a.title.toLowerCase().includes(q) || a.location.toLowerCase().includes(q))
     };
-  }, [searchQuery, aiRecommendationsList, activeAlertsList]);
+  }, [searchQuery, recommendationsList, activeAlertsList]);
 
   const handleOpenDispatchModal = (item) => {
     setDispatchModal(item);
