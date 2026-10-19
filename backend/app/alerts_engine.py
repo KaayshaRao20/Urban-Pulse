@@ -10,6 +10,17 @@ from typing import Dict, List, Optional, Any
 from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, Query, Body
 
+try:
+    from app.database import SessionLocal, AlertModel, AlertUpdateModel, AlertCommentModel
+except ImportError:
+    try:
+        from database import SessionLocal, AlertModel, AlertUpdateModel, AlertCommentModel
+    except ImportError:
+        SessionLocal = None
+        AlertModel = None
+        AlertUpdateModel = None
+        AlertCommentModel = None
+
 # Authorities Store
 AUTHORITIES_STORE = [
     {
@@ -2011,6 +2022,125 @@ class EscalateSimRequest(BaseModel):
 # Router Definition
 router = APIRouter(prefix="/api", tags=["Alerts & Incidents"])
 
+_ALERTS_INITIALIZED = False
+
+def sync_alerts_from_db():
+    """
+    Syncs alerts between database and memory.
+    If database is empty, seeds all INITIAL_ALERTS into database.
+    If database has records, populates in-memory store from database.
+    """
+    global ALERTS_DATA, _ALERTS_INITIALIZED
+    if _ALERTS_INITIALIZED or not SessionLocal or not AlertModel:
+        return
+    try:
+        db = SessionLocal()
+        count = db.query(AlertModel).count()
+        if count == 0:
+            for a in INITIAL_ALERTS:
+                alert_db = AlertModel(
+                    id=a["id"],
+                    alert_type=a.get("alert_type", "traffic"),
+                    title=a.get("title", ""),
+                    description=a.get("description", ""),
+                    severity=a.get("severity", "Moderate"),
+                    status=a.get("status", "Active"),
+                    location=a.get("location", ""),
+                    location_id=a.get("location_id"),
+                    latitude=12.9716,
+                    longitude=77.5946,
+                    source=a.get("source", "Sensor Network"),
+                    camera_feed_url=a.get("camera_feed_url"),
+                    camera_feed_label=a.get("camera_feed_label"),
+                    time_str=a.get("time_str"),
+                    detected_at=a.get("timestamp", datetime.now().strftime("%d %b %Y, %H:%M")),
+                    updated_at=a.get("timestamp", datetime.now().strftime("%d %b %Y, %H:%M")),
+                    acknowledged=a.get("acknowledged", False),
+                    acknowledged_at=a.get("acknowledged_at"),
+                    acknowledged_by=a.get("acknowledged_by"),
+                    resolved=a.get("resolved", False),
+                    resolved_at=a.get("resolved_at"),
+                    resolved_by=a.get("resolved_by"),
+                    assigned_to=a.get("assigned_to"),
+                    assigned_to_id=a.get("assigned_to_id"),
+                    recipient_email=a.get("recipient_email"),
+                    assignment_status=a.get("assignment_status"),
+                    assigned_at=a.get("assigned_at"),
+                    impact_data=a.get("impact_data"),
+                    related_info=a.get("related_info"),
+                    telemetry_metrics=a.get("telemetry_metrics"),
+                    is_escalated=a.get("is_escalated", False)
+                )
+                db.add(alert_db)
+            db.commit()
+            print("[Alerts Engine] 44 Initial Alerts seeded into database.")
+        else:
+            db_alerts = db.query(AlertModel).all()
+            db_updates = db.query(AlertUpdateModel).all() if AlertUpdateModel else []
+            db_comments = db.query(AlertCommentModel).all() if AlertCommentModel else []
+            
+            updates_by_alert = {}
+            for u in db_updates:
+                updates_by_alert.setdefault(u.alert_id, []).append({
+                    "time": u.timestamp,
+                    "text": u.text,
+                    "dot": u.dot_color
+                })
+            
+            comments_by_alert = {}
+            for c in db_comments:
+                comments_by_alert.setdefault(c.alert_id, []).append({
+                    "id": c.id,
+                    "user": c.user,
+                    "comment": c.comment,
+                    "timestamp": c.timestamp
+                })
+                
+            merged_list = []
+            for row in db_alerts:
+                init_match = next((x for x in INITIAL_ALERTS if x["id"] == row.id), {})
+                alert_dict = {
+                    **init_match,
+                    "id": row.id,
+                    "alert_type": row.alert_type,
+                    "title": row.title,
+                    "description": row.description,
+                    "severity": row.severity,
+                    "status": row.status,
+                    "location": row.location,
+                    "location_id": row.location_id,
+                    "source": row.source,
+                    "camera_feed_url": row.camera_feed_url,
+                    "camera_feed_label": row.camera_feed_label,
+                    "time_str": row.time_str,
+                    "timestamp": row.detected_at,
+                    "acknowledged": row.acknowledged,
+                    "acknowledged_at": row.acknowledged_at,
+                    "acknowledged_by": row.acknowledged_by,
+                    "resolved": row.resolved,
+                    "resolved_at": row.resolved_at,
+                    "resolved_by": row.resolved_by,
+                    "assigned_to": row.assigned_to,
+                    "assigned_to_id": row.assigned_to_id,
+                    "recipient_email": row.recipient_email,
+                    "assignment_status": row.assignment_status,
+                    "assigned_at": row.assigned_at,
+                    "impact_data": row.impact_data or init_match.get("impact_data", []),
+                    "related_info": row.related_info or init_match.get("related_info", {}),
+                    "telemetry_metrics": row.telemetry_metrics or init_match.get("telemetry_metrics", {}),
+                    "is_escalated": row.is_escalated,
+                    "live_updates": updates_by_alert.get(row.id, init_match.get("live_updates", [])),
+                    "comments": comments_by_alert.get(row.id, init_match.get("comments", []))
+                }
+                merged_list.append(alert_dict)
+            if merged_list:
+                ALERTS_DATA = merged_list
+                print(f"[Alerts Engine] Loaded {len(merged_list)} alerts from database.")
+        db.close()
+        _ALERTS_INITIALIZED = True
+    except Exception as e:
+        print(f"[Alerts Engine] Notice syncing alerts from database: {e}")
+
 @router.get("/alerts")
 def get_alerts(
     alert_type: Optional[str] = Query(None),
@@ -2024,6 +2154,7 @@ def get_alerts(
     Returns live alert list with comprehensive filter and search capabilities.
     Does NOT recreate or mutate active records unnecessarily.
     """
+    sync_alerts_from_db()
     results = [a for a in ALERTS_DATA if a.get("status") != "Expired"]
 
     # Filter by Severity
@@ -2145,6 +2276,29 @@ def acknowledge_alert(alert_id: str, req: AcknowledgeRequest = Body(default=None
     })
     alert["live_updates"] = updates
 
+    # Persist to database
+    if SessionLocal and AlertModel:
+        try:
+            db = SessionLocal()
+            row = db.query(AlertModel).filter(AlertModel.id == alert_id).first()
+            if row:
+                row.acknowledged = True
+                row.status = "Acknowledged"
+                row.acknowledged_at = now_str
+                row.acknowledged_by = user_name
+                if AlertUpdateModel:
+                    db.add(AlertUpdateModel(
+                        id=f"upd-{uuid.uuid4().hex[:6]}",
+                        alert_id=alert_id,
+                        timestamp=now_time,
+                        text=f"Alert acknowledged by {user_name}.",
+                        dot_color="blue"
+                    ))
+                db.commit()
+            db.close()
+        except Exception as e:
+            print(f"[Alerts Engine] Notice persisting acknowledge to DB: {e}")
+
     return {
         "success": True,
         "message": "Alert acknowledged successfully.",
@@ -2177,6 +2331,29 @@ def resolve_alert(alert_id: str, req: ResolveRequest = Body(default=None)):
         "dot": "green"
     })
     alert["live_updates"] = updates
+
+    # Persist to database
+    if SessionLocal and AlertModel:
+        try:
+            db = SessionLocal()
+            row = db.query(AlertModel).filter(AlertModel.id == alert_id).first()
+            if row:
+                row.resolved = True
+                row.status = "Resolved"
+                row.resolved_at = now_str
+                row.resolved_by = user_name
+                if AlertUpdateModel:
+                    db.add(AlertUpdateModel(
+                        id=f"upd-{uuid.uuid4().hex[:6]}",
+                        alert_id=alert_id,
+                        timestamp=now_time,
+                        text=f"Incident resolved and closed by {user_name}.",
+                        dot_color="green"
+                    ))
+                db.commit()
+            db.close()
+        except Exception as e:
+            print(f"[Alerts Engine] Notice persisting resolve to DB: {e}")
 
     return {
         "success": True,
@@ -2217,6 +2394,30 @@ def assign_alert(alert_id: str, payload: AssignRequest):
         "dot": "blue"
     })
     alert["live_updates"] = updates
+
+    # Persist to database
+    if SessionLocal and AlertModel:
+        try:
+            db = SessionLocal()
+            row = db.query(AlertModel).filter(AlertModel.id == alert_id).first()
+            if row:
+                row.assigned_to = authority["name"]
+                row.assigned_to_id = authority["id"]
+                row.recipient_email = authority["email"]
+                row.assignment_status = "Sent"
+                row.assigned_at = now_str
+                if AlertUpdateModel:
+                    db.add(AlertUpdateModel(
+                        id=f"upd-{uuid.uuid4().hex[:6]}",
+                        alert_id=alert_id,
+                        timestamp=now_time,
+                        text=f"Assigned to {authority['name']}. Priority dispatch sent to {authority['email']}.",
+                        dot_color="blue"
+                    ))
+                db.commit()
+            db.close()
+        except Exception as e:
+            print(f"[Alerts Engine] Notice persisting assignment to DB: {e}")
 
     return {
         "success": True,
@@ -2265,6 +2466,22 @@ def add_alert_comment(alert_id: str, payload: CommentRequest):
     })
     alert["live_updates"] = updates
 
+    # Persist to database
+    if SessionLocal and AlertCommentModel:
+        try:
+            db = SessionLocal()
+            db.add(AlertCommentModel(
+                id=comment_entry["id"],
+                alert_id=alert_id,
+                user=comment_entry["user"],
+                comment=comment_entry["comment"],
+                timestamp=comment_entry["timestamp"]
+            ))
+            db.commit()
+            db.close()
+        except Exception as e:
+            print(f"[Alerts Engine] Notice persisting comment to DB: {e}")
+
     return {
         "success": True,
         "message": "Comment recorded successfully.",
@@ -2300,6 +2517,28 @@ def simulate_escalation(payload: EscalateSimRequest = Body(default=None)):
         alert["live_updates"] = updates
         LATEST_CRITICAL_ALERT_ID = alert["id"]
         LATEST_CRITICAL_TIMESTAMP = now_str
+
+        # Persist escalation to database
+        if SessionLocal and AlertModel:
+            try:
+                db = SessionLocal()
+                row = db.query(AlertModel).filter(AlertModel.id == target_id).first()
+                if row:
+                    row.severity = "Critical"
+                    row.is_escalated = True
+                    if AlertUpdateModel:
+                        db.add(AlertUpdateModel(
+                            id=f"upd-{uuid.uuid4().hex[:6]}",
+                            alert_id=target_id,
+                            timestamp=now_time,
+                            text=f"ESCALATION ALERT: Severity elevated to CRITICAL. Emergency response required.",
+                            dot_color="red"
+                        ))
+                    db.commit()
+                db.close()
+            except Exception as e:
+                print(f"[Alerts Engine] Notice persisting escalation to DB: {e}")
+
         return {
             "success": True,
             "message": f"Alert {target_id} escalated to Critical.",
@@ -2355,6 +2594,45 @@ def simulate_escalation(payload: EscalateSimRequest = Body(default=None)):
         ALERTS_DATA.insert(0, new_alert)
         LATEST_CRITICAL_ALERT_ID = new_id
         LATEST_CRITICAL_TIMESTAMP = now_str
+
+        # Persist new critical alert to database
+        if SessionLocal and AlertModel:
+            try:
+                db = SessionLocal()
+                alert_db = AlertModel(
+                    id=new_id,
+                    alert_type="traffic",
+                    title="Severe Traffic Congestion Escalation",
+                    description="Rapid escalation in vehicle density at major arterial bottleneck.",
+                    severity="Critical",
+                    status="Active",
+                    location="Hebbal Flyover Junction",
+                    location_id="loc-010",
+                    latitude=13.0358,
+                    longitude=77.5970,
+                    source="Automated LiDAR & Camera Network",
+                    time_str=now_time,
+                    detected_at=now_str,
+                    updated_at=now_str,
+                    is_escalated=True,
+                    impact_data=new_alert["impact_data"],
+                    related_info=new_alert["related_info"],
+                    telemetry_metrics=new_alert["telemetry_metrics"]
+                )
+                db.add(alert_db)
+                if AlertUpdateModel:
+                    db.add(AlertUpdateModel(
+                        id=f"upd-{uuid.uuid4().hex[:6]}",
+                        alert_id=new_id,
+                        timestamp=now_time,
+                        text="Rapid incident escalation detected.",
+                        dot_color="red"
+                    ))
+                db.commit()
+                db.close()
+            except Exception as e:
+                print(f"[Alerts Engine] Notice persisting new critical alert to DB: {e}")
+
         return {
             "success": True,
             "message": "New Critical alert generated.",

@@ -390,6 +390,48 @@ INITIAL_REPORTS: List[Dict[str, Any]] = [
         "activity_timeline": [
             {"action": "Created", "user": "Admin", "timestamp": "26 Sep 2026 14:10", "details": "Compiled from BMTC dispatch telemetry feed."}
         ]
+    },
+    {
+        "id": "rep-011",
+        "name": "Civic Grievance Redressal Audit Report",
+        "report_type": "Civic Grievance",
+        "source": "Grievance Portal",
+        "location": "Bengaluru",
+        "created_by": "Authority Admin",
+        "date_time": "27 Sep 2026 15:00",
+        "status": "Available",
+        "file_format": "PDF",
+        "file_size": "2.8 MB",
+        "download_count": 19,
+        "description": "Comprehensive municipal civic complaint resolution audit, SLA compliance assessment, and recurring fault cluster breakdown across BBMP, BWSSB, and BESCOM jurisdictions.",
+        "preview_data": {
+            "executive_summary": "Municipal audit of citizen-reported civic infrastructure grievances. 96.2% of verified complaints resolved within committed SLA window. Chronic recurrent road damage clusters identified along Marathahalli ORR corridor and storm drainage saturation at Ejipura underpass.",
+            "kpis": [
+                {"label": "Total Complaints", "value": "148 Tickets", "trend": "Active Tracking", "status": "normal"},
+                {"label": "Resolution SLA Rate", "value": "96.2%", "trend": "+2.4% vs target", "status": "normal"},
+                {"label": "Avg Resolution Time", "value": "14.6 hrs", "trend": "-3.2h reduction", "status": "normal"},
+                {"label": "Active Hotspots", "value": "6 Clusters", "trend": "Monitored", "status": "warning"}
+            ],
+            "key_insights": [
+                "Road Infrastructure (BBMP) accounted for 42% of total volume; asphalt pothole cold-mix patching achieved 28.5h average turnaround.",
+                "Solid waste management turnaround optimized to 14.2h with rapid compactor deployment in Indiranagar commercial sectors.",
+                "BWSSB pipeline leak detection resolved 100% of reported potable water pipe bursts within 24h statutory limit.",
+                "Ejipura underpass drainage silt clearance prevented localized flooding during convective downpours."
+            ],
+            "recommendations": [
+                "Budget capital milling and sub-base resurfacing along Marathahalli corridor for upcoming fiscal quarter.",
+                "Pre-deploy suction dewatering pumps to low-lying underpasses during orange-alert rainfall forecasts.",
+                "Increase commercial dumper bin clearance frequency in Indiranagar 100ft road sector."
+            ]
+        },
+        "submission_info": None,
+        "download_history": [
+            {"user": "Chief Municipal Engineer", "downloaded_at": "27 Sep 2026 15:10", "file_format": "PDF"}
+        ],
+        "activity_timeline": [
+            {"action": "Created", "user": "Authority Admin", "timestamp": "27 Sep 2026 15:00", "details": "Compiled from BBMP Civic Grievance Central Engine."},
+            {"action": "Downloaded", "user": "Chief Municipal Engineer", "timestamp": "27 Sep 2026 15:10", "details": "PDF Export (2.8 MB) downloaded for executive review."}
+        ]
     }
 ]
 
@@ -535,25 +577,35 @@ def generate_report(req: GenerateReportRequest):
         "Focus": f"Focus Multi-Modal Audit - {req.location}",
         "Calendar": f"Predictive Calendar Report - {req.location}",
         "Student Service": f"Student Service Commute Audit - {req.location}",
+        "Civic Grievance": f"Civic Grievance Redressal Audit - {req.location}",
         "Combined": f"Urban Situation Report - {req.location}"
     }
 
     report_name = title_map.get(req.report_type, f"{req.report_type} Report - {req.location}")
 
-    new_report = {
-        "id": report_id,
-        "name": report_name,
-        "report_type": req.report_type,
-        "source": req.source,
-        "location": req.location,
-        "created_by": req.created_by or "Admin",
-        "date_time": now_str,
-        "status": "Available",
-        "file_format": req.file_format or "PDF",
-        "file_size": "2.2 MB",
-        "download_count": 0,
-        "description": f"Official {req.report_type} synthesis generated from {req.source} telemetry covering {req.location} for {req.date_range}.",
-        "preview_data": {
+    if req.report_type == "Civic Grievance":
+        preview = {
+            "executive_summary": f"Municipal grievance redressal synthesis compiled for {req.location} covering citizen reports across BBMP, BWSSB, and BESCOM infrastructure sectors for {req.date_range or 'Last 24 Hours'}.",
+            "kpis": [
+                {"label": "Redressal Rate", "value": "96.2%", "trend": "SLA Compliant", "status": "normal"},
+                {"label": "Avg Response Time", "value": "1.4 hrs", "trend": "Rapid Dispatch", "status": "normal"},
+                {"label": "Avg Resolution Time", "value": "14.6 hrs", "trend": "-3.2h vs benchmark", "status": "normal"},
+                {"label": "Reported Hotspots", "value": "6 Clusters", "trend": "Monitored", "status": "warning"}
+            ],
+            "key_insights": [
+                "Road Infrastructure Cell addressed reported arterial potholes with rapid cold-mix patching.",
+                "SWM compactor dispatch maintained 24-hour turnaround across high-density commercial corridors.",
+                "Acoustic pipe leak correlation isolated potable pipeline breaches in Whitefield.",
+                "Drainage suction units deployed to prevent storm runoff waterlogging."
+            ],
+            "recommendations": [
+                "Budget permanent asphalt resurfacing for chronic pothole corridors.",
+                "Increase commercial dumper bin clearance frequency during weekend evenings.",
+                "Maintain real-time coordinate logging on all field squad dispatch vehicles."
+            ]
+        }
+    else:
+        preview = {
             "executive_summary": f"Automated analytical synthesis compiled for {req.location} utilizing live UrbanPulse sensor feeds, ML predictions, and spatial incident logs.",
             "kpis": [
                 {"label": "Data Coverage", "value": "100%", "trend": "Real-time", "status": "normal"},
@@ -569,7 +621,22 @@ def generate_report(req: GenerateReportRequest):
                 f"Maintain automated periodic surveillance across {req.location}.",
                 "Share operational findings with relevant civic and traffic authority departments."
             ]
-        },
+        }
+
+    new_report = {
+        "id": report_id,
+        "name": report_name,
+        "report_type": req.report_type,
+        "source": req.source,
+        "location": req.location,
+        "created_by": req.created_by or "Admin",
+        "date_time": now_str,
+        "status": "Available",
+        "file_format": req.file_format or "PDF",
+        "file_size": "2.2 MB",
+        "download_count": 0,
+        "description": f"Official {req.report_type} synthesis generated from {req.source} telemetry covering {req.location} for {req.date_range}.",
+        "preview_data": preview,
         "submission_info": None,
         "download_history": [],
         "activity_timeline": [
@@ -720,7 +787,7 @@ def download_report_file(report_id: str, user: Optional[str] = Query("Admin (Urb
     ])
 
     for rec in report.get("preview_data", {}).get("recommendations", []):
-        content_lines.append(f"✓ {rec}")
+        content_lines.append(f"[ACTION] {rec}")
 
     content_lines.extend([
         f"",

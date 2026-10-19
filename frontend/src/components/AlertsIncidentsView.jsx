@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-
-const API_BASE = 'http://localhost:8000/api';
+import { API_BASE } from '../config/api';
 
 export default function AlertsIncidentsView({ onCriticalCountChange }) {
   // --- Core State ---
@@ -214,10 +213,10 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
         if (popupAlert && popupAlert.id === alertId) {
           setPopupAlert(null);
         }
-        showToast('✓ Alert acknowledged successfully.');
+        showToast('Alert acknowledged successfully.');
       }
     } catch (e) {
-      showToast('⚠️ Failed to acknowledge alert. Please check backend.');
+      showToast('Failed to acknowledge alert. Please check backend.');
     }
   };
 
@@ -235,10 +234,10 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
         if (popupAlert && popupAlert.id === alertId) {
           setPopupAlert(null);
         }
-        showToast('✓ Alert resolved and closed.');
+        showToast('Alert resolved and closed.');
       }
     } catch (e) {
-      showToast('⚠️ Failed to resolve alert.');
+      showToast('Failed to resolve alert.');
     }
   };
 
@@ -272,7 +271,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
         setTimeout(() => {
           setShowAssignModal(false);
           setAssignFeedback(null);
-          showToast(`✓ Assigned to ${data.assignment.assigned_to}`);
+          showToast(`Assigned to ${data.assignment.assigned_to}`);
         }, 1200);
       } else {
         const errData = await res.json().catch(() => ({}));
@@ -315,10 +314,10 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
           return a;
         }));
         setCommentText('');
-        showToast('✓ Comment added to alert record.');
+        showToast('Comment added to alert record.');
       }
     } catch (err) {
-      showToast('⚠️ Could not post comment.');
+      showToast('Could not post comment.');
     } finally {
       setIsSubmittingComment(false);
     }
@@ -330,7 +329,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
     const shareText = `UrbanPulse Alert: [${selectedAlert.severity.toUpperCase()}] ${selectedAlert.title} at ${selectedAlert.location} (${selectedAlert.timestamp})`;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(shareText);
-      showToast('✓ Alert details copied to clipboard!');
+      showToast('Alert details copied to clipboard.');
     } else {
       showToast(shareText);
     }
@@ -410,11 +409,11 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
   };
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.75rem', background: '#F8FAFC', position: 'relative' }}>
+    <div className="view-container" style={{ position: 'relative' }}>
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div style={{ position: 'fixed', bottom: '24px', right: '24px', background: '#0F172A', color: '#FFFFFF', padding: '10px 18px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 9999, display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ position: 'fixed', bottom: '24px', right: '24px', background: '#FFFFFF', color: '#FFFFFF', padding: '10px 18px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 9999, display: 'flex', alignItems: 'center', gap: '8px' }}>
           {toastMessage}
         </div>
       )}
@@ -435,7 +434,9 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
             style={{ width: '100%', padding: '0.55rem 1rem 0.55rem 2.4rem', border: '1px solid #CBD5E1', borderRadius: '24px', fontSize: '0.8rem', background: '#FFFFFF', outline: 'none', color: '#0F172A' }}
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery('')} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '0.9rem' }}>✕</button>
+            <button onClick={() => setSearchQuery('')} title="Clear search" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+              <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
           )}
         </div>
 
@@ -455,13 +456,14 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                 Connection Issue
               </span>
             )}
-            <span style={{ color: '#CBD5E1' }}>|</span>
+            <span style={{ color: '#334155' }}>|</span>
             <span style={{ fontWeight: 600, color: '#1E293B' }}>{summary.timestamp || '27 Sep 2026 14:32:18'}</span>
           </div>
 
           {/* Location Selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#FFFFFF', border: '1px solid #E2E8F0', padding: '0.35rem 0.75rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer' }}>
-            <span>📍 Bengaluru</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#FFFFFF', border: '1px solid #E2E8F0', padding: '0.35rem 0.75rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer' }}>
+            <svg viewBox="0 0 24 24" width="13" height="13" stroke="#EF4444" fill="none" strokeWidth="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            <span>Bengaluru</span>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
           </div>
 
@@ -470,7 +472,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
           </button>
 
-          <button onClick={() => showToast('✓ Incident report package exported.')} title="Download Report" style={{ width: 34, height: 34, borderRadius: '8px', background: '#FFFFFF', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569', cursor: 'pointer' }}>
+          <button onClick={() => showToast('Incident report package exported.')} title="Download Report" style={{ width: 34, height: 34, borderRadius: '8px', background: '#FFFFFF', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569', cursor: 'pointer' }}>
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           </button>
 
@@ -710,10 +712,10 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
             onChange={(e) => setFilterTime(e.target.value)}
             style={{ padding: '0.42rem 0.75rem', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, color: '#334155', background: '#FFFFFF', outline: 'none', cursor: 'pointer' }}
           >
-            <option value="last_1h">📅 Last 1 Hour</option>
-            <option value="last_6h">📅 Last 6 Hours</option>
-            <option value="last_24h">📅 Last 24 Hours</option>
-            <option value="last_7d">📅 Last 7 Days</option>
+            <option value="last_1h">Last 1 Hour</option>
+            <option value="last_6h">Last 6 Hours</option>
+            <option value="last_24h">Last 24 Hours</option>
+            <option value="last_7d">Last 7 Days</option>
           </select>
         </div>
 
@@ -872,8 +874,9 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                   
                   {/* Acknowledge Button */}
                   {selectedAlert.acknowledged ? (
-                    <span style={{ background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0', padding: '0.45rem 0.85rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      ✓ Acknowledged
+                    <span style={{ background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0', padding: '0.45rem 0.85rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                      Acknowledged
                     </span>
                   ) : (
                     <button
@@ -915,7 +918,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                   {/* Close / Deselect */}
                   <button
                     onClick={() => setSelectedAlertId(null)}
-                    style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '4px', display: 'flex' }}
+                    style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: '4px', display: 'flex' }}
                   >
                     <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
@@ -940,8 +943,8 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
               )}
 
               {/* Live Camera Feed Frame (Matches Screenshot) */}
-              <div style={{ border: '1px solid #E2E8F0', borderRadius: '10px', overflow: 'hidden', background: '#0F172A', marginBottom: '1rem' }}>
-                <div style={{ position: 'relative', height: 260, background: '#0F172A', overflow: 'hidden' }}>
+              <div style={{ border: '1px solid #E2E8F0', borderRadius: '10px', overflow: 'hidden', background: '#FFFFFF', marginBottom: '1rem' }}>
+                <div style={{ position: 'relative', height: 260, background: '#FFFFFF', overflow: 'hidden' }}>
                   {selectedAlert.camera_feed_url ? (
                     <img
                       src={selectedAlert.camera_feed_url}
@@ -949,7 +952,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
                   ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', gap: '8px' }}>
+                    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748B', gap: '8px' }}>
                       <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20M2 12h20"/></svg>
                       <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Real-time Telemetry Sensor Stream — {selectedAlert.location}</span>
                     </div>
@@ -998,7 +1001,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                     style={{ fontSize: '0.84rem', fontWeight: 800, color: '#0F172A', marginBottom: collapseImpact ? 0 : '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
                   >
                     <span>Impact Assessment</span>
-                    <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>{collapseImpact ? '▼' : '▲'}</span>
+                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="#94A3B8" fill="none" strokeWidth="2" style={{ transform: collapseImpact ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
                   </div>
 
                   {!collapseImpact && (
@@ -1014,7 +1017,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                           </div>
                         ))
                       ) : (
-                        <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Data unavailable</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748B' }}>Data unavailable</div>
                       )}
                     </div>
                   )}
@@ -1027,14 +1030,15 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                     style={{ fontSize: '0.84rem', fontWeight: 800, color: '#0F172A', marginBottom: collapseRelated ? 0 : '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
                   >
                     <span>Related Information</span>
-                    <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>{collapseRelated ? '▼' : '▲'}</span>
+                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="#94A3B8" fill="none" strokeWidth="2" style={{ transform: collapseRelated ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
                   </div>
 
                   {!collapseRelated && (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                       <div>
-                        <div style={{ fontSize: '0.7rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          🕒 Approx. Delay
+                        <div style={{ fontSize: '0.7rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" fill="none" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                          <span>Approx. Delay</span>
                         </div>
                         <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0F172A', marginTop: 2 }}>
                           {selectedAlert.related_info?.approx_delay || '20 – 40 minutes'}
@@ -1042,8 +1046,9 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                       </div>
 
                       <div>
-                        <div style={{ fontSize: '0.7rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          🛣 Affected Stretch
+                        <div style={{ fontSize: '0.7rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" fill="none" strokeWidth="2"><path d="M4 19L9 5M20 19L15 5M12 5v14"/></svg>
+                          <span>Affected Stretch</span>
                         </div>
                         <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0F172A', marginTop: 2 }}>
                           {selectedAlert.related_info?.affected_stretch || selectedAlert.location}
@@ -1051,8 +1056,9 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                       </div>
 
                       <div>
-                        <div style={{ fontSize: '0.7rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          ⚠️ Possible Cause
+                        <div style={{ fontSize: '0.7rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <svg viewBox="0 0 24 24" width="11" height="11" stroke="#EF4444" fill="none" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                          <span>Possible Cause</span>
                         </div>
                         <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0F172A', marginTop: 2 }}>
                           {selectedAlert.related_info?.possible_cause || 'Elevated telemetry metrics'}
@@ -1060,8 +1066,9 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                       </div>
 
                       <div>
-                        <div style={{ fontSize: '0.7rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          🏢 Agencies Notified
+                        <div style={{ fontSize: '0.7rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" fill="none" strokeWidth="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="22" x2="9" y2="18"/><line x1="15" y1="22" x2="15" y2="18"/></svg>
+                          <span>Agencies Notified</span>
                         </div>
                         <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0F172A', marginTop: 2 }}>
                           {selectedAlert.related_info?.agencies_notified || 'Traffic Police, BBMP'}
@@ -1108,7 +1115,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                       );
                     })
                   ) : (
-                    <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>No activity logged yet.</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748B' }}>No activity logged yet.</div>
                   )}
                 </div>
               )}
@@ -1145,7 +1152,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                 <button
                   type="submit"
                   disabled={isSubmittingComment || !commentText.trim()}
-                  style={{ background: '#0F172A', color: '#FFFFFF', border: 'none', padding: '0.45rem 0.95rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', opacity: commentText.trim() ? 1 : 0.6 }}
+                  style={{ background: '#FFFFFF', color: '#FFFFFF', border: 'none', padding: '0.45rem 0.95rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', opacity: commentText.trim() ? 1 : 0.6 }}
                 >
                   Comment
                 </button>
@@ -1189,9 +1196,10 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
             </div>
             <button
               onClick={() => setPopupAlert(null)}
-              style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '0.95rem', padding: 2 }}
+              style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 2 }}
+              title="Dismiss"
             >
-              ✕
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
 
@@ -1209,7 +1217,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
           <div style={{ fontSize: '0.76rem', color: '#475569', marginBottom: '2px', fontWeight: 600 }}>
             {popupAlert.location}
           </div>
-          <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginBottom: '12px' }}>
+          <div style={{ fontSize: '0.72rem', color: '#64748B', marginBottom: '12px' }}>
             {popupAlert.timestamp}
           </div>
 
@@ -1269,9 +1277,10 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
               <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>Assign Alert</div>
               <button
                 onClick={() => setShowAssignModal(false)}
-                style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '1rem' }}
+                style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 2 }}
+                title="Close"
               >
-                ✕
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
 
@@ -1279,7 +1288,10 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
             <div style={{ marginBottom: '0.85rem', background: '#F8FAFC', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
               <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Alert:</div>
               <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0F172A' }}>{selectedAlert.title}</div>
-              <div style={{ fontSize: '0.74rem', color: '#64748B', marginTop: 2 }}>📍 {selectedAlert.location}</div>
+              <div style={{ fontSize: '0.74rem', color: '#64748B', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="#EF4444" fill="none" strokeWidth="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                <span>{selectedAlert.location}</span>
+              </div>
             </div>
 
             {/* Select Authority Dropdown */}

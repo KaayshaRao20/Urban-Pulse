@@ -1,5 +1,5 @@
 {
-  "name": "frontend",
+  "name": "urbanpulse",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,12 +10,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.3",
     "chart.js": "^4.5.1",
+    "i18next": "^26.4.5",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.52.0",
     "react": "^19.2.8",
     "react-chartjs-2": "^5.3.1",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-i18next": "^17.0.16",
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",

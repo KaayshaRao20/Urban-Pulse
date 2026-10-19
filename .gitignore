@@ -42,3 +42,11 @@ Thumbs.db
 # Vite cache
 .vite/
 .vite-temp/
+
+# Databases & runtime uploads
+*.db
+*.sqlite
+*.sqlite3
+backend/urbanpulse_dev.db
+backend/uploads/
+frontend/start_vite.js

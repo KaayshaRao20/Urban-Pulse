@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-
-const API_BASE = 'http://localhost:8000/api';
+import { API_BASE } from '../config/api';
 
 export default function SimulationView({ timestamp }) {
   // Input parameters state
@@ -14,6 +13,7 @@ export default function SimulationView({ timestamp }) {
   const [tempC, setTempC] = useState('24');
   const [roadType, setRoadType] = useState('Urban Arterial');
   const [eventIncident, setEventIncident] = useState('None');
+  const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
 
   // Simulation output states
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -25,9 +25,9 @@ export default function SimulationView({ timestamp }) {
     summary_alert: 'Traffic speed is significantly lower than usual due to high traffic volume, increased crowd density and light rain.',
     metrics: {
       traffic_speed: '18 km/h',
-      traffic_speed_sub: '↓ 62% Lower than usual',
+      traffic_speed_sub: '-62% vs baseline',
       crowd_density: '520 /km²',
-      crowd_density_sub: '↑ 18% Higher than usual',
+      crowd_density_sub: '+18% vs baseline',
       weather: 'Light Rain',
       temp: '24°C',
       weather_sub: 'Possible impact on traffic',
@@ -77,7 +77,7 @@ export default function SimulationView({ timestamp }) {
       scrollWheelZoom: false
     }).setView([12.9569, 77.7011], 13);
 
-    window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19
     }).addTo(map);
 
@@ -212,15 +212,18 @@ export default function SimulationView({ timestamp }) {
   };
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem', background: '#F8FAFC' }}>
+    <div className="view-container">
       {/* Header Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
         <div>
           <h1 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.3px' }}>Urban Simulation & Analysis</h1>
-          <p style={{ fontSize: '0.8rem', color: '#64748B', marginTop: 2 }}>Provide input parameters to simulate urban conditions and get analysis results with explainable AI and recommendations.</p>
+          <p style={{ fontSize: '0.8rem', color: '#64748B', marginTop: 2 }}>Provide input parameters to simulate urban conditions and evaluate real-time factor attribution and mitigation directives.</p>
         </div>
 
-        <button style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#FFFFFF', border: '1px solid #CBD5E1', padding: '0.45rem 0.85rem', borderRadius: 8, fontSize: '0.78rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer' }}>
+        <button
+          onClick={() => setShowHowItWorksModal(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255, 255, 255, 0.9)', border: '1px solid rgba(226, 232, 240, 0.9)', padding: '0.45rem 0.85rem', borderRadius: 20, fontSize: '0.78rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', transition: 'all 0.15s ease', boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)' }}
+        >
           <svg viewBox="0 0 24 24" style={{ width: 14, height: 14, stroke: 'currentColor', fill: 'none', strokeWidth: 2 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
           <span>How It Works</span>
         </button>
@@ -232,7 +235,7 @@ export default function SimulationView({ timestamp }) {
         {/* LEFT COLUMN: Panel 1 - Input Parameters */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           
-          <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div className="glass-panel">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#059669', color: '#FFFFFF', fontWeight: 800, fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyCenter: 'center', flexShrink: 0 }}>1</div>
@@ -369,7 +372,7 @@ export default function SimulationView({ timestamp }) {
           </div>
 
           {/* Sub-Card: Input Summary */}
-          <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: '1.1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div className="glass-panel" style={{ padding: '1.1rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', paddingBottom: '0.5rem', borderBottom: '1px solid #F1F5F9' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.88rem', fontWeight: 800, color: '#0F172A' }}>
                 <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, stroke: '#0F172A', fill: 'none', strokeWidth: 2 }}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
@@ -384,13 +387,13 @@ export default function SimulationView({ timestamp }) {
 
               {/* Summary Items List */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5, fontSize: '0.76rem', color: '#334155' }}>
-                <div>📍 <span style={{ color: '#64748B' }}>Location</span>: <strong>{location}</strong></div>
-                <div>📅 <span style={{ color: '#64748B' }}>Date & Time</span>: <strong>{dateVal}, {timeVal}</strong></div>
-                <div>🚗 <span style={{ color: '#64748B' }}>Traffic Volume</span>: <strong>{trafficVol} vehicles/hour</strong></div>
-                <div>⏱️ <span style={{ color: '#64748B' }}>Average Speed</span>: <strong>{avgSpeed} km/h</strong></div>
-                <div>👥 <span style={{ color: '#64748B' }}>Crowd Density</span>: <strong>{crowdDensity} people/km²</strong></div>
-                <div>☁️ <span style={{ color: '#64748B' }}>Weather</span>: <strong>{weatherCondition}, {tempC}°C</strong></div>
-                <div>🛣️ <span style={{ color: '#64748B' }}>Road Type</span>: <strong>{roadType}</strong></div>
+                <div><span style={{ color: '#64748B' }}>Location</span>: <strong>{location}</strong></div>
+                <div><span style={{ color: '#64748B' }}>Date & Time</span>: <strong>{dateVal}, {timeVal}</strong></div>
+                <div><span style={{ color: '#64748B' }}>Traffic Volume</span>: <strong>{trafficVol} vehicles/hour</strong></div>
+                <div><span style={{ color: '#64748B' }}>Average Speed</span>: <strong>{avgSpeed} km/h</strong></div>
+                <div><span style={{ color: '#64748B' }}>Crowd Density</span>: <strong>{crowdDensity} people/km²</strong></div>
+                <div><span style={{ color: '#64748B' }}>Weather</span>: <strong>{weatherCondition}, {tempC}°C</strong></div>
+                <div><span style={{ color: '#64748B' }}>Road Type</span>: <strong>{roadType}</strong></div>
               </div>
             </div>
           </div>
@@ -398,7 +401,7 @@ export default function SimulationView({ timestamp }) {
         </div>
 
         {/* RIGHT COLUMN: Panel 2 - Analysis Results */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+        <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           
           {/* Panel 2 Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -412,7 +415,8 @@ export default function SimulationView({ timestamp }) {
 
             <div style={{ textAlign: 'right' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0', padding: '3px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 800 }}>
-                ✔ Analysis Completed
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                Analysis Completed
               </span>
               <div style={{ fontSize: '0.65rem', color: '#64748B', marginTop: 2 }}>Completed in {analysisResult.execution_time_seconds || 6} seconds</div>
             </div>
@@ -441,7 +445,7 @@ export default function SimulationView({ timestamp }) {
                 <span>Traffic Speed</span>
               </div>
               <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A', marginTop: 2 }}>{analysisResult.metrics?.traffic_speed || '18 km/h'}</div>
-              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#EF4444', marginTop: 1 }}>{analysisResult.metrics?.traffic_speed_sub || '↓ 62% Lower than usual'}</div>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#EF4444', marginTop: 1 }}>{analysisResult.metrics?.traffic_speed_sub || '-62% vs baseline'}</div>
             </div>
 
             <div style={{ background: '#F8FAFC', border: '1px solid #F1F5F9', borderRadius: 8, padding: '10px 8px', textAlign: 'center' }}>
@@ -450,7 +454,7 @@ export default function SimulationView({ timestamp }) {
                 <span>Crowd Density</span>
               </div>
               <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A', marginTop: 2 }}>{analysisResult.metrics?.crowd_density || '520 /km²'}</div>
-              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#EF4444', marginTop: 1 }}>{analysisResult.metrics?.crowd_density_sub || '↑ 18% Higher than usual'}</div>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#EF4444', marginTop: 1 }}>{analysisResult.metrics?.crowd_density_sub || '+18% vs baseline'}</div>
             </div>
 
             <div style={{ background: '#F8FAFC', border: '1px solid #F1F5F9', borderRadius: 8, padding: '10px 8px', textAlign: 'center' }}>
@@ -472,7 +476,7 @@ export default function SimulationView({ timestamp }) {
             </div>
           </div>
 
-          {/* 2-Column Factors & Explainable AI Row */}
+          {/* 2-Column Factors & Factor Attribution Row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '1rem', marginTop: '0.25rem' }}>
             {/* Left: Key Contributing Factors */}
             <div style={{ border: '1px solid #E2E8F0', borderRadius: 8, padding: '0.75rem' }}>
@@ -490,10 +494,10 @@ export default function SimulationView({ timestamp }) {
               </div>
             </div>
 
-            {/* Right: Explainable AI */}
+            {/* Right: Decision Factor Attribution */}
             <div style={{ border: '1px solid #E2E8F0', borderRadius: 8, padding: '0.75rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', cursor: 'pointer' }} onClick={() => setIsExplainableOpen(!isExplainableOpen)}>
-                <h4 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0F172A' }}>Explainable AI (Why this result?)</h4>
+                <h4 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0F172A' }}>Decision Factor Attribution</h4>
                 <svg viewBox="0 0 24 24" style={{ width: 14, height: 14, stroke: 'currentColor', fill: 'none', strokeWidth: 2, transform: isExplainableOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}><path d="M6 9l6 6 6-6"/></svg>
               </div>
 
@@ -510,13 +514,13 @@ export default function SimulationView({ timestamp }) {
             </div>
           </div>
 
-          {/* AI Recommendation Box (Light Green Tint Box) */}
+          {/* Operational Mitigation Protocol Box (Light Green Tint Box) */}
           <div style={{ background: '#ECFDF5', border: '1px solid #6EE7B7', borderRadius: 8, padding: '0.85rem 1rem', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#059669', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyCenter: 'center', flexShrink: 0, marginTop: 2 }}>
               <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, stroke: 'currentColor', fill: 'none', strokeWidth: 2 }}><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
             </div>
             <div>
-              <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#065F46' }}>AI Recommendation</div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#065F46' }}>Operational Mitigation Protocol</div>
               <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#047857', marginTop: 2 }}>Consider diverting traffic to alternative routes.</div>
               <div style={{ fontSize: '0.74rem', color: '#065F46', marginTop: 3, lineHeight: 1.35 }}>
                 Traffic speed is significantly lower than usual and crowd density is increased near bus stops. Implement traffic diversion, enhance public transport frequency, and monitor the situation closely.
@@ -552,6 +556,86 @@ export default function SimulationView({ timestamp }) {
         </div>
 
       </div>
+
+      {/* How It Works Glassmorphic Modal */}
+      {showHowItWorksModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={() => setShowHowItWorksModal(false)}
+        >
+          <div
+            style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255, 255, 255, 0.9)',
+              borderRadius: '20px',
+              maxWidth: '680px',
+              width: '100%',
+              padding: '28px',
+              boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
+              animation: 'fadeIn 0.2s ease-out'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: 36, height: 36, borderRadius: '10px', background: '#ECFDF5', color: '#059669', display: 'flex', alignItems: 'center', justifyCenter: 'center', border: '1px solid #A7F3D0' }}>
+                  <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, stroke: 'currentColor', fill: 'none', strokeWidth: 2 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>Urban Simulation Architecture</h2>
+                  <p style={{ fontSize: '0.75rem', color: '#64748B', margin: 0 }}>Counterfactual what-if modeling and multi-modal feature attribution</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowHowItWorksModal(false)}
+                style={{ border: 'none', background: '#F1F5F9', width: 30, height: 30, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B' }}
+                title="Close"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '0.84rem', color: '#334155', lineHeight: 1.55 }}>
+              <div style={{ background: '#F8FAFC', padding: '14px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                <strong style={{ color: '#0F172A', display: 'block', marginBottom: '4px' }}>1. Counterfactual Scenario Engine</strong>
+                When you tweak traffic volume, pedestrian counts, or rainfall levels, the simulation engine runs an inference pass against the trained Random Forest / XGBoost ensemble models to predict flow degradation before it occurs in physical reality.
+              </div>
+
+              <div style={{ background: '#F8FAFC', padding: '14px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                <strong style={{ color: '#0F172A', display: 'block', marginBottom: '4px' }}>2. Factor Attribution Model (Feature Importance Engine)</strong>
+                Rather than treating prediction as an opaque model, each output decomposes into ranked contributing factors (e.g. 42% Traffic Volume, 27% Crowd Density, 18% Rainfall) using tree-path attribution algorithms.
+              </div>
+
+              <div style={{ background: '#F8FAFC', padding: '14px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                <strong style={{ color: '#0F172A', display: 'block', marginBottom: '4px' }}>3. Actionable Mitigation Synthesis</strong>
+                Identified bottlenecks generate targeted operational counter-measures, such as Variable Message Sign (VMS) rerouting, adaptive signal cycle overrides, and public transit shuttle dispatch.
+              </div>
+            </div>
+
+            <div style={{ marginTop: '22px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowHowItWorksModal(false)}
+                style={{ background: '#059669', color: '#FFFFFF', border: 'none', padding: '8px 20px', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)' }}
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,7 +5,7 @@ PostgreSQL / PostGIS Target Architecture Definition & SQLAlchemy Data Models
 
 import os
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime, Text, ForeignKey, JSON, text
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 Base = declarative_base()
@@ -296,13 +296,171 @@ class SettingsAuditLogModel(Base):
     timestamp = Column(String(50), nullable=False)
     status = Column(String(50), default="SUCCESS")
 
-# Database Engine Setup
-DB_URL = os.getenv("DATABASE_URL", "sqlite:///./urbanpulse_dev.db")
-engine = create_engine(DB_URL, connect_args={"check_same_thread": False} if "sqlite" in DB_URL else {})
+class CivicComplaintModel(Base):
+    __tablename__ = "civic_complaints"
+    
+    id = Column(String(50), primary_key=True) # e.g. BBMP-2026-1042
+    ticket_number = Column(String(50), unique=True, index=True, nullable=False)
+    category = Column(String(50), nullable=False) # Pothole/Road Damage, Garbage/Waste, Water Leakage, Drainage, Streetlight Failure, Traffic Hazard, Other
+    subcategory = Column(String(100), nullable=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=False)
+    urgency = Column(String(30), default="Moderate") # Low, Moderate, High, Critical
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    landmark_address = Column(String(255), nullable=True)
+    ward_zone = Column(String(100), nullable=True)
+    image_url = Column(String(255), nullable=True)
+    image_filename = Column(String(255), nullable=True)
+    citizen_name = Column(String(100), nullable=True)
+    citizen_phone = Column(String(50), nullable=True)
+    citizen_email = Column(String(100), nullable=True)
+    is_anonymous = Column(Boolean, default=False)
+    status = Column(String(50), default="Submitted") # Submitted, Under Review, Assigned, Crew Dispatched, In Progress, Resolved, Rejected, Reopened
+    assigned_authority = Column(String(150), nullable=False)
+    assigned_department = Column(String(150), nullable=True) # e.g. BBMP Road Infrastructure Cell
+    assigned_squad = Column(String(150), nullable=True) # e.g. Rapid Patch Squad Alpha
+    assigned_officer = Column(String(150), nullable=True) # e.g. Eng. R. Kumar (BBMP East)
+    sla_hours = Column(Integer, default=24)
+    dispatch_timestamp = Column(DateTime, nullable=True)
+    dispatch_eta = Column(String(100), nullable=True)
+    dispatch_notes = Column(Text, nullable=True)
+    resolution_notes = Column(Text, nullable=True)
+    resolution_image_url = Column(String(255), nullable=True)
+    resolution_timestamp = Column(DateTime, nullable=True)
+    rejection_reason = Column(Text, nullable=True)
+    reopen_reason = Column(Text, nullable=True)
+    reopen_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+class CivicComplaintAuditLogModel(Base):
+    __tablename__ = "civic_complaint_audit_logs"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ticket_number = Column(String(50), index=True, nullable=False)
+    actor_name = Column(String(100), nullable=False, default="System")
+    actor_role = Column(String(50), nullable=False, default="System") # Authority Officer, Citizen, Field Squad, System
+    previous_status = Column(String(50), nullable=True)
+    new_status = Column(String(50), nullable=False)
+    action = Column(String(50), nullable=False) # SUBMITTED, REVIEWED, ASSIGNED, DISPATCHED, IN_PROGRESS, RESOLVED, REJECTED, REOPENED
+    notes = Column(Text, nullable=True)
+    metadata_json = Column(Text, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+class CivicNotificationLogModel(Base):
+    __tablename__ = "civic_notifications"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ticket_number = Column(String(50), index=True, nullable=False)
+    recipient_type = Column(String(50), nullable=False) # Citizen, Department Squad, Ward Officer
+    recipient_contact = Column(String(100), nullable=True)
+    channel = Column(String(20), default="PORTAL_ALERT") # SMS, EMAIL, PORTAL_ALERT, SQUAD_DISPATCH
+    subject = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    status = Column(String(30), default="SENT")
+    sent_at = Column(DateTime, default=datetime.utcnow)
+
+class UserModel(Base):
+    __tablename__ = "users"
+    
+    id = Column(String(50), primary_key=True) # UUID or off-xxxx
+    email = Column(String(150), unique=True, index=True, nullable=False)
+    username = Column(String(100), unique=True, index=True, nullable=True) # e.g. 01kaaysha
+    badge_id = Column(String(50), unique=True, index=True, nullable=True)
+    full_name = Column(String(150), nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    department = Column(String(150), nullable=False, default="BBMP Road Infrastructure Cell")
+    role = Column(String(50), nullable=False, default="citizen") # admin, officer, supervisor, operator, citizen
+    clearance = Column(String(100), default="Standard Civic Access Level 1")
+    assigned_zone = Column(String(100), default="Bengaluru Metropolitan Area")
+    phone = Column(String(50), unique=True, index=True, nullable=True)
+    email_verified = Column(Boolean, default=False)
+    phone_verified = Column(Boolean, default=False)
+    verification_otp = Column(String(10), nullable=True)
+    verification_otp_expires = Column(DateTime, nullable=True)
+    reset_token = Column(String(100), nullable=True)
+    reset_token_expires = Column(DateTime, nullable=True)
+    auth_provider = Column(String(30), default="local") # local, google, supabase
+    google_id = Column(String(150), nullable=True, index=True)
+    avatar_url = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+# Database Engine Setup (Supports SQLite local dev & Supabase PostgreSQL)
+RAW_DB_URL = os.getenv("DATABASE_URL", "sqlite:///./urbanpulse_dev.db")
+# Supabase connection strings often use postgres://, which SQLAlchemy requires as postgresql://
+if RAW_DB_URL.startswith("postgres://"):
+    DB_URL = RAW_DB_URL.replace("postgres://", "postgresql://", 1)
+else:
+    DB_URL = RAW_DB_URL
+
+if "sqlite" in DB_URL:
+    engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
+else:
+    # Supabase / PostgreSQL configuration with connection pooling and ping validation
+    connect_args = {}
+    if "sslmode" not in DB_URL and "supabase" in DB_URL.lower():
+        connect_args["sslmode"] = "require"
+    engine = create_engine(
+        DB_URL,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20,
+        pool_recycle=300,
+        connect_args=connect_args
+    )
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    
+    # Safe SQLite column migration for civic_complaints table (only run on SQLite)
+    if "sqlite" in DB_URL:
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("PRAGMA table_info(civic_complaints)"))
+                existing_cols = {row[1] for row in result.fetchall()}
+                
+                new_columns = [
+                    ("assigned_department", "VARCHAR(150)"),
+                    ("assigned_squad", "VARCHAR(150)"),
+                    ("assigned_officer", "VARCHAR(150)"),
+                    ("dispatch_timestamp", "DATETIME"),
+                    ("dispatch_eta", "VARCHAR(100)"),
+                    ("dispatch_notes", "TEXT"),
+                    ("resolution_image_url", "VARCHAR(255)"),
+                    ("rejection_reason", "TEXT"),
+                    ("reopen_reason", "TEXT"),
+                    ("reopen_count", "INTEGER DEFAULT 0"),
+                ]
+                for col_name, col_type in new_columns:
+                    if col_name not in existing_cols:
+                        conn.execute(text(f"ALTER TABLE civic_complaints ADD COLUMN {col_name} {col_type}"))
+
+                # Safe SQLite column migration for users table
+                result_users = conn.execute(text("PRAGMA table_info(users)"))
+                existing_user_cols = {row[1] for row in result_users.fetchall()}
+                new_user_cols = [
+                    ("username", "VARCHAR(100)"),
+                    ("email_verified", "BOOLEAN DEFAULT 0"),
+                    ("phone_verified", "BOOLEAN DEFAULT 0"),
+                    ("verification_otp", "VARCHAR(10)"),
+                    ("verification_otp_expires", "DATETIME"),
+                    ("reset_token", "VARCHAR(100)"),
+                    ("reset_token_expires", "DATETIME"),
+                    ("auth_provider", "VARCHAR(30) DEFAULT 'local'"),
+                    ("google_id", "VARCHAR(150)"),
+                    ("avatar_url", "VARCHAR(255)")
+                ]
+                for col_name, col_type in new_user_cols:
+                    if col_name not in existing_user_cols:
+                        conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
+
+                conn.commit()
+        except Exception as e:
+            print(f"Database schema migration note: {e}")
 
 
 

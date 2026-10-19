@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-
-const API_BASE = 'http://127.0.0.1:8000/api';
+import { useTheme } from '../context/ThemeContext';
+import { API_BASE } from '../config/api';
 
 export default function SettingsView() {
+  const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('datasets'); // datasets, preprocessing, ml, performance, sources, system
   
   // Tab 1: Dataset Management State
@@ -429,13 +430,15 @@ export default function SettingsView() {
   };
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#F8FAFC', minHeight: '100vh', overflowY: 'auto' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'transparent', height: '100%', overflowY: 'auto', borderRadius: '20px' }}>
       
       {/* Top Header Bar Matching UrbanPulse System Exactly */}
       <header style={{
         height: '64px',
-        background: '#FFFFFF',
-        borderBottom: '1px solid #E2E8F0',
+        background: 'rgba(255, 255, 255, 0.92)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(226, 232, 240, 0.9)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -446,7 +449,7 @@ export default function SettingsView() {
       }}>
         {/* Search input pill */}
         <div style={{ display: 'flex', alignItems: 'center', width: '380px', position: 'relative' }}>
-          <svg style={{ position: 'absolute', left: '12px', width: '16px', height: '16px', color: '#94A3B8' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg style={{ position: 'absolute', left: '12px', width: '16px', height: '16px', color: '#64748B' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"/>
             <path d="M21 21l-4.35-4.35"/>
           </svg>
@@ -473,14 +476,14 @@ export default function SettingsView() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#334155', fontWeight: 500, background: '#F1F5F9', padding: '6px 14px', borderRadius: '20px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }}></span>
             <span>Live Data</span>
-            <span style={{ color: '#CBD5E1' }}>|</span>
+            <span style={{ color: '#334155' }}>|</span>
             <span style={{ color: '#64748B' }}>27 Sep 2026 14:32:18</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 600, color: '#334155', border: '1px solid #E2E8F0', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', background: '#FFFFFF' }}>
-            <span style={{ color: '#059669' }}>📍</span>
+            <svg viewBox="0 0 24 24" width="13" height="13" stroke="#059669" fill="none" strokeWidth="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
             <span>Bengaluru</span>
-            <span style={{ fontSize: '0.7rem', color: '#94A3B8' }}>▼</span>
+            <svg viewBox="0 0 24 24" width="12" height="12" stroke="#94A3B8" fill="none" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
 
           {/* Quick action icons */}
@@ -669,7 +672,7 @@ export default function SettingsView() {
                   />
                 </label>
 
-                <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '12px' }}>
+                <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '12px' }}>
                   Maximum 10 files per upload | Supported formats: .xlsx, .xls, .csv, .json, .parquet, .pdf, .zip
                 </div>
 
@@ -721,7 +724,7 @@ export default function SettingsView() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
                   {/* Search input */}
                   <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
-                    <svg style={{ position: 'absolute', left: '10px', top: '10px', width: '15px', height: '15px', color: '#94A3B8' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <svg style={{ position: 'absolute', left: '10px', top: '10px', width: '15px', height: '15px', color: '#64748B' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                     <input
                       type="text"
                       placeholder="Search datasets..."
@@ -786,7 +789,7 @@ export default function SettingsView() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '36px', borderRadius: '8px', border: '1px solid #E2E8F0', padding: '0 12px', fontSize: '0.8rem', color: '#475569', background: '#FFF' }}>
                     <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                     <span>Last 30 Days</span>
-                    <span style={{ fontSize: '0.65rem', color: '#94A3B8' }}>▼</span>
+                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="#94A3B8" fill="none" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                   </div>
                 </div>
 
@@ -831,7 +834,7 @@ export default function SettingsView() {
                           <td style={{ padding: '12px', color: '#475569' }}>{d.source}</td>
                           <td style={{ padding: '12px', color: '#64748B' }}>
                             <div>{d.upload_date.split(' ').slice(0, 3).join(' ')}</div>
-                            <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>{d.upload_date.split(' ')[3] || ''}</div>
+                            <div style={{ fontSize: '0.72rem', color: '#64748B' }}>{d.upload_date.split(' ')[3] || ''}</div>
                           </td>
                           <td style={{ padding: '12px' }}>
                             {getStatusPill(d.status)}
@@ -898,7 +901,7 @@ export default function SettingsView() {
                         {p}
                       </button>
                     ))}
-                    <span style={{ padding: '0 4px', color: '#94A3B8' }}>...</span>
+                    <span style={{ padding: '0 4px', color: '#64748B' }}>...</span>
                     <button
                       onClick={() => setCurrentPage(7)}
                       style={{
@@ -952,40 +955,40 @@ export default function SettingsView() {
                   {/* Key Metadata List */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem', borderTop: '1px solid #F1F5F9', borderBottom: '1px solid #F1F5F9', padding: '12px 0' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>📄 Format</span>
+                      <span style={{ color: '#64748B' }}>Format</span>
                       <span style={{ fontWeight: 700, color: '#1E293B' }}>{selectedDataset.format}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>💾 Size</span>
+                      <span style={{ color: '#64748B' }}>Size</span>
                       <span style={{ fontWeight: 700, color: '#1E293B' }}>{selectedDataset.size_display}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>🏢 Source</span>
+                      <span style={{ color: '#64748B' }}>Source</span>
                       <span style={{ fontWeight: 700, color: '#1E293B' }}>{selectedDataset.source}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>👤 Uploaded By</span>
+                      <span style={{ color: '#64748B' }}>Uploaded By</span>
                       <span style={{ fontWeight: 700, color: '#1E293B' }}>{selectedDataset.uploaded_by}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>📅 Upload Date</span>
+                      <span style={{ color: '#64748B' }}>Upload Date</span>
                       <span style={{ fontWeight: 700, color: '#1E293B' }}>{selectedDataset.upload_date}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>🔢 Rows (Original)</span>
+                      <span style={{ color: '#64748B' }}>Rows (Original)</span>
                       <span style={{ fontWeight: 700, color: '#1E293B' }}>{selectedDataset.original_rows?.toLocaleString()}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>✨ Rows (Processed)</span>
+                      <span style={{ color: '#64748B' }}>Rows (Processed)</span>
                       <span style={{ fontWeight: 700, color: '#1E293B' }}>{selectedDataset.processed_rows?.toLocaleString()}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>📊 Columns</span>
+                      <span style={{ color: '#64748B' }}>Columns</span>
                       <span style={{ fontWeight: 700, color: '#1E293B' }}>{selectedDataset.total_columns}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>● Status</span>
-                      <span style={{ fontWeight: 700, color: '#16A34A', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ color: '#64748B' }}>Status</span>
+                      <span style={{ fontWeight: 700, color: '#16A34A', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16A34A' }}></span>
                         {selectedDataset.status}
                       </span>
@@ -1068,8 +1071,8 @@ export default function SettingsView() {
                         onClick={() => toggleSection('summary')}
                         style={{ padding: '10px 12px', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', color: '#1E293B' }}
                       >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>📄 Preprocessing Summary</span>
-                        <span>{openSections.summary ? '▲' : '▼'}</span>
+                        <span>Preprocessing Summary</span>
+                        <svg viewBox="0 0 24 24" width="12" height="12" stroke="#64748B" fill="none" strokeWidth="2" style={{ transform: openSections.summary ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
                       </div>
                       {openSections.summary && (
                         <div style={{ padding: '10px 12px', fontSize: '0.74rem', color: '#475569', background: '#FFF' }}>
@@ -1087,8 +1090,8 @@ export default function SettingsView() {
                         onClick={() => toggleSection('preview')}
                         style={{ padding: '10px 12px', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', color: '#1E293B' }}
                       >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>📑 Data Preview</span>
-                        <span>{openSections.preview ? '▲' : '▼'}</span>
+                        <span>Data Preview</span>
+                        <svg viewBox="0 0 24 24" width="12" height="12" stroke="#64748B" fill="none" strokeWidth="2" style={{ transform: openSections.preview ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
                       </div>
                       {openSections.preview && (
                         <div style={{ padding: '10px 12px', fontSize: '0.74rem', color: '#475569', background: '#FFF' }}>
@@ -1114,15 +1117,15 @@ export default function SettingsView() {
                         onClick={() => toggleSection('columns')}
                         style={{ padding: '10px 12px', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', color: '#1E293B' }}
                       >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>☷ Column Information</span>
-                        <span>{openSections.columns ? '▲' : '▼'}</span>
+                        <span>Column Information</span>
+                        <svg viewBox="0 0 24 24" width="12" height="12" stroke="#64748B" fill="none" strokeWidth="2" style={{ transform: openSections.columns ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
                       </div>
                       {openSections.columns && (
                         <div style={{ padding: '10px 12px', fontSize: '0.74rem', color: '#475569', background: '#FFF', maxHeight: '130px', overflowY: 'auto' }}>
                           {selectedDataset.columns_meta?.map((c, i) => (
                             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', borderBottom: '1px solid #F1F5F9' }}>
                               <span style={{ fontWeight: 600 }}>{c.name}</span>
-                              <span style={{ color: '#94A3B8' }}>{c.type}</span>
+                              <span style={{ color: '#64748B' }}>{c.type}</span>
                             </div>
                           ))}
                         </div>
@@ -1135,14 +1138,14 @@ export default function SettingsView() {
                         onClick={() => toggleSection('logs')}
                         style={{ padding: '10px 12px', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', color: '#1E293B' }}
                       >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>📜 Processing Logs</span>
-                        <span>{openSections.logs ? '▲' : '▼'}</span>
+                        <span>Processing Logs</span>
+                        <svg viewBox="0 0 24 24" width="12" height="12" stroke="#64748B" fill="none" strokeWidth="2" style={{ transform: openSections.logs ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
                       </div>
                       {openSections.logs && (
                         <div style={{ padding: '10px 12px', fontSize: '0.72rem', color: '#475569', background: '#FFF', maxHeight: '120px', overflowY: 'auto' }}>
                           {selectedDataset.processing_logs?.map((l, i) => (
                             <div key={i} style={{ marginBottom: '4px' }}>
-                              <span style={{ color: '#94A3B8' }}>[{l.time}]</span> <b>{l.step}:</b> {l.detail}
+                              <span style={{ color: '#64748B' }}>[{l.time}]</span> <b>{l.step}:</b> {l.detail}
                             </div>
                           ))}
                         </div>
@@ -1155,8 +1158,8 @@ export default function SettingsView() {
                         onClick={() => toggleSection('models')}
                         style={{ padding: '10px 12px', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', color: '#1E293B' }}
                       >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>⚛ Related Models</span>
-                        <span>{openSections.models ? '▲' : '▼'}</span>
+                        <span>Related Models</span>
+                        <svg viewBox="0 0 24 24" width="12" height="12" stroke="#64748B" fill="none" strokeWidth="2" style={{ transform: openSections.models ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
                       </div>
                       {openSections.models && (
                         <div style={{ padding: '10px 12px', fontSize: '0.74rem', color: '#475569', background: '#FFF' }}>
@@ -1176,7 +1179,7 @@ export default function SettingsView() {
                   </div>
                 </>
               ) : (
-                <div style={{ padding: '30px', textAlign: 'center', color: '#94A3B8', fontSize: '0.84rem' }}>
+                <div style={{ padding: '30px', textAlign: 'center', color: '#64748B', fontSize: '0.84rem' }}>
                   Select a dataset from the table to view its configuration and preprocessing details.
                 </div>
               )}
@@ -1246,8 +1249,8 @@ export default function SettingsView() {
                 { stage: 14, name: "Final Generation" }
               ].map(st => (
                 <div key={st.stage} style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px 8px', textAlign: 'center' }}>
-                  <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#DCFCE7', color: '#16A34A', margin: '0 auto 6px auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 800 }}>
-                    ✓
+                  <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#DCFCE7', color: '#16A34A', margin: '0 auto 6px auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
                   </div>
                   <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#334155' }}>Stage {st.stage}</div>
                   <div style={{ fontSize: '0.66rem', color: '#64748B' }}>{st.name}</div>
@@ -1278,7 +1281,7 @@ export default function SettingsView() {
             )}
 
             {/* Real Processing Execution Logs */}
-            <div style={{ background: '#0F172A', color: '#E2E8F0', borderRadius: '8px', padding: '16px', fontFamily: 'monospace', fontSize: '0.78rem', maxHeight: '220px', overflowY: 'auto' }}>
+            <div style={{ background: '#FFFFFF', color: '#E2E8F0', borderRadius: '8px', padding: '16px', fontFamily: 'monospace', fontSize: '0.78rem', maxHeight: '220px', overflowY: 'auto' }}>
               <div style={{ color: '#10B981', fontWeight: 700, marginBottom: '6px' }}>UrbanPulse Preprocessing Pipeline Execution Log:</div>
               {selectedDataset?.processing_logs?.map((l, i) => (
                 <div key={i} style={{ marginBottom: '4px' }}>
@@ -1451,7 +1454,7 @@ export default function SettingsView() {
                   cursor: isTraining ? 'not-allowed' : 'pointer'
                 }}
               >
-                {isTraining ? trainingStatus : "🚀 Train Random Forest Model"}
+                {isTraining ? trainingStatus : "Train Random Forest Model"}
               </button>
 
               {trainError && (
@@ -1516,7 +1519,7 @@ export default function SettingsView() {
                   </div>
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', padding: '40px 10px', color: '#94A3B8', fontSize: '0.84rem' }}>
+                <div style={{ textAlign: 'center', padding: '40px 10px', color: '#64748B', fontSize: '0.84rem' }}>
                   No training session running. Configure hyperparameters and click Train Model to start.
                 </div>
               )}
@@ -1656,7 +1659,7 @@ export default function SettingsView() {
 
               </div>
             ) : (
-              <div style={{ background: '#FFF', borderRadius: '12px', padding: '40px', textAlign: 'center', color: '#94A3B8' }}>
+              <div style={{ background: '#FFF', borderRadius: '12px', padding: '40px', textAlign: 'center', color: '#64748B' }}>
                 No trained model available. Switch to the Machine Learning tab to train a model.
               </div>
             )}
@@ -1702,9 +1705,15 @@ export default function SettingsView() {
                     <td style={{ padding: '14px 12px' }}>{s.refresh_interval_sec}s</td>
                     <td style={{ padding: '14px 12px' }}>
                       {s.status === 'Connected' ? (
-                        <span style={{ padding: '4px 10px', borderRadius: '12px', background: '#DCFCE7', color: '#16A34A', fontWeight: 700, fontSize: '0.74rem' }}>● Connected</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: '12px', background: '#DCFCE7', color: '#16A34A', fontWeight: 700, fontSize: '0.74rem' }}>
+                          <svg viewBox="0 0 10 10" width="6" height="6" fill="#16A34A"><circle cx="5" cy="5" r="5"/></svg>
+                          Connected
+                        </span>
                       ) : (
-                        <span style={{ padding: '4px 10px', borderRadius: '12px', background: '#FEF3C7', color: '#D97706', fontWeight: 700, fontSize: '0.74rem' }}>● Degraded</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: '12px', background: '#FEF3C7', color: '#D97706', fontWeight: 700, fontSize: '0.74rem' }}>
+                          <svg viewBox="0 0 10 10" width="6" height="6" fill="#D97706"><circle cx="5" cy="5" r="5"/></svg>
+                          Degraded
+                        </span>
                       )}
                     </td>
                     <td style={{ padding: '14px 12px', color: '#64748B' }}>{s.last_sync}</td>
@@ -1822,6 +1831,87 @@ export default function SettingsView() {
                   />
                 </div>
 
+                {/* Visual Theme Mode Selector (Workable Light / Dark) */}
+                <div style={{ background: '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid #E2E8F0', marginTop: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <div>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0F172A' }}>Command Console Visual Theme</div>
+                      <div style={{ fontSize: '0.72rem', color: '#64748B' }}>Select preferred operational contrast mode. Defaults to official municipal light theme.</div>
+                    </div>
+                    <span style={{
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      background: theme === 'light' ? '#ECFDF5' : '#1E293B',
+                      color: theme === 'light' ? '#047857' : '#93C5FD',
+                      border: `1px solid ${theme === 'light' ? '#A7F3D0' : '#3B82F6'}`
+                    }}>
+                      Active: {theme === 'light' ? 'Enterprise Light' : 'Command Dark'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setTheme('light')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        padding: '10px',
+                        borderRadius: '8px',
+                        border: theme === 'light' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                        background: theme === 'light' ? '#FFFFFF' : '#F1F5F9',
+                        color: theme === 'light' ? '#1D4ED8' : '#475569',
+                        fontWeight: 700,
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        boxShadow: theme === 'light' ? '0 2px 8px rgba(37, 99, 235, 0.15)' : 'none'
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="5" />
+                        <line x1="12" y1="1" x2="12" y2="3" />
+                        <line x1="12" y1="21" x2="12" y2="23" />
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                        <line x1="1" y1="12" x2="3" y2="12" />
+                        <line x1="21" y1="12" x2="23" y2="12" />
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                      </svg>
+                      <span>Enterprise Light (Default)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTheme('dark')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        padding: '10px',
+                        borderRadius: '8px',
+                        border: theme === 'dark' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                        background: theme === 'dark' ? '#0F172A' : '#F1F5F9',
+                        color: theme === 'dark' ? '#FFFFFF' : '#475569',
+                        fontWeight: 700,
+                        fontSize: '0.78rem',
+                        cursor: 'pointer',
+                        boxShadow: theme === 'dark' ? '0 2px 8px rgba(0, 0, 0, 0.3)' : 'none'
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                      </svg>
+                      <span>Command Center Dark</span>
+                    </button>
+                  </div>
+                </div>
+
                 <button
                   onClick={handleSaveSystemConfig}
                   style={{
@@ -1841,7 +1931,7 @@ export default function SettingsView() {
 
                 {saveSettingsSuccess && (
                   <div style={{ color: '#16A34A', fontSize: '0.8rem', fontWeight: 600 }}>
-                    ✓ Settings saved and persisted successfully!
+                    Settings saved and persisted successfully.
                   </div>
                 )}
               </div>
@@ -1895,7 +1985,7 @@ export default function SettingsView() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ color: '#94A3B8', fontSize: '0.8rem' }}>Loading health statuses...</div>
+                  <div style={{ color: '#64748B', fontSize: '0.8rem' }}>Loading health statuses...</div>
                 )}
               </div>
 
@@ -1950,7 +2040,9 @@ export default function SettingsView() {
                 <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800 }}>Data Preview: {selectedDataset.name}</h3>
                 <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Showing first rows and verified column mappings</span>
               </div>
-              <button onClick={() => setIsPreviewModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#64748B' }}>✕</button>
+              <button onClick={() => setIsPreviewModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Close preview">
+                <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
             <div style={{ padding: '20px', overflowY: 'auto' }}>
               {selectedDataset.preview_rows && selectedDataset.preview_rows.length > 0 ? (
@@ -1973,7 +2065,7 @@ export default function SettingsView() {
                   </tbody>
                 </table>
               ) : (
-                <div style={{ textAlign: 'center', padding: '30px', color: '#94A3B8' }}>No preview data available.</div>
+                <div style={{ textAlign: 'center', padding: '30px', color: '#64748B' }}>No preview data available.</div>
               )}
             </div>
             <div style={{ padding: '12px 20px', borderTop: '1px solid #E2E8F0', textAlign: 'right' }}>

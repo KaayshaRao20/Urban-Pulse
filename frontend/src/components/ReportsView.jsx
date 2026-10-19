@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-
-const API_BASE = 'http://localhost:8000/api';
+import { API_BASE } from '../config/api';
 
 export default function ReportsView() {
   // --- Data States ---
@@ -143,7 +142,7 @@ export default function ReportsView() {
         a.remove();
         window.URL.revokeObjectURL(url);
 
-        showToast(`✓ Downloaded ${reportName}`);
+        showToast(`Downloaded ${reportName}`);
         fetchSummary();
         fetchReports();
         if (selectedReportId === reportId) {
@@ -152,7 +151,7 @@ export default function ReportsView() {
         }
       }
     } catch (e) {
-      showToast('⚠️ Download failed. Please try again.');
+      showToast('Download failed. Please try again.');
     }
   };
 
@@ -175,14 +174,14 @@ export default function ReportsView() {
       });
       if (res.ok) {
         const data = await res.json();
-        showToast(`✓ Generated ${data.report.name}`);
+        showToast(`Generated ${data.report.name}`);
         setShowGenerateModal(false);
         fetchSummary();
         fetchReports();
         setSelectedReportId(data.report.id);
       }
     } catch (e) {
-      showToast('⚠️ Generation failed.');
+      showToast('Generation failed.');
     } finally {
       setGenLoading(false);
     }
@@ -212,7 +211,7 @@ export default function ReportsView() {
       });
       if (res.ok) {
         const data = await res.json();
-        showToast(`✓ Uploaded ${data.report.name}`);
+        showToast(`Uploaded ${data.report.name}`);
         setShowUploadModal(false);
         setUpName('');
         setUpFile(null);
@@ -221,7 +220,7 @@ export default function ReportsView() {
         setSelectedReportId(data.report.id);
       }
     } catch (e) {
-      showToast('⚠️ Upload failed.');
+      showToast('Upload failed.');
     } finally {
       setUpLoading(false);
     }
@@ -243,14 +242,14 @@ export default function ReportsView() {
       });
       if (res.ok) {
         const data = await res.json();
-        showToast(`✓ Submitted to ${subTarget}`);
+        showToast(`Submitted to ${subTarget}`);
         setShowSubmitModal(false);
         fetchSummary();
         fetchReports();
         setSelectedReportDetails(data.report);
       }
     } catch (e) {
-      showToast('⚠️ Submission failed.');
+      showToast('Submission failed.');
     } finally {
       setSubLoading(false);
     }
@@ -261,12 +260,12 @@ export default function ReportsView() {
     try {
       const res = await fetch(`${API_BASE}/reports/${reportId}/archive`, { method: 'POST' });
       if (res.ok) {
-        showToast('✓ Report archived.');
+        showToast('Report archived.');
         setSelectedReportId(null);
         fetchReports();
       }
     } catch (e) {
-      showToast('⚠️ Archive failed.');
+      showToast('Archive failed.');
     }
   };
 
@@ -282,7 +281,7 @@ export default function ReportsView() {
       case 'processing':
         return <span style={{ background: '#F1F5F9', color: '#475569', padding: '3px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 800 }}>Processing</span>;
       case 'archived':
-        return <span style={{ background: '#F1F5F9', color: '#94A3B8', padding: '3px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 800 }}>Archived</span>;
+        return <span style={{ background: '#F1F5F9', color: '#64748B', padding: '3px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 800 }}>Archived</span>;
       default:
         return <span style={{ background: '#DCFCE7', color: '#166534', padding: '3px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 800 }}>{status}</span>;
     }
@@ -308,6 +307,8 @@ export default function ReportsView() {
         bg = '#CCFBF1'; color = '#0F766E'; break;
       case 'calendar':
         bg = '#D1FAE5'; color = '#065F46'; break;
+      case 'civic grievance':
+        bg = '#FEF3C7'; color = '#D97706'; break;
       case 'combined':
         bg = '#EDE9FE'; color = '#6D28D9'; break;
       default:
@@ -323,18 +324,18 @@ export default function ReportsView() {
 
   // Helper: Source Icon & Label
   const renderSourceLabel = (source) => {
-    let icon = '⊞⊞';
-    if (source?.toLowerCase().includes('focus')) icon = '🎯';
-    else if (source?.toLowerCase().includes('calendar')) icon = '📅';
-    else if (source?.toLowerCase().includes('alert')) icon = '🔔';
-    else if (source?.toLowerCase().includes('scenario')) icon = '📈';
-    else if (source?.toLowerCase().includes('system')) icon = '⚙';
-    else if (source?.toLowerCase().includes('student')) icon = '🎓';
-    else if (source?.toLowerCase().includes('upload')) icon = '⤒';
+    let iconPath = 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z';
+    if (source?.toLowerCase().includes('focus')) iconPath = 'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8z';
+    else if (source?.toLowerCase().includes('calendar')) iconPath = 'M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM16 2v4M8 2v4M3 10h18';
+    else if (source?.toLowerCase().includes('alert')) iconPath = 'M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9';
+    else if (source?.toLowerCase().includes('scenario')) iconPath = 'M10 2v7.31L4.2 18.5A2 2 0 0 0 5.8 21.5h12.4a2 2 0 0 0 1.6-3L14 9.31V2z';
+    else if (source?.toLowerCase().includes('grievance') || source?.toLowerCase().includes('portal')) iconPath = 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z';
+    else if (source?.toLowerCase().includes('system')) iconPath = 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z';
+    else if (source?.toLowerCase().includes('upload')) iconPath = 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12';
 
     return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', color: '#334155', fontWeight: 600 }}>
-        <span>{icon}</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#334155', fontWeight: 600 }}>
+        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" strokeWidth="2"><path d={iconPath}/></svg>
         <span>{source}</span>
       </span>
     );
@@ -379,6 +380,12 @@ export default function ReportsView() {
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           </div>
         );
+      case 'civic grievance':
+        return (
+          <div style={{ width: 28, height: 28, borderRadius: '6px', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="12" y1="7" x2="12" y2="13"/></svg>
+          </div>
+        );
       default:
         return (
           <div style={{ width: 28, height: 28, borderRadius: '6px', background: '#EDE9FE', color: '#6D28D9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -389,11 +396,11 @@ export default function ReportsView() {
   };
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.75rem', background: '#F8FAFC', position: 'relative' }}>
+    <div className="view-container" style={{ position: 'relative' }}>
       
       {/* Toast Feedback */}
       {toastMessage && (
-        <div style={{ position: 'fixed', bottom: 24, right: 24, background: '#0F172A', color: '#FFFFFF', padding: '10px 18px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 9999 }}>
+        <div style={{ position: 'fixed', bottom: 24, right: 24, background: '#FFFFFF', color: '#FFFFFF', padding: '10px 18px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 9999 }}>
           {toastMessage}
         </div>
       )}
@@ -414,7 +421,9 @@ export default function ReportsView() {
             style={{ width: '100%', padding: '0.55rem 1rem 0.55rem 2.4rem', border: '1px solid #CBD5E1', borderRadius: '24px', fontSize: '0.8rem', background: '#FFFFFF', outline: 'none', color: '#0F172A' }}
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery('')} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '0.9rem' }}>✕</button>
+            <button onClick={() => setSearchQuery('')} title="Clear search" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+              <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
           )}
         </div>
 
@@ -427,13 +436,14 @@ export default function ReportsView() {
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981', display: 'inline-block', boxShadow: '0 0 0 2px rgba(16,185,129,0.2)' }}></span>
               Live Data
             </span>
-            <span style={{ color: '#CBD5E1' }}>|</span>
+            <span style={{ color: '#334155' }}>|</span>
             <span style={{ fontWeight: 600, color: '#1E293B' }}>{summary.timestamp || '27 Sep 2026 14:32:18'}</span>
           </div>
 
           {/* Location Selector */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#FFFFFF', border: '1px solid #E2E8F0', padding: '0.35rem 0.75rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer' }}>
-            <span>📍 Bengaluru</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#FFFFFF', border: '1px solid #E2E8F0', padding: '0.35rem 0.75rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer' }}>
+            <svg viewBox="0 0 24 24" width="13" height="13" stroke="#EF4444" fill="none" strokeWidth="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            <span>Bengaluru</span>
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
           </div>
 
@@ -442,7 +452,7 @@ export default function ReportsView() {
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
           </button>
 
-          <button onClick={() => showToast('✓ Archive download ready.')} title="Download All" style={{ width: 34, height: 34, borderRadius: '8px', background: '#FFFFFF', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569', cursor: 'pointer' }}>
+          <button onClick={() => showToast('Archive download ready.')} title="Download All" style={{ width: 34, height: 34, borderRadius: '8px', background: '#FFFFFF', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569', cursor: 'pointer' }}>
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           </button>
 
@@ -551,6 +561,7 @@ export default function ReportsView() {
             style={{ padding: '0.42rem 0.75rem', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, color: '#334155', background: '#FFFFFF', outline: 'none', cursor: 'pointer' }}
           >
             <option value="all">Report Type ∨</option>
+            <option value="Civic Grievance">Civic Grievance</option>
             <option value="Traffic">Traffic</option>
             <option value="Crowd">Crowd</option>
             <option value="Weather">Weather</option>
@@ -585,10 +596,10 @@ export default function ReportsView() {
             onChange={(e) => setFilterDateRange(e.target.value)}
             style={{ padding: '0.42rem 0.75rem', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600, color: '#334155', background: '#FFFFFF', outline: 'none', cursor: 'pointer' }}
           >
-            <option value="today">📅 Today</option>
-            <option value="last_24h">📅 Last 24 Hours</option>
-            <option value="last_7d">📅 Last 7 Days ∨</option>
-            <option value="last_30d">📅 Last 30 Days</option>
+            <option value="today">Today</option>
+            <option value="last_24h">Last 24 Hours</option>
+            <option value="last_7d">Last 7 Days</option>
+            <option value="last_30d">Last 30 Days</option>
           </select>
 
           {/* Status */}
@@ -673,7 +684,7 @@ export default function ReportsView() {
             <tbody>
               {reports.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#94A3B8' }}>
+                  <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#64748B' }}>
                     {isLoading ? 'Loading reports...' : 'No reports found matching criteria.'}
                   </td>
                 </tr>
@@ -791,9 +802,10 @@ export default function ReportsView() {
               </div>
               <button
                 onClick={() => setSelectedReportId(null)}
-                style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '1.1rem', padding: 2 }}
+                style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 2 }}
+                title="Close"
               >
-                ✕
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
 
@@ -829,7 +841,7 @@ export default function ReportsView() {
                 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
               >
                 <span>Report Information</span>
-                <span style={{ color: '#94A3B8', fontSize: '0.7rem' }}>{collapseInfo ? '▼' : '▲'}</span>
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="#94A3B8" fill="none" strokeWidth="2" style={{ transform: collapseInfo ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
               </div>
               {!collapseInfo && (
                 <div style={{ marginTop: '0.6rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.74rem' }}>
@@ -851,7 +863,7 @@ export default function ReportsView() {
                 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
               >
                 <span>Report Preview</span>
-                <span style={{ color: '#94A3B8', fontSize: '0.7rem' }}>{collapsePreview ? '▼' : '▲'}</span>
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="#94A3B8" fill="none" strokeWidth="2" style={{ transform: collapsePreview ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
               </div>
               {!collapsePreview && (
                 <div style={{ marginTop: '0.6rem', fontSize: '0.76rem', color: '#334155' }}>
@@ -881,7 +893,7 @@ export default function ReportsView() {
                 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
               >
                 <span>Key Insights</span>
-                <span style={{ color: '#94A3B8', fontSize: '0.7rem' }}>{collapseInsights ? '▼' : '▲'}</span>
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="#94A3B8" fill="none" strokeWidth="2" style={{ transform: collapseInsights ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
               </div>
               {!collapseInsights && (
                 <div style={{ marginTop: '0.6rem', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.74rem', color: '#334155' }}>
@@ -902,19 +914,22 @@ export default function ReportsView() {
                 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
               >
                 <span>Download History ({selectedReportDetails.download_history?.length || 0})</span>
-                <span style={{ color: '#94A3B8', fontSize: '0.7rem' }}>{collapseDownloads ? '▼' : '▲'}</span>
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="#94A3B8" fill="none" strokeWidth="2" style={{ transform: collapseDownloads ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
               </div>
               {!collapseDownloads && (
                 <div style={{ marginTop: '0.6rem', fontSize: '0.72rem', color: '#475569' }}>
                   {selectedReportDetails.download_history?.length > 0 ? (
                     selectedReportDetails.download_history.map((dh, i) => (
-                      <div key={i} style={{ padding: '4px 0', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between' }}>
-                        <span>👤 {dh.user}</span>
-                        <span style={{ color: '#94A3B8' }}>{dh.downloaded_at}</span>
+                      <div key={i} style={{ padding: '4px 0', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                          <span>{dh.user}</span>
+                        </span>
+                        <span style={{ color: '#64748B' }}>{dh.downloaded_at}</span>
                       </div>
                     ))
                   ) : (
-                    <div style={{ color: '#94A3B8' }}>No downloads recorded yet.</div>
+                    <div style={{ color: '#64748B' }}>No downloads recorded yet.</div>
                   )}
                 </div>
               )}
@@ -927,7 +942,7 @@ export default function ReportsView() {
                 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
               >
                 <span>Submission Details</span>
-                <span style={{ color: '#94A3B8', fontSize: '0.7rem' }}>{collapseSubmission ? '▼' : '▲'}</span>
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="#94A3B8" fill="none" strokeWidth="2" style={{ transform: collapseSubmission ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
               </div>
               {!collapseSubmission && (
                 <div style={{ marginTop: '0.6rem', fontSize: '0.74rem' }}>
@@ -939,7 +954,7 @@ export default function ReportsView() {
                       <div><span style={{ color: '#64748B' }}>Notes:</span> <em>"{selectedReportDetails.submission_info.notes}"</em></div>
                     </div>
                   ) : (
-                    <div style={{ color: '#94A3B8' }}>Not yet submitted to an external agency.</div>
+                    <div style={{ color: '#64748B' }}>Not yet submitted to an external agency.</div>
                   )}
                 </div>
               )}
@@ -952,7 +967,7 @@ export default function ReportsView() {
                 style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
               >
                 <span>Activity Timeline</span>
-                <span style={{ color: '#94A3B8', fontSize: '0.7rem' }}>{collapseTimeline ? '▼' : '▲'}</span>
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="#94A3B8" fill="none" strokeWidth="2" style={{ transform: collapseTimeline ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
               </div>
               {!collapseTimeline && (
                 <div style={{ marginTop: '0.6rem', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.72rem' }}>
@@ -960,7 +975,7 @@ export default function ReportsView() {
                     <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                       <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669', marginTop: 5, flexShrink: 0 }}></span>
                       <div>
-                        <div><strong>{act.action}</strong> by {act.user} <span style={{ color: '#94A3B8' }}>• {act.timestamp}</span></div>
+                        <div><strong>{act.action}</strong> by {act.user} <span style={{ color: '#64748B' }}>• {act.timestamp}</span></div>
                         <div style={{ color: '#64748B', marginTop: 1 }}>{act.details}</div>
                       </div>
                     </div>
@@ -980,13 +995,16 @@ export default function ReportsView() {
           <div style={{ width: 440, maxWidth: '92%', background: '#FFFFFF', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 12px 36px rgba(0,0,0,0.2)', border: '1px solid #E2E8F0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #F1F5F9', paddingBottom: '0.75rem' }}>
               <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>Generate Report</div>
-              <button onClick={() => setShowGenerateModal(false)} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '1rem' }}>✕</button>
+              <button onClick={() => setShowGenerateModal(false)} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 2 }} title="Close">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
             </div>
 
             <form onSubmit={handleGenerate}>
               <div style={{ marginBottom: '0.85rem' }}>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>Report Type:</label>
                 <select value={genType} onChange={(e) => setGenType(e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '0.8rem', color: '#0F172A', outline: 'none' }}>
+                  <option value="Civic Grievance">Civic Grievance Redressal Audit</option>
                   <option value="Traffic">Traffic Situation Report</option>
                   <option value="Crowd">Crowd Assessment Report</option>
                   <option value="Weather">Weather Impact Report</option>
@@ -1002,6 +1020,7 @@ export default function ReportsView() {
               <div style={{ marginBottom: '0.85rem' }}>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>Source Feature:</label>
                 <select value={genSource} onChange={(e) => setGenSource(e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '0.8rem', color: '#0F172A', outline: 'none' }}>
+                  <option value="Grievance Portal">Grievance Portal</option>
                   <option value="Dashboard">Dashboard</option>
                   <option value="Focus">Focus</option>
                   <option value="Predictive Calendar">Predictive Calendar</option>
@@ -1062,7 +1081,9 @@ export default function ReportsView() {
           <div style={{ width: 440, maxWidth: '92%', background: '#FFFFFF', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 12px 36px rgba(0,0,0,0.2)', border: '1px solid #E2E8F0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #F1F5F9', paddingBottom: '0.75rem' }}>
               <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>Upload Report Document</div>
-              <button onClick={() => setShowUploadModal(false)} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '1rem' }}>✕</button>
+              <button onClick={() => setShowUploadModal(false)} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 2 }} title="Close">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
             </div>
 
             <form onSubmit={handleUpload}>
@@ -1120,7 +1141,9 @@ export default function ReportsView() {
           <div style={{ width: 440, maxWidth: '92%', background: '#FFFFFF', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 12px 36px rgba(0,0,0,0.2)', border: '1px solid #E2E8F0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #F1F5F9', paddingBottom: '0.75rem' }}>
               <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>Submit / Forward Report</div>
-              <button onClick={() => setShowSubmitModal(false)} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '1rem' }}>✕</button>
+              <button onClick={() => setShowSubmitModal(false)} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 2 }} title="Close">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
             </div>
 
             <form onSubmit={handleSubmitReport}>

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
-const API_BASE = 'http://localhost:8000/api';
+import { API_BASE } from '../config/api';
 
 export default function FocusView({ timestamp: globalTimestamp }) {
   // Location selection state
@@ -222,7 +221,7 @@ export default function FocusView({ timestamp: globalTimestamp }) {
   const currentLocObj = locationsList.find(l => l.id === selectedLocationId) || locationsList[0];
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem', background: '#F8FAFC' }}>
+    <div className="view-container">
       
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
@@ -234,7 +233,7 @@ export default function FocusView({ timestamp: globalTimestamp }) {
         {/* Top-Right Location Box & Live Data Badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: 8, padding: '0.45rem 0.85rem' }}>
-            <span style={{ color: '#EF4444', fontSize: '1rem' }}>📍</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="#EF4444" fill="none" strokeWidth="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
             <div>
               <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0F172A', lineHeight: 1.2 }}>{currentLocObj.name}</div>
               <div style={{ fontSize: '0.68rem', color: '#64748B' }}>{currentLocObj.subtext}</div>
@@ -293,20 +292,20 @@ export default function FocusView({ timestamp: globalTimestamp }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.88rem', fontWeight: 800, color: '#0F172A', marginBottom: 2 }}>
               <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, stroke: '#0F172A', fill: 'none', strokeWidth: 2 }}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               <span>Feature Matching</span>
-              <span style={{ fontSize: '0.7rem', color: '#64748B' }}>ⓘ</span>
+              <span style={{ fontSize: '0.7rem', color: '#64748B' }}>i</span>
             </div>
             <p style={{ fontSize: '0.72rem', color: '#64748B', marginBottom: '0.85rem', lineHeight: 1.35 }}>Select live data features to analyse their combined impact at this location.</p>
 
             {/* Selectable Chips Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               {[
-                { key: 'traffic', label: 'Traffic', icon: '🚗' },
-                { key: 'crowd', label: 'Crowd', icon: '👥' },
-                { key: 'weather', label: 'Weather', icon: '☁️' },
-                { key: 'road', label: 'Road Condition', icon: '🛣️' },
-                { key: 'time', label: 'Time of Day', icon: '🕒' },
-                { key: 'transit', label: 'Public Transport', icon: '🚌' },
-                { key: 'alerts', label: 'Alerts & Incidents', icon: '⚠️' }
+                { key: 'traffic', label: 'Traffic', path: 'M3 11l2-5h10l2 5M3 11v8h18v-8M7 16h.01M17 16h.01' },
+                { key: 'crowd', label: 'Crowd', path: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8' },
+                { key: 'weather', label: 'Weather', path: 'M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25' },
+                { key: 'road', label: 'Road Condition', path: 'M4 19L9 5M20 19L15 5M12 5v14' },
+                { key: 'time', label: 'Time of Day', path: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4v6l4 2' },
+                { key: 'transit', label: 'Public Transport', path: 'M4 4h16v12H4zM7 20l2-4h6l2 4' },
+                { key: 'alerts', label: 'Alerts & Incidents', path: 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z' }
               ].map(f => {
                 const isSel = selectedFeatures.includes(f.key);
                 return (
@@ -330,11 +329,13 @@ export default function FocusView({ timestamp: globalTimestamp }) {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>{f.icon}</span>
+                      <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" strokeWidth="2"><path d={f.path}/></svg>
                       <span>{f.label}</span>
                     </div>
                     {isSel && (
-                      <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#059669', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 800 }}>✓</div>
+                      <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#059669', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg viewBox="0 0 24 24" width="10" height="10" stroke="#FFFFFF" fill="none" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                      </div>
                     )}
                   </div>
                 );
@@ -342,8 +343,9 @@ export default function FocusView({ timestamp: globalTimestamp }) {
             </div>
 
             {validationError && (
-              <div style={{ marginTop: '0.65rem', fontSize: '0.72rem', color: '#EF4444', fontWeight: 700 }}>
-                ⚠️ {validationError}
+              <div style={{ marginTop: '0.65rem', fontSize: '0.72rem', color: '#EF4444', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="#EF4444" fill="none" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                <span>{validationError}</span>
               </div>
             )}
           </div>
@@ -383,7 +385,7 @@ export default function FocusView({ timestamp: globalTimestamp }) {
           {/* Section 1: Current Situation Card */}
           <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: '1.1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
             <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.75rem' }}>
-              Current Situation <span style={{ fontSize: '0.72rem', color: '#64748B' }}>ⓘ</span>
+              Current Situation
             </div>
 
             {/* Situation Banner */}
@@ -413,45 +415,45 @@ export default function FocusView({ timestamp: globalTimestamp }) {
               {/* Card 1: Traffic */}
               <div style={{ background: '#FEF2F2', border: '1px solid #FEE2E2', borderRadius: 8, padding: '10px 8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <span style={{ color: '#EF4444' }}>🚗</span>
+                  <svg viewBox="0 0 24 24" width="13" height="13" stroke="#EF4444" fill="none" strokeWidth="2"><rect x="3" y="11" width="18" height="8" rx="2"/><path d="M5 11l2-5h10l2 5"/><circle cx="7.5" cy="15.5" r="1.5"/><circle cx="16.5" cy="15.5" r="1.5"/></svg>
                   <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Traffic</span>
                 </div>
                 <div style={{ fontSize: '1rem', fontWeight: 800, color: '#EF4444' }}>High</div>
-                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#EF4444', marginTop: 1 }}>↑ 18%</div>
+                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#EF4444', marginTop: 1 }}>+18% vs baseline</div>
                 <div style={{ fontSize: '0.65rem', color: '#64748B', marginTop: 4 }}>Speed: 18 km/h</div>
-                <div style={{ fontSize: '0.62rem', color: '#94A3B8' }}>6,500 vehicles/hour</div>
+                <div style={{ fontSize: '0.62rem', color: '#64748B' }}>6,500 vehicles/hour</div>
               </div>
 
               {/* Card 2: Crowd */}
               <div style={{ background: '#EFF6FF', border: '1px solid #DBEAFE', borderRadius: 8, padding: '10px 8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <span style={{ color: '#2563EB' }}>👥</span>
+                  <svg viewBox="0 0 24 24" width="13" height="13" stroke="#2563EB" fill="none" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
                   <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Crowd</span>
                 </div>
                 <div style={{ fontSize: '1rem', fontWeight: 800, color: '#2563EB' }}>High</div>
-                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#EF4444', marginTop: 1 }}>↑ 22%</div>
+                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#EF4444', marginTop: 1 }}>+22% vs baseline</div>
                 <div style={{ fontSize: '0.65rem', color: '#64748B', marginTop: 4 }}>520 people/km²</div>
               </div>
 
               {/* Card 3: Weather */}
               <div style={{ background: '#F0F9FF', border: '1px solid #E0F2FE', borderRadius: 8, padding: '10px 8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <span style={{ color: '#0284C7' }}>☁️</span>
+                  <svg viewBox="0 0 24 24" width="13" height="13" stroke="#0284C7" fill="none" strokeWidth="2"><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/><path d="M8 16v3"/><path d="M12 16v3"/><path d="M16 16v3"/></svg>
                   <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Weather</span>
                 </div>
                 <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0F172A' }}>Light Rain</div>
-                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748B', marginTop: 1 }}>→ Stable</div>
+                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748B', marginTop: 1 }}>Stable</div>
                 <div style={{ fontSize: '0.65rem', color: '#64748B', marginTop: 4 }}>24°C | 3.2 mm</div>
               </div>
 
               {/* Card 4: Road Condition */}
               <div style={{ background: '#ECFDF5', border: '1px solid #D1FAE5', borderRadius: 8, padding: '10px 8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <span style={{ color: '#059669' }}>🛣️</span>
+                  <svg viewBox="0 0 24 24" width="13" height="13" stroke="#059669" fill="none" strokeWidth="2"><path d="M4 19L9 5M20 19L15 5M12 5v14"/></svg>
                   <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Road Condition</span>
                 </div>
                 <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0F172A' }}>Slower Flow</div>
-                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#EF4444', marginTop: 1 }}>↑ 12%</div>
+                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#EF4444', marginTop: 1 }}>+12% vs baseline</div>
                 <div style={{ fontSize: '0.65rem', color: '#64748B', marginTop: 4 }}>Urban Arterial</div>
               </div>
 
@@ -476,14 +478,14 @@ export default function FocusView({ timestamp: globalTimestamp }) {
                 {/* Chart 1: Traffic Volume */}
                 <div style={{ border: '1px solid #F1F5F9', borderRadius: 8, padding: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0F172A' }}>Traffic Volume <span style={{ fontSize: '0.65rem', color: '#94A3B8' }}>(vehicles/hour)</span></span>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#EF4444', background: '#FEF2F2', padding: '1px 5px', borderRadius: 4 }}>↑ Increasing</span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0F172A' }}>Traffic Volume <span style={{ fontSize: '0.65rem', color: '#64748B' }}>(vehicles/hour)</span></span>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#EF4444', background: '#FEF2F2', padding: '1px 5px', borderRadius: 4 }}>Increasing</span>
                   </div>
                   <svg viewBox="0 0 200 60" style={{ width: '100%', height: 60 }}>
                     <path d="M 0 50 Q 50 45, 100 30 T 200 10" fill="none" stroke="#EF4444" strokeWidth="2.5" />
                     <path d="M 0 50 Q 50 45, 100 30 T 200 10 L 200 60 L 0 60 Z" fill="rgba(239, 68, 68, 0.1)" />
                   </svg>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: '#94A3B8', marginTop: 2 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: '#64748B', marginTop: 2 }}>
                     <span>12:30</span><span>13:00</span><span>13:30</span><span>14:00</span><span>14:30</span>
                   </div>
                 </div>
@@ -491,14 +493,14 @@ export default function FocusView({ timestamp: globalTimestamp }) {
                 {/* Chart 2: Crowd Density */}
                 <div style={{ border: '1px solid #F1F5F9', borderRadius: 8, padding: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0F172A' }}>Crowd Density <span style={{ fontSize: '0.65rem', color: '#94A3B8' }}>(people/km²)</span></span>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#EF4444', background: '#FEF2F2', padding: '1px 5px', borderRadius: 4 }}>↑ Increasing</span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0F172A' }}>Crowd Density <span style={{ fontSize: '0.65rem', color: '#64748B' }}>(people/km²)</span></span>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#EF4444', background: '#FEF2F2', padding: '1px 5px', borderRadius: 4 }}>Increasing</span>
                   </div>
                   <svg viewBox="0 0 200 60" style={{ width: '100%', height: 60 }}>
                     <path d="M 0 45 Q 50 35, 100 25 T 200 12" fill="none" stroke="#2563EB" strokeWidth="2.5" />
                     <path d="M 0 45 Q 50 35, 100 25 T 200 12 L 200 60 L 0 60 Z" fill="rgba(37, 99, 235, 0.1)" />
                   </svg>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: '#94A3B8', marginTop: 2 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: '#64748B', marginTop: 2 }}>
                     <span>12:30</span><span>13:00</span><span>13:30</span><span>14:00</span><span>14:30</span>
                   </div>
                 </div>
@@ -506,8 +508,8 @@ export default function FocusView({ timestamp: globalTimestamp }) {
                 {/* Chart 3: Rainfall */}
                 <div style={{ border: '1px solid #F1F5F9', borderRadius: 8, padding: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0F172A' }}>Rainfall <span style={{ fontSize: '0.65rem', color: '#94A3B8' }}>(mm)</span></span>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#2563EB', background: '#EFF6FF', padding: '1px 5px', borderRadius: 4 }}>→ Stable</span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0F172A' }}>Rainfall <span style={{ fontSize: '0.65rem', color: '#64748B' }}>(mm)</span></span>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#2563EB', background: '#EFF6FF', padding: '1px 5px', borderRadius: 4 }}>Stable</span>
                   </div>
                   <svg viewBox="0 0 200 60" style={{ width: '100%', height: 60 }}>
                     <rect x="10" y="40" width="12" height="20" fill="#059669" rx="2" />
@@ -516,7 +518,7 @@ export default function FocusView({ timestamp: globalTimestamp }) {
                     <rect x="130" y="20" width="12" height="40" fill="#059669" rx="2" />
                     <rect x="170" y="30" width="12" height="30" fill="#059669" rx="2" />
                   </svg>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: '#94A3B8', marginTop: 2 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: '#64748B', marginTop: 2 }}>
                     <span>12:30</span><span>13:00</span><span>13:30</span><span>14:00</span><span>14:30</span>
                   </div>
                 </div>
@@ -539,30 +541,30 @@ export default function FocusView({ timestamp: globalTimestamp }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.75rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: '#475569', fontWeight: 600 }}>Traffic</span>
-                    <span style={{ color: '#EF4444', fontWeight: 800 }}>↑ Increasing</span>
+                    <span style={{ color: '#EF4444', fontWeight: 800 }}>Increasing</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: '#475569', fontWeight: 600 }}>Crowd</span>
-                    <span style={{ color: '#EF4444', fontWeight: 800 }}>↑ Increasing</span>
+                    <span style={{ color: '#EF4444', fontWeight: 800 }}>Increasing</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: '#475569', fontWeight: 600 }}>Weather</span>
-                    <span style={{ color: '#64748B', fontWeight: 800 }}>→ Stable</span>
+                    <span style={{ color: '#64748B', fontWeight: 800 }}>Stable</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: '#475569', fontWeight: 600 }}>Road Condition</span>
-                    <span style={{ color: '#EF4444', fontWeight: 800 }}>↑ Deteriorating</span>
+                    <span style={{ color: '#EF4444', fontWeight: 800 }}>Deteriorating</span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Right Sub-card: Why This Result? (Matching Analysis) (Collapsible) */}
+            {/* Right Sub-card: Factor Correlation (Matching Analysis) (Collapsible) */}
             <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isWhyResultOpen ? '0.6rem' : 0, cursor: 'pointer' }} onClick={() => setIsWhyResultOpen(!isWhyResultOpen)}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, stroke: '#0F172A', fill: 'none', strokeWidth: 2 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  <h4 style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0F172A' }}>Why This Result? <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 500 }}>(Matching Analysis)</span></h4>
+                  <h4 style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0F172A' }}>Factor Correlation <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 500 }}>(Pattern Matching)</span></h4>
                 </div>
                 <svg viewBox="0 0 24 24" style={{ width: 14, height: 14, stroke: '#64748B', fill: 'none', strokeWidth: 2, transform: isWhyResultOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}><path d="M6 9l6 6 6-6"/></svg>
               </div>
@@ -592,8 +594,8 @@ export default function FocusView({ timestamp: globalTimestamp }) {
           <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: '1.1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: isKeyIssueOpen ? '0.5rem' : 0, cursor: 'pointer' }} onClick={() => setIsKeyIssueOpen(!isKeyIssueOpen)}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.88rem', fontWeight: 800, color: '#0F172A' }}>
-                <span style={{ color: '#EF4444' }}>🎯</span>
-                <span>Key Issue</span>
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="#EF4444" fill="none" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                <span>Key Incident</span>
               </div>
               <svg viewBox="0 0 24 24" style={{ width: 14, height: 14, stroke: '#64748B', fill: 'none', strokeWidth: 2, transform: isKeyIssueOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}><path d="M6 9l6 6 6-6"/></svg>
             </div>
@@ -623,7 +625,7 @@ export default function FocusView({ timestamp: globalTimestamp }) {
                     
                     {/* Title & Icon */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', fontWeight: 800, color: '#0F172A' }}>
-                      <span style={{ fontSize: '0.85rem' }}>📢</span>
+                      <svg viewBox="0 0 24 24" width="13" height="13" stroke="#2563EB" fill="none" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                       <span>{act.title || 'Response Advisory'}</span>
                     </div>
 
@@ -659,7 +661,7 @@ export default function FocusView({ timestamp: globalTimestamp }) {
                           gap: 4
                         }}
                       >
-                        <span>💬</span>
+                        <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" fill="none" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         <span>Comment ({act.comments ? act.comments.length : 0})</span>
                       </button>
 
@@ -677,7 +679,7 @@ export default function FocusView({ timestamp: globalTimestamp }) {
                           cursor: 'pointer'
                         }}
                       >
-                        {act.status === 'Approved' ? '✔ Approved' : 'Approve'}
+                        {act.status === 'Approved' ? 'Approved' : 'Approve'}
                       </button>
 
                       {/* Reject Button */}
@@ -694,7 +696,7 @@ export default function FocusView({ timestamp: globalTimestamp }) {
                           cursor: 'pointer'
                         }}
                       >
-                        {act.status === 'Rejected' ? '✖ Rejected' : 'Reject'}
+                        {act.status === 'Rejected' ? 'Rejected' : 'Reject'}
                       </button>
                     </div>
 
@@ -730,7 +732,7 @@ export default function FocusView({ timestamp: globalTimestamp }) {
                       <div style={{ marginLeft: 22, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
                         {act.comments.map((c, i) => (
                           <div key={i} style={{ fontSize: '0.65rem', color: '#475569', background: '#F1F5F9', padding: '2px 6px', borderRadius: 4 }}>
-                            <strong>Authority:</strong> {c.comment} <span style={{ color: '#94A3B8', marginLeft: 4 }}>({c.timestamp})</span>
+                            <strong>Authority:</strong> {c.comment} <span style={{ color: '#64748B', marginLeft: 4 }}>({c.timestamp})</span>
                           </div>
                         ))}
                       </div>

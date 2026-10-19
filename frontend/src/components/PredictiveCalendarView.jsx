@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
-const API_BASE = 'http://localhost:8000/api';
+import { API_BASE } from '../config/api';
 
 export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
   // Calendar View mode: 'month', 'week', 'list'
@@ -125,6 +124,54 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
     setSelectedDateIso('2026-09-24');
   };
 
+  const renderEventIcon = (type, size = 13) => {
+    const t = (type || '').toLowerCase();
+    if (t.includes('traffic') || t.includes('road')) {
+      return (
+        <svg viewBox="0 0 24 24" width={size} height={size} stroke="currentColor" fill="none" strokeWidth="2" style={{ flexShrink: 0 }}>
+          <rect x="1" y="3" width="15" height="13" rx="2" />
+          <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+          <circle cx="5.5" cy="18.5" r="2.5" />
+          <circle cx="18.5" cy="18.5" r="2.5" />
+        </svg>
+      );
+    }
+    if (t.includes('weather') || t.includes('rain')) {
+      return (
+        <svg viewBox="0 0 24 24" width={size} height={size} stroke="currentColor" fill="none" strokeWidth="2" style={{ flexShrink: 0 }}>
+          <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+        </svg>
+      );
+    }
+    if (t.includes('crowd') || t.includes('festival') || t.includes('holiday')) {
+      return (
+        <svg viewBox="0 0 24 24" width={size} height={size} stroke="currentColor" fill="none" strokeWidth="2" style={{ flexShrink: 0 }}>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
+    }
+    if (t.includes('incident') || t.includes('hazard') || t.includes('surge')) {
+      return (
+        <svg viewBox="0 0 24 24" width={size} height={size} stroke="currentColor" fill="none" strokeWidth="2" style={{ flexShrink: 0 }}>
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      );
+    }
+    return (
+      <svg viewBox="0 0 24 24" width={size} height={size} stroke="currentColor" fill="none" strokeWidth="2" style={{ flexShrink: 0 }}>
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
+    );
+  };
+
   // Build Calendar Days Matrix for Current Month
   const buildCalendarGrid = () => {
     const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay(); // 0 = Sun
@@ -181,7 +228,7 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
   };
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem', background: '#F8FAFC' }}>
+    <div className="view-container">
       
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
@@ -217,7 +264,7 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
               onChange={(e) => setSelectedLocation(e.target.value)}
               style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: 8, padding: '0.45rem 0.85rem 0.45rem 2rem', fontSize: '0.78rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', outline: 'none' }}
             >
-              <option value="all">📍 Bengaluru (Citywide)</option>
+              <option value="all">Bengaluru (Citywide)</option>
               {locationsList.filter(l => l.id !== 'loc-all').map(l => (
                 <option key={l.id} value={l.id}>{l.name}</option>
               ))}
@@ -230,13 +277,13 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
             onChange={(e) => setSelectedEventType(e.target.value)}
             style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: 8, padding: '0.45rem 0.85rem', fontSize: '0.78rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', outline: 'none' }}
           >
-            <option value="all">📊 All Event Types</option>
-            <option value="traffic">🚗 Traffic Surge</option>
-            <option value="crowd">👥 Large Crowd</option>
-            <option value="weather">☁️ Weather Impact</option>
-            <option value="event">🏢 Public Event</option>
-            <option value="roadwork">⚠️ Road Work</option>
-            <option value="festival">🟢 Festival / Holiday</option>
+            <option value="all">All Event Types</option>
+            <option value="traffic">Traffic Surge</option>
+            <option value="crowd">Large Crowd</option>
+            <option value="weather">Weather Impact</option>
+            <option value="event">Public Event</option>
+            <option value="roadwork">Road Work</option>
+            <option value="festival">Festival / Holiday</option>
           </select>
 
           {/* Severities Dropdown */}
@@ -245,10 +292,10 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
             onChange={(e) => setSelectedSeverity(e.target.value)}
             style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: 8, padding: '0.45rem 0.85rem', fontSize: '0.78rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', outline: 'none' }}
           >
-            <option value="all">📈 All Severities</option>
-            <option value="high">🔴 High Severity</option>
-            <option value="moderate">🟠 Moderate Severity</option>
-            <option value="low">🟢 Low Severity</option>
+            <option value="all">All Severities</option>
+            <option value="high">High Severity</option>
+            <option value="moderate">Moderate Severity</option>
+            <option value="low">Low Severity</option>
           </select>
         </div>
 
@@ -265,21 +312,24 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
             </button>
             <button
               onClick={handlePrevMonth}
-              style={{ background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.4rem 0.65rem', fontSize: '0.75rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer' }}
+              style={{ background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.4rem 0.65rem', fontSize: '0.75rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              title="Previous Month"
             >
-              ⟨
+              <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             <button
               onClick={handleNextMonth}
-              style={{ background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.4rem 0.65rem', fontSize: '0.75rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer' }}
+              style={{ background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.4rem 0.65rem', fontSize: '0.75rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              title="Next Month"
             >
-              ⟩
+              <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </div>
 
-          {/* Month Selector Dropdown */}
+          {/* Month Selector Display */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: 8, padding: '0.4rem 0.75rem', fontSize: '0.8rem', fontWeight: 800, color: '#0F172A' }}>
-            <span>📅 {monthNames[currentMonth]} {currentYear}</span>
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>{monthNames[currentMonth]} {currentYear}</span>
           </div>
 
           {/* Month / Week / List View Selector Tabs */}
@@ -437,7 +487,7 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                               gap: 3
                             }}
                           >
-                            <span>{ev.icon}</span>
+                            {renderEventIcon(ev.type || ev.title, 11)}
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.title}</span>
                           </div>
                         ))}
@@ -555,7 +605,7 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                         {/* Event Title & Severity Badge */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontSize: '1rem' }}>{ev.icon}</span>
+                            {renderEventIcon(ev.type || ev.title, 16)}
                             <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0F172A', lineHeight: 1.2 }}>{ev.title}</h4>
                           </div>
                           <span style={{ background: ev.badge_color || '#FEF2F2', color: ev.text_color || '#EF4444', padding: '2px 8px', borderRadius: 4, fontSize: '0.65rem', fontWeight: 800 }}>
@@ -566,10 +616,12 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                         {/* Event Metadata: Time & Location */}
                         <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>🕒</span> <span>{ev.time}</span>
+                            <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            <span>{ev.time}</span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span>📍</span> <span>{ev.location}</span>
+                            <svg viewBox="0 0 24 24" width="12" height="12" stroke="#EF4444" fill="none" strokeWidth="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                            <span>{ev.location}</span>
                           </div>
                         </div>
 
@@ -578,7 +630,7 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                           {ev.description}
                         </p>
 
-                        {/* Supporting Factors / Why is this predicted? Collapsible */}
+                        {/* Supporting Factors / Prediction Rationale Collapsible */}
                         {ev.why && ev.why.length > 0 && (
                           <div style={{ marginTop: 8, borderTop: '1px dashed #CBD5E1', paddingTop: 6 }}>
                             <div
@@ -588,8 +640,8 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                               }}
                               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.68rem', fontWeight: 700, color: '#2563EB', cursor: 'pointer' }}
                             >
-                              <span>Why is this predicted? (Confidence {ev.confidence || '84%'})</span>
-                              <span>{isWhyExpanded ? '▲' : '▼'}</span>
+                              <span>Prediction Rationale (Confidence {ev.confidence || '84%'})</span>
+                              <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" strokeWidth="2" style={{ transform: isWhyExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s ease' }}><polyline points="6 9 12 15 18 9"/></svg>
                             </div>
 
                             {isWhyExpanded && (
@@ -663,10 +715,13 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                 <tr key={rIdx} style={{ borderBottom: '1px solid #F1F5F9' }}>
                   <td style={{ padding: '10px', fontWeight: 700, color: '#0F172A' }}>{row.date}</td>
                   <td style={{ padding: '10px', fontWeight: 700, color: '#0F172A' }}>
-                    <span style={{ marginRight: 6 }}>{row.icon}</span> {row.event}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {renderEventIcon(row.type || row.event, 14)}
+                      <span>{row.event}</span>
+                    </div>
                   </td>
                   <td style={{ padding: '10px', color: '#475569' }}>
-                    <span style={{ marginRight: 4 }}>{row.type_icon}</span> {row.type}
+                    {row.type}
                   </td>
                   <td style={{ padding: '10px', color: '#475569' }}>{row.location}</td>
                   <td style={{ padding: '10px', color: '#475569' }}>{row.impact}</td>

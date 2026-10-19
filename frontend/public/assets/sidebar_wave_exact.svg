@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 400" preserveAspectRatio="none">
+  <defs>
+    <!-- Soft blur filters for organic watercolor wave effect -->
+    <filter id="softBlur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12" />
+    </filter>
+    <filter id="subtleBlur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7" />
+    </filter>
+
+    <linearGradient id="skyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BAE6FD" stop-opacity="0.85"/>
+      <stop offset="50%" stop-color="#CFFAFE" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#E0F2FE" stop-opacity="0.05"/>
+    </linearGradient>
+
+    <linearGradient id="mintGrad" x1="0%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#99F6E4" stop-opacity="0.85"/>
+      <stop offset="35%" stop-color="#A7F3D0" stop-opacity="0.7"/>
+      <stop offset="75%" stop-color="#6EE7B7" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#BAE6FD" stop-opacity="0.05"/>
+    </linearGradient>
+
+    <radialGradient id="cornerAmbient" cx="0%" cy="100%" r="90%">
+      <stop offset="0%" stop-color="#A7F3D0" stop-opacity="0.4"/>
+      <stop offset="40%" stop-color="#CFFAFE" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Base corner ambient wash -->
+  <rect x="0" y="80" width="240" height="320" fill="url(#cornerAmbient)" />
+
+  <!-- Wave 1: Sky Blue Flow -->
+  <path d="M -20,100 C 50,120 90,150 140,200 C 180,240 210,280 260,310 L 260,420 L -20,420 Z" 
+        fill="url(#skyGrad)" filter="url(#softBlur)" />
+
+  <!-- Wave 2: Mint/Aqua Flow -->
+  <path d="M -20,150 C 40,170 80,210 120,260 C 160,310 200,340 260,360 L 260,420 L -20,420 Z" 
+        fill="url(#mintGrad)" filter="url(#subtleBlur)" />
+
+  <!-- Wave 3: Crest highlight line -->
+  <path d="M -10,120 C 50,140 95,180 135,235 C 175,285 215,325 250,340" 
+        fill="none" stroke="rgba(255, 255, 255, 0.65)" stroke-width="10" filter="url(#subtleBlur)" />
+</svg>

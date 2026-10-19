@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { API_BASE } from '../config/api';
 
-const API_BASE = 'http://localhost:8000/api';
-
-export default function IntelligenceMapView({ timestamp }) {
+export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }) {
   const mapContainerRef = useRef(null);
   const gisMapInst = useRef(null);
   const streetTileLayer = useRef(null);
@@ -29,8 +28,14 @@ export default function IntelligenceMapView({ timestamp }) {
     crowd: true,
     weather: true,
     events: false,
-    alerts: true
+    alerts: true,
+    complaints: true
   });
+  const [civicComplaints, setCivicComplaints] = useState([]);
+  const [selectedComplaint, setSelectedComplaint] = useState(null);
+  const [civicCategoryFilter, setCivicCategoryFilter] = useState('all');
+  const [civicStatusFilter, setCivicStatusFilter] = useState('all');
+  const [civicDeptFilter, setCivicDeptFilter] = useState('all');
 
   // Filter form states
   const [timeRange, setTimeRange] = useState('Last 1 Hour');
@@ -38,6 +43,16 @@ export default function IntelligenceMapView({ timestamp }) {
   const [severities, setSeverities] = useState({ Critical: true, Moderate: false, Low: false });
   const [sources, setSources] = useState({ traffic: true, crowd: true, weather: true });
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Expose navigation handler for Leaflet popup DOM clicks
+  useEffect(() => {
+    window.urbanPulseNavigateToGrievance = (ticketId) => {
+      if (onNavigateToGrievance) onNavigateToGrievance(ticketId);
+    };
+    return () => {
+      delete window.urbanPulseNavigateToGrievance;
+    };
+  }, [onNavigateToGrievance]);
 
   // Initial map setup
   useEffect(() => {
@@ -47,9 +62,9 @@ export default function IntelligenceMapView({ timestamp }) {
     const map = window.L.map(mapContainerRef.current, { zoomControl: false }).setView([12.9716, 77.5946], 12);
     gisMapInst.current = map;
 
-    streetTileLayer.current = window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    streetTileLayer.current = window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors & CartoDB'
+      attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
     satTileLayer.current = window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -60,6 +75,7 @@ export default function IntelligenceMapView({ timestamp }) {
     markersGroup.current = window.L.layerGroup().addTo(map);
 
     fetchIncidents();
+    fetchCivicComplaints();
   }, []);
 
   // Invalidate map size when panels collapse/expand
@@ -97,110 +113,249 @@ export default function IntelligenceMapView({ timestamp }) {
     }
   };
 
+  // Fetch civic complaints submitted by citizens
+  const fetchCivicComplaints = async () => {
+    try {
+      const params = new URLSearchParams({ limit: '100' });
+      if (civicCategoryFilter !== 'all') params.append('category', civicCategoryFilter);
+      if (civicStatusFilter !== 'all') params.append('status', civicStatusFilter);
+      if (civicDeptFilter !== 'all') params.append('department', civicDeptFilter);
+
+      const res = await fetch(`${API_BASE}/grievances?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCivicComplaints(data.grievances || []);
+      }
+    } catch (e) {
+      console.log("Error fetching civic complaints for map:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchCivicComplaints();
+  }, [civicCategoryFilter, civicStatusFilter, civicDeptFilter]);
+
   // Render markers when incidents or layer visibility change
   useEffect(() => {
-    if (!markersGroup.current || incidents.length === 0) return;
+    if (!markersGroup.current) return;
     markersGroup.current.clearLayers();
 
-    incidents.forEach(inc => {
-      // Layer visibility filter
-      if (!layers[inc.type] && !(inc.type === 'traffic' && layers.traffic)) {
-        if (inc.severity === 'Critical' && !layers.alerts) return;
-      }
+    // 1. Telemetry Incidents Layer
+    if (incidents.length > 0) {
+      incidents.forEach(inc => {
+        // Layer visibility filter
+        if (!layers[inc.type] && !(inc.type === 'traffic' && layers.traffic)) {
+          if (inc.severity === 'Critical' && !layers.alerts) return;
+        }
 
-      let pinBg = "#059669";
-      let iconSvg = `<svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:white; fill:none; stroke-width:2.2;"><rect x="3" y="11" width="18" height="8" rx="2"/><path d="M5 11l2-5h10l2 5"/><circle cx="7.5" cy="15.5" r="1.5"/><circle cx="16.5" cy="15.5" r="1.5"/></svg>`;
+        let pinBg = "#059669";
+        let iconSvg = `<svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:white; fill:none; stroke-width:2.2;"><rect x="3" y="11" width="18" height="8" rx="2"/><path d="M5 11l2-5h10l2 5"/><circle cx="7.5" cy="15.5" r="1.5"/><circle cx="16.5" cy="15.5" r="1.5"/></svg>`;
 
-      if (inc.type === 'crowd') {
-        pinBg = "#2563EB";
-        iconSvg = `<svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:white; fill:none; stroke-width:2.2;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
-      } else if (inc.type === 'weather') {
-        pinBg = "#0284C7";
-        iconSvg = `<svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:white; fill:none; stroke-width:2.2;"><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/><path d="M8 16v3"/><path d="M12 16v3"/><path d="M16 16v3"/></svg>`;
-      } else if (inc.severity === 'Critical' || inc.type === 'alerts') {
-        pinBg = "#EF4444";
-        iconSvg = `<svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:white; fill:none; stroke-width:2.5;"><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
-      }
+        if (inc.type === 'crowd') {
+          pinBg = "#2563EB";
+          iconSvg = `<svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:white; fill:none; stroke-width:2.2;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+        } else if (inc.type === 'weather') {
+          pinBg = "#0284C7";
+          iconSvg = `<svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:white; fill:none; stroke-width:2.2;"><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/><path d="M8 16v3"/><path d="M12 16v3"/><path d="M16 16v3"/></svg>`;
+        } else if (inc.severity === 'Critical' || inc.type === 'alerts') {
+          pinBg = "#EF4444";
+          iconSvg = `<svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:white; fill:none; stroke-width:2.5;"><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+        }
 
-      const isSelected = inc.id === activeIncidentId;
+        const isSelected = inc.id === activeIncidentId;
 
-      const auraRing = (inc.severity === 'Critical') ? `
-        <div style="
-          position: absolute;
-          width: ${isSelected ? '60px' : '48px'};
-          height: ${isSelected ? '60px' : '48px'};
-          border-radius: 50%;
-          background: rgba(239, 68, 68, 0.22);
-          border: 1px solid rgba(239, 68, 68, 0.4);
-          animation: pulse-live 1.8s infinite ease-in-out;
-          pointer-events: none;
-        "></div>
-      ` : '';
-
-      const customMarkerHtml = `
-        <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-          ${auraRing}
+        const auraRing = (inc.severity === 'Critical') ? `
           <div style="
-            width: ${isSelected ? '36px' : '28px'};
-            height: ${isSelected ? '36px' : '28px'};
+            position: absolute;
+            width: ${isSelected ? '60px' : '48px'};
+            height: ${isSelected ? '60px' : '48px'};
             border-radius: 50%;
-            background: ${pinBg};
-            border: 2px solid #FFFFFF;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.25);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 2;
-          ">
-            ${iconSvg}
-          </div>
-        </div>
-      `;
+            background: rgba(239, 68, 68, 0.22);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            animation: pulse-live 1.8s infinite ease-in-out;
+            pointer-events: none;
+          "></div>
+        ` : '';
 
-      const customIcon = window.L.divIcon({
-        html: customMarkerHtml,
-        className: 'custom-map-pin',
-        iconSize: [isSelected ? 36 : 28, isSelected ? 36 : 28],
-        iconAnchor: [isSelected ? 18 : 14, isSelected ? 18 : 14]
-      });
-
-      const marker = window.L.marker([inc.lat, inc.lng], { icon: customIcon });
-
-      const popupContent = `
-        <div style="display:flex; align-items:flex-start; gap:10px; font-family:Inter, sans-serif;">
-          <div style="width:34px; height:34px; border-radius:8px; background:#FEF2F2; color:#EF4444; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-            <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2;"><rect x="3" y="11" width="18" height="8" rx="2"/><path d="M5 11l2-5h10l2 5"/><circle cx="7.5" cy="15.5" r="1.5"/><circle cx="16.5" cy="15.5" r="1.5"/></svg>
-          </div>
-          <div style="flex:1;">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
-              <strong style="font-size:0.88rem; color:#0F172A; font-weight:800;">${inc.title || inc.name}</strong>
-              <span style="color:#64748B; font-weight:bold; font-size:0.9rem;">›</span>
-            </div>
-            <div style="font-size:0.76rem; margin-top:4px; line-height:1.45; color:#334155;">
-              <div><span style="color:#64748B;">Traffic:</span> <strong style="color:${inc.traffic_speed < 25 ? '#EF4444' : '#059669'};">${inc.traffic_speed < 25 ? 'Heavy' : 'Moderate'}</strong></div>
-              <div><span style="color:#64748B;">Speed:</span> <strong style="color:${inc.traffic_speed < 25 ? '#EF4444' : '#059669'};">${inc.traffic_speed} km/h</strong></div>
-              <div><span style="color:#64748B;">Crowd:</span> <strong style="color:#2563EB;">High (${inc.crowd_density}/km²)</strong></div>
-              <div><span style="color:#64748B;">Weather:</span> <span style="color:#475569;">${inc.weather_condition}</span></div>
+        const customMarkerHtml = `
+          <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+            ${auraRing}
+            <div style="
+              width: ${isSelected ? '36px' : '28px'};
+              height: ${isSelected ? '36px' : '28px'};
+              border-radius: 50%;
+              background: ${pinBg};
+              border: 2px solid #FFFFFF;
+              box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+              z-index: 2;
+            ">
+              ${iconSvg}
             </div>
           </div>
-        </div>
-      `;
+        `;
 
-      marker.bindPopup(popupContent, { offset: [0, -10], closeButton: false });
+        const customIcon = window.L.divIcon({
+          html: customMarkerHtml,
+          className: 'custom-map-pin',
+          iconSize: [isSelected ? 36 : 28, isSelected ? 36 : 28],
+          iconAnchor: [isSelected ? 18 : 14, isSelected ? 18 : 14]
+        });
 
-      marker.on('click', () => {
-        loadIncident(inc.id, incidents);
-        setIsRightCollapsed(false);
+        const marker = window.L.marker([inc.lat, inc.lng], { icon: customIcon });
+
+        const popupContent = `
+          <div style="display:flex; align-items:flex-start; gap:10px; font-family:Inter, sans-serif;">
+            <div style="width:34px; height:34px; border-radius:8px; background:rgba(239, 68, 68, 0.15); color:#FCA5A5; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2;"><rect x="3" y="11" width="18" height="8" rx="2"/><path d="M5 11l2-5h10l2 5"/><circle cx="7.5" cy="15.5" r="1.5"/><circle cx="16.5" cy="15.5" r="1.5"/></svg>
+            </div>
+            <div style="flex:1;">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                <strong style="font-size:0.88rem; color:#F8FAFC; font-weight:800;">${inc.title || inc.name}</strong>
+                <span style="color:#64748B; font-weight:bold; font-size:0.9rem;">›</span>
+              </div>
+              <div style="font-size:0.76rem; margin-top:4px; line-height:1.45; color:#CBD5E1;">
+                <div><span style="color:#94A3B8;">Traffic:</span> <strong style="color:${inc.traffic_speed < 25 ? '#FCA5A5' : '#6EE7B7'};">${inc.traffic_speed < 25 ? 'Heavy' : 'Moderate'}</strong></div>
+                <div><span style="color:#94A3B8;">Speed:</span> <strong style="color:${inc.traffic_speed < 25 ? '#FCA5A5' : '#6EE7B7'};">${inc.traffic_speed} km/h</strong></div>
+                <div><span style="color:#94A3B8;">Crowd:</span> <strong style="color:#93C5FD;">High (${inc.crowd_density}/km²)</strong></div>
+                <div><span style="color:#94A3B8;">Weather:</span> <span style="color:#CBD5E1;">${inc.weather_condition}</span></div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        marker.bindPopup(popupContent, { offset: [0, -10], closeButton: false });
+
+        marker.on('click', () => {
+          loadIncident(inc.id, incidents);
+          setIsRightCollapsed(false);
+        });
+
+        markersGroup.current.addLayer(marker);
+
+        if (isSelected) {
+          marker.openPopup();
+        }
       });
+    }
 
-      markersGroup.current.addLayer(marker);
+    // 2. Citizen Civic Grievances Layer
+    if (layers.complaints && civicComplaints.length > 0) {
+      civicComplaints.forEach((comp) => {
+        const cLat = Number(comp.latitude);
+        const cLng = Number(comp.longitude);
+        if (isNaN(cLat) || isNaN(cLng)) return;
 
-      if (isSelected) {
-        marker.openPopup();
-      }
-    });
-  }, [incidents, layers, activeIncidentId]);
+        let compColor = '#D97706';
+        let catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><rect x="3" y="11" width="18" height="8" rx="2"/><path d="M5 11l2-5h10l2 5"/></svg>`;
+
+        if (comp.category?.includes('Garbage')) {
+          compColor = '#059669';
+          catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>`;
+        } else if (comp.category?.includes('Water')) {
+          compColor = '#0284C7';
+          catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`;
+        } else if (comp.category?.includes('Drainage')) {
+          compColor = '#0D9488';
+          catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></svg>`;
+        } else if (comp.category?.includes('Streetlight')) {
+          compColor = '#CA8A04';
+          catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><path d="M9 18h6"/><path d="M10 22h4"/><circle cx="12" cy="8" r="5"/></svg>`;
+        } else if (comp.category?.includes('Traffic')) {
+          compColor = '#DC2626';
+          catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>`;
+        } else {
+          compColor = '#7C3AED';
+          catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
+        }
+
+        // Status Distinction styling
+        let statusGlow = '';
+        if (comp.status === 'Resolved') {
+          statusGlow = 'box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.45); border-color: #10B981;';
+        } else if (comp.status === 'In Progress' || comp.status === 'Crew Dispatched') {
+          statusGlow = 'box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.45);';
+        } else if (comp.status === 'Under Review' || comp.status === 'Assigned') {
+          statusGlow = 'box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.45);';
+        }
+
+        const compMarkerHtml = `
+          <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+            <div style="
+              width: 26px;
+              height: 26px;
+              border-radius: 6px;
+              background: ${compColor};
+              border: 2px solid #FFFFFF;
+              ${statusGlow}
+              box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+              transform: rotate(45deg);
+            ">
+              <div style="transform: rotate(-45deg); display: flex; align-items: center; justify-content: center;">
+                ${catSvg}
+              </div>
+            </div>
+          </div>
+        `;
+
+        const compIcon = window.L.divIcon({
+          html: compMarkerHtml,
+          className: 'civic-map-pin',
+          iconSize: [26, 26],
+          iconAnchor: [13, 13]
+        });
+
+        const compMarker = window.L.marker([cLat, cLng], { icon: compIcon });
+
+        const photoSnippet = comp.image_url ? `
+          <div style="margin-top: 8px; border-radius: 6px; overflow: hidden; max-height: 110px; border: 1px solid #E2E8F0;">
+            <img src="${comp.image_url}" alt="Civic complaint evidence" style="width: 100%; height: 100px; object-fit: cover; display: block;" onerror="this.style.display='none'" />
+          </div>
+        ` : '';
+
+        const compPopup = `
+          <div style="font-family: Inter, sans-serif; min-width: 230px; max-width: 280px; padding: 2px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+              <span style="font-family: monospace; font-size: 0.76rem; font-weight: 800; color: #0F172A; background: #F1F5F9; border: 1px solid #CBD5E1; padding: 2px 6px; border-radius: 4px;">
+                ${comp.ticket_number}
+              </span>
+              <span style="font-size: 0.68rem; font-weight: 700; color: ${compColor}; background: ${compColor}15; padding: 2px 7px; border-radius: 12px; border: 1px solid ${compColor}33;">
+                ${comp.status || 'Submitted'}
+              </span>
+            </div>
+            <strong style="display: block; font-size: 0.84rem; color: #0F172A; font-weight: 700; line-height: 1.35; margin-bottom: 4px;">
+              ${comp.title}
+            </strong>
+            <div style="font-size: 0.74rem; color: #475569; line-height: 1.4; margin-bottom: 6px;">
+              ${comp.description ? (comp.description.slice(0, 95) + (comp.description.length > 95 ? '...' : '')) : ''}
+            </div>
+            ${photoSnippet}
+            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #E2E8F0; font-size: 0.7rem; color: #64748B;">
+              <div><strong>Dept:</strong> <span style="color: #334155;">${comp.assigned_authority || comp.assigned_department || 'BBMP Redressal Cell'}</span></div>
+              <div><strong>Location:</strong> <span style="color: #334155;">${comp.landmark_address || comp.ward_zone || 'Bengaluru'}</span></div>
+            </div>
+            <button onclick="if(window.urbanPulseNavigateToGrievance) window.urbanPulseNavigateToGrievance('${comp.ticket_number}')" style="margin-top: 8px; width: 100%; background: #2563EB; color: #FFFFFF; border: none; padding: 7px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <span>Dispatch &amp; Manage in Console &rarr;</span>
+            </button>
+          </div>
+        `;
+
+        compMarker.bindPopup(compPopup, { offset: [0, -10] });
+        compMarker.on('click', () => {
+          setSelectedComplaint(comp);
+          setIsRightCollapsed(false);
+        });
+        markersGroup.current.addLayer(compMarker);
+      });
+    }
+  }, [incidents, layers, activeIncidentId, civicComplaints]);
 
   // Load selected incident details into drawer and fetch backend AI analysis
   const loadIncident = async (incId, currentList = incidents) => {
@@ -361,7 +516,7 @@ export default function IntelligenceMapView({ timestamp }) {
             <svg viewBox="0 0 24 24" style={{ width: 12, height: 12 }}><path d="M6 9l6 6 6-6"/></svg>
           </div>
 
-          <button className="btn-icon-sq" title="Refresh Map Data" onClick={fetchIncidents}>
+          <button className="btn-icon-sq" title="Refresh Map Data" onClick={() => { fetchIncidents(); fetchCivicComplaints(); }}>
             <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           </button>
           <button className="btn-icon-sq" title="Download Report" onClick={downloadReport}>
@@ -407,6 +562,71 @@ export default function IntelligenceMapView({ timestamp }) {
               <div className="layer-icon-box alerts"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div>
               <span>Alerts</span>
             </label>
+            <label className="layer-item">
+              <input type="checkbox" checked={layers.complaints} onChange={(e) => setLayers({ ...layers, complaints: e.target.checked })} />
+              <div className="layer-icon-box" style={{ background: '#FEF3C7', color: '#D97706' }}>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  <line x1="9" y1="10" x2="15" y2="10" />
+                  <line x1="12" y1="7" x2="12" y2="13" />
+                </svg>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
+                <span>Civic Grievances</span>
+                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#D97706', background: '#FEF3C7', padding: '1px 6px', borderRadius: '8px' }}>
+                  {civicComplaints.length}
+                </span>
+              </div>
+            </label>
+
+            {layers.complaints && (
+              <div style={{ marginTop: '8px', padding: '8px', background: '#FFFBEB', borderRadius: '8px', border: '1px solid #FDE68A', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Grievance Filters
+                </div>
+                <select
+                  value={civicCategoryFilter}
+                  onChange={(e) => setCivicCategoryFilter(e.target.value)}
+                  style={{ width: '100%', padding: '4px 6px', fontSize: '0.72rem', borderRadius: '6px', border: '1px solid #CBD5E1', outline: 'none', background: '#FFFFFF', color: '#0F172A' }}
+                >
+                  <option value="all">All Categories</option>
+                  <option value="Pothole">Pothole / Road</option>
+                  <option value="Garbage">Garbage / Waste</option>
+                  <option value="Water">Water Leakage</option>
+                  <option value="Drainage">Drainage & Flooding</option>
+                  <option value="Streetlight">Streetlight Failure</option>
+                  <option value="Traffic">Traffic Hazard</option>
+                </select>
+
+                <select
+                  value={civicStatusFilter}
+                  onChange={(e) => setCivicStatusFilter(e.target.value)}
+                  style={{ width: '100%', padding: '4px 6px', fontSize: '0.72rem', borderRadius: '6px', border: '1px solid #CBD5E1', outline: 'none', background: '#FFFFFF', color: '#0F172A' }}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="Submitted">Submitted</option>
+                  <option value="Under Review">Under Review</option>
+                  <option value="Assigned">Assigned</option>
+                  <option value="Crew Dispatched">Crew Dispatched</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Resolved">Resolved</option>
+                </select>
+
+                <select
+                  value={civicDeptFilter}
+                  onChange={(e) => setCivicDeptFilter(e.target.value)}
+                  style={{ width: '100%', padding: '4px 6px', fontSize: '0.72rem', borderRadius: '6px', border: '1px solid #CBD5E1', outline: 'none', background: '#FFFFFF', color: '#0F172A' }}
+                >
+                  <option value="all">All Departments</option>
+                  <option value="BBMP Road">BBMP Road Infrastructure</option>
+                  <option value="BBMP Solid">BBMP Solid Waste</option>
+                  <option value="BWSSB">BWSSB Water Division</option>
+                  <option value="Stormwater">BBMP Stormwater & Drain</option>
+                  <option value="BESCOM">BESCOM Electrical</option>
+                  <option value="Traffic">Bengaluru Traffic Police</option>
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="panel-section-head">
@@ -499,7 +719,95 @@ export default function IntelligenceMapView({ timestamp }) {
 
         {/* Right Collapsible Intelligence Drawer */}
         <div className={`map-right-drawer ${isRightCollapsed ? 'collapsed' : ''}`}>
-          {activeInc && (
+          {selectedComplaint ? (
+            <div>
+              <div className="drawer-head">
+                <button className="drawer-collapse-btn" onClick={() => setIsRightCollapsed(true)} title="Collapse Drawer">
+                  <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <div className="drawer-title-group">
+                  <div className="drawer-icon-box" style={{ background: '#FEF3C7', color: '#D97706' }}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  </div>
+                  <div>
+                    <div className="drawer-title" style={{ fontFamily: 'monospace' }}>{selectedComplaint.ticket_number}</div>
+                    <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '2px 8px', borderRadius: '12px', background: '#FEF3C7', color: '#D97706' }}>
+                      {selectedComplaint.status || 'Submitted'}
+                    </span>
+                  </div>
+                </div>
+                <button className="btn-close-drawer" onClick={() => setSelectedComplaint(null)} title="Close Complaint">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+
+              <div style={{ padding: '0.9rem', fontSize: '0.8rem', color: '#334155' }}>
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A', marginBottom: '6px', lineHeight: 1.35 }}>
+                  {selectedComplaint.title}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#475569', lineHeight: 1.45, marginBottom: '12px' }}>
+                  {selectedComplaint.description}
+                </div>
+
+                {selectedComplaint.image_url && (
+                  <div style={{ marginBottom: '12px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E2E8F0' }}>
+                    <img src={selectedComplaint.image_url} alt="Evidence" style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }} />
+                  </div>
+                )}
+
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.75rem' }}>
+                  <div><span style={{ color: '#64748B' }}>Category:</span> <strong>{selectedComplaint.category}</strong></div>
+                  <div><span style={{ color: '#64748B' }}>Urgency:</span> <strong style={{ color: selectedComplaint.urgency === 'Critical' ? '#DC2626' : '#D97706' }}>{selectedComplaint.urgency || 'Normal'}</strong></div>
+                  <div><span style={{ color: '#64748B' }}>Assigned Dept:</span> <strong>{selectedComplaint.assigned_department || selectedComplaint.assigned_authority || 'Pending Assignment'}</strong></div>
+                  <div><span style={{ color: '#64748B' }}>Location:</span> <span>{selectedComplaint.landmark_address || selectedComplaint.ward_zone || 'Bengaluru'}</span></div>
+                  <div><span style={{ color: '#64748B' }}>Coordinates:</span> <span style={{ fontFamily: 'monospace' }}>{Number(selectedComplaint.latitude).toFixed(4)}, {Number(selectedComplaint.longitude).toFixed(4)}</span></div>
+                  <div><span style={{ color: '#64748B' }}>Reported At:</span> <span>{selectedComplaint.created_at}</span></div>
+                </div>
+
+                {/* Dispatch & Console Action */}
+                <button
+                  onClick={() => onNavigateToGrievance && onNavigateToGrievance(selectedComplaint.ticket_number)}
+                  style={{
+                    width: '100%',
+                    background: '#2563EB',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                    marginBottom: '8px'
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                  <span>Dispatch &amp; Manage in Console &rarr;</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedComplaint(null)}
+                  style={{
+                    width: '100%',
+                    background: 'transparent',
+                    border: '1px solid #CBD5E1',
+                    color: '#475569',
+                    padding: '7px 10px',
+                    borderRadius: '8px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Switch to Telemetry Incidents
+                </button>
+              </div>
+            </div>
+          ) : activeInc ? (
             <>
               <div className="drawer-head">
                 <button className="drawer-collapse-btn" onClick={() => setIsRightCollapsed(true)} title="Collapse Drawer">
@@ -514,7 +822,9 @@ export default function IntelligenceMapView({ timestamp }) {
                     <span className="badge-sev-high">{activeInc.severity} Severity</span>
                   </div>
                 </div>
-                <button className="btn-close-drawer" onClick={() => setIsRightCollapsed(true)}>✕</button>
+                <button className="btn-close-drawer" onClick={() => setIsRightCollapsed(true)} title="Close Drawer">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
               </div>
 
               {/* Navigation Tabs */}
@@ -536,13 +846,13 @@ export default function IntelligenceMapView({ timestamp }) {
                   <div className="drawer-metrics-row">
                     <div className="drawer-metric-box">
                       <div className="dmb-label"><svg viewBox="0 0 24 24" style={{ color: '#EF4444' }}><rect x="3" y="11" width="18" height="8" rx="2"/><path d="M5 11l2-5h10l2 5"/><circle cx="7.5" cy="15.5" r="1.5"/><circle cx="16.5" cy="15.5" r="1.5"/></svg> {activeInc.traffic_speed} km/h</div>
-                      <div className="dmb-sub down">↓ {Math.abs(activeInc.traffic_speed_change || 62)}%</div>
+                      <div className="dmb-sub down">-{Math.abs(activeInc.traffic_speed_change || 62)}%</div>
                       <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>Traffic Speed</div>
                     </div>
 
                     <div className="drawer-metric-box">
                       <div className="dmb-label"><svg viewBox="0 0 24 24" style={{ color: '#2563EB' }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> {activeInc.crowd_density} /km²</div>
-                      <div className="dmb-sub up">↑ {activeInc.crowd_density_change || 18}%</div>
+                      <div className="dmb-sub up">+{activeInc.crowd_density_change || 18}%</div>
                       <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>Crowd Density</div>
                     </div>
 
@@ -557,7 +867,7 @@ export default function IntelligenceMapView({ timestamp }) {
                   <div className="drawer-meta-list">
                     <div className="dm-item"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> <span>{activeInc.location}</span></div>
                     <div className="dm-item"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> <span>{activeInc.detected_at}</span></div>
-                    <div className="dm-item"><span style={{ color: '#EF4444' }}>●</span> Current Status: <strong style={{ marginLeft: 4 }}>{activeInc.status}</strong></div>
+                    <div className="dm-item"><svg viewBox="0 0 24 24" width="12" height="12" fill="#EF4444" style={{ marginRight: 6 }}><circle cx="12" cy="12" r="6"/></svg> Current Status: <strong style={{ marginLeft: 4 }}>{activeInc.status}</strong></div>
                     <div className="dm-item"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Data Source: <span style={{ marginLeft: 4, fontWeight: 600 }}>{(activeInc.data_sources || []).join(', ')}</span></div>
                   </div>
 
@@ -570,11 +880,11 @@ export default function IntelligenceMapView({ timestamp }) {
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Traffic speed is significantly lower than usual.</div>
                   </div>
 
-                  {/* AI Recommendation Card */}
+                  {/* Operational Advisory Protocol Card */}
                   <div className="drawer-ai-card">
                     <div className="dai-head">
                       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                      <span>AI Recommendation</span>
+                      <span>Operational Advisory Protocol</span>
                     </div>
                     <div style={{ color: '#065F46', fontSize: '0.76rem', lineHeight: 1.35 }}>
                       "{aiRecommendation || activeInc.recommendation}"
@@ -607,9 +917,9 @@ export default function IntelligenceMapView({ timestamp }) {
                     </div>
                     {isRelatedOpen && (
                       <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-body)' }}>
-                        <div style={{ padding: '4px 0', borderBottom: '1px solid #F1F5F9' }}>● <strong>Historical Congestion:</strong> +34% vs last week</div>
-                        <div style={{ padding: '4px 0', borderBottom: '1px solid #F1F5F9' }}>● <strong>Nearest Transit Station:</strong> Bus Stop (120m)</div>
-                        <div style={{ padding: '4px 0' }}>● <strong>Sensor Status:</strong> 12 Active Nodes</div>
+                        <div style={{ padding: '4px 0', borderBottom: '1px solid #F1F5F9' }}><strong>Historical Congestion:</strong> +34% vs last week</div>
+                        <div style={{ padding: '4px 0', borderBottom: '1px solid #F1F5F9' }}><strong>Nearest Transit Station:</strong> Bus Stop (120m)</div>
+                        <div style={{ padding: '4px 0' }}><strong>Sensor Status:</strong> 12 Active Nodes</div>
                       </div>
                     )}
                   </div>
@@ -647,7 +957,7 @@ export default function IntelligenceMapView({ timestamp }) {
                 </div>
               )}
             </>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
