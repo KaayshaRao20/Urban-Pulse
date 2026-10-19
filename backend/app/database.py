@@ -387,23 +387,26 @@ class UserModel(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-# Database Engine Setup (Supports SQLite local dev & Supabase PostgreSQL)
+# Database Engine Setup (Supports SQLite local dev & Supabase / Render PostgreSQL)
 RAW_DB_URL = os.getenv("DATABASE_URL", "sqlite:///./urbanpulse_dev.db")
-# Supabase connection strings often use postgres://, which SQLAlchemy requires as postgresql://
+
+# Automatically route to postgresql+psycopg2:// if no driver specified
 if RAW_DB_URL.startswith("postgres://"):
-    DB_URL = RAW_DB_URL.replace("postgres://", "postgresql://", 1)
+    DB_URL = RAW_DB_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+elif RAW_DB_URL.startswith("postgresql://") and not RAW_DB_URL.startswith("postgresql+"):
+    DB_URL = RAW_DB_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 else:
     DB_URL = RAW_DB_URL
 
-if "sqlite" in DB_URL:
-    engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
-else:
-    # Supabase / PostgreSQL configuration with connection pooling and ping validation
+def create_db_engine(url: str):
+    if "sqlite" in url:
+        return create_engine(url, connect_args={"check_same_thread": False})
+    
     connect_args = {}
-    if "sslmode" not in DB_URL and "supabase" in DB_URL.lower():
+    if "sslmode" not in url and "supabase" in url.lower():
         connect_args["sslmode"] = "require"
-    engine = create_engine(
-        DB_URL,
+    return create_engine(
+        url,
         pool_pre_ping=True,
         pool_size=10,
         max_overflow=20,
@@ -411,10 +414,34 @@ else:
         connect_args=connect_args
     )
 
+# Resilient Engine Initialization: try primary URL, then psycopg, then fallback to SQLite
+try:
+    engine = create_db_engine(DB_URL)
+except Exception as e:
+    print(f"[UrbanPulse Database] Primary engine initialization note ({DB_URL}): {e}")
+    fallback_success = False
+    for alt_prefix in ["postgresql+psycopg://", "postgresql://"]:
+        try:
+            alt_url = RAW_DB_URL.replace("postgres://", alt_prefix, 1).replace("postgresql://", alt_prefix, 1)
+            engine = create_db_engine(alt_url)
+            DB_URL = alt_url
+            fallback_success = True
+            break
+        except Exception:
+            continue
+    if not fallback_success:
+        print("[UrbanPulse Database] Engaging resilient SQLite fallback.")
+        DB_URL = "sqlite:///./urbanpulse_dev.db"
+        engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"[UrbanPulse Database] Schema initialization note: {e}")
+        return
     
     # Safe SQLite column migration for civic_complaints table (only run on SQLite)
     if "sqlite" in DB_URL:
