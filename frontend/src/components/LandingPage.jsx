@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { API_BASE } from '../config/api';
 import './LandingPage.css';
 
 // Pre-defined SVG icons matching the exact icons from specification
@@ -83,7 +84,7 @@ export default function LandingPage({ onNavigateToAuth }) {
 
   // Fetch real-time public stats if backend is running
   useEffect(() => {
-    fetch('/api/public/stats')
+    fetch(`${API_BASE}/public/stats`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d && typeof d === 'object') {
