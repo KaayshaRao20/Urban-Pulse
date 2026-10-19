@@ -331,6 +331,15 @@ class CivicComplaintModel(Base):
     rejection_reason = Column(Text, nullable=True)
     reopen_reason = Column(Text, nullable=True)
     reopen_count = Column(Integer, default=0)
+    verification_status = Column(String(50), default="Pending Verification") # Pending Verification, Verified, Needs Review, Rejected, Duplicate
+    verification_reason = Column(Text, nullable=True)
+    verified_by = Column(String(100), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
+    duplicate_of_id = Column(String(50), nullable=True)
+    duplicate_score = Column(Float, nullable=True)
+    duplicate_notes = Column(Text, nullable=True)
+    evidence_assessment = Column(JSON, nullable=True)
+    road_geometry = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
@@ -461,6 +470,15 @@ def init_db():
                     ("rejection_reason", "TEXT"),
                     ("reopen_reason", "TEXT"),
                     ("reopen_count", "INTEGER DEFAULT 0"),
+                    ("verification_status", "VARCHAR(50) DEFAULT 'Pending Verification'"),
+                    ("verification_reason", "TEXT"),
+                    ("verified_by", "VARCHAR(100)"),
+                    ("verified_at", "DATETIME"),
+                    ("duplicate_of_id", "VARCHAR(50)"),
+                    ("duplicate_score", "FLOAT"),
+                    ("duplicate_notes", "TEXT"),
+                    ("evidence_assessment", "TEXT"),
+                    ("road_geometry", "TEXT"),
                 ]
                 for col_name, col_type in new_columns:
                     if col_name not in existing_cols:
@@ -506,7 +524,16 @@ def init_db():
                     "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS resolution_image_url VARCHAR(255);",
                     "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS rejection_reason TEXT;",
                     "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS reopen_reason TEXT;",
-                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS reopen_count INTEGER DEFAULT 0;"
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS reopen_count INTEGER DEFAULT 0;",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS verification_status VARCHAR(50) DEFAULT 'Pending Verification';",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS verification_reason TEXT;",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS verified_by VARCHAR(100);",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS verified_at TIMESTAMP;",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS duplicate_of_id VARCHAR(50);",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS duplicate_score FLOAT;",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS duplicate_notes TEXT;",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS evidence_assessment JSON;",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS road_geometry JSON;"
                 ]
                 for q in pg_queries:
                     try:

@@ -249,54 +249,139 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
         const cLng = Number(comp.longitude);
         if (isNaN(cLat) || isNaN(cLng)) return;
 
-        let compColor = '#D97706';
-        let catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><rect x="3" y="11" width="18" height="8" rx="2"/><path d="M5 11l2-5h10l2 5"/></svg>`;
+        const vStatus = comp.verification_status || 'Pending Verification';
+        const isRoadDamage = comp.category?.toLowerCase().includes('pothole') || comp.category?.toLowerCase().includes('road');
+        const isVerified = vStatus === 'Verified';
+        const isNeedsReview = vStatus === 'Needs Review';
+        const isPending = vStatus === 'Pending Verification';
+        const isRejected = vStatus === 'Rejected' || comp.status === 'Rejected';
+        const isDuplicate = vStatus === 'Duplicate';
 
+        // 1. Highlight verified road damage with red outline when reliable road geometry is available
+        if (isVerified && isRoadDamage && Array.isArray(comp.road_geometry) && comp.road_geometry.length > 1) {
+          const roadGlow = window.L.polyline(comp.road_geometry, {
+            color: '#EF4444',
+            weight: 12,
+            opacity: 0.35,
+            lineCap: 'round'
+          });
+          const roadPolyline = window.L.polyline(comp.road_geometry, {
+            color: '#DC2626',
+            weight: 5,
+            opacity: 0.95,
+            lineCap: 'round',
+            lineJoin: 'round'
+          });
+
+          roadPolyline.on('click', () => {
+            setSelectedComplaint(comp);
+            setIsRightCollapsed(false);
+          });
+          roadGlow.on('click', () => {
+            setSelectedComplaint(comp);
+            setIsRightCollapsed(false);
+          });
+
+          markersGroup.current.addLayer(roadGlow);
+          markersGroup.current.addLayer(roadPolyline);
+        }
+
+        // 2. Icon SVGs
+        let catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><rect x="3" y="11" width="18" height="8" rx="2"/><path d="M5 11l2-5h10l2 5"/></svg>`;
         if (comp.category?.includes('Garbage')) {
-          compColor = '#059669';
           catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>`;
         } else if (comp.category?.includes('Water')) {
-          compColor = '#0284C7';
           catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`;
         } else if (comp.category?.includes('Drainage')) {
-          compColor = '#0D9488';
           catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></svg>`;
         } else if (comp.category?.includes('Streetlight')) {
-          compColor = '#CA8A04';
           catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><path d="M9 18h6"/><path d="M10 22h4"/><circle cx="12" cy="8" r="5"/></svg>`;
         } else if (comp.category?.includes('Traffic')) {
-          compColor = '#DC2626';
           catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>`;
         } else {
-          compColor = '#7C3AED';
           catSvg = `<svg viewBox="0 0 24 24" style="width:13px; height:13px; stroke:white; fill:none; stroke-width:2.2;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
         }
 
-        // Status Distinction styling
-        let statusGlow = '';
-        if (comp.status === 'Resolved') {
-          statusGlow = 'box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.45); border-color: #10B981;';
-        } else if (comp.status === 'In Progress' || comp.status === 'Crew Dispatched') {
-          statusGlow = 'box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.45);';
-        } else if (comp.status === 'Under Review' || comp.status === 'Assigned') {
-          statusGlow = 'box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.45);';
+        // 3. Status Distinction styling
+        let compColor = '#2563EB';
+        let statusBadgeColor = '#2563EB';
+        let auraHtml = '';
+        let pinBorder = '2px solid #FFFFFF';
+
+        if (isRejected) {
+          // Do not display rejected reports as confirmed road damage
+          compColor = '#64748B'; // Muted grey
+          statusBadgeColor = '#DC2626';
+          pinBorder = '2px dashed #94A3B8';
+        } else if (isVerified && isRoadDamage) {
+          // Confirmed road damage: Red incident marker (especially when geometry is unavailable)
+          compColor = '#DC2626';
+          statusBadgeColor = '#DC2626';
+          auraHtml = `
+            <div style="
+              position: absolute;
+              width: 44px;
+              height: 44px;
+              border-radius: 50%;
+              background: rgba(220, 38, 38, 0.22);
+              border: 1.5px solid rgba(220, 38, 38, 0.5);
+              animation: pulse-live 1.8s infinite ease-in-out;
+              pointer-events: none;
+            "></div>
+          `;
+        } else if (isVerified) {
+          compColor = '#059669'; // Emerald verified
+          statusBadgeColor = '#059669';
+        } else if (isNeedsReview) {
+          compColor = '#D97706'; // Amber review-required
+          statusBadgeColor = '#D97706';
+          pinBorder = '2px dashed #FEF08A';
+          auraHtml = `
+            <div style="
+              position: absolute;
+              width: 38px;
+              height: 38px;
+              border-radius: 50%;
+              background: rgba(217, 119, 6, 0.2);
+              border: 1px dashed rgba(217, 119, 6, 0.5);
+              pointer-events: none;
+            "></div>
+          `;
+        } else if (isDuplicate) {
+          compColor = '#7C3AED'; // Violet duplicate
+          statusBadgeColor = '#7C3AED';
+        } else {
+          // Pending Verification
+          compColor = '#3B82F6';
+          statusBadgeColor = '#2563EB';
+          auraHtml = `
+            <div style="
+              position: absolute;
+              width: 36px;
+              height: 36px;
+              border-radius: 50%;
+              background: rgba(59, 130, 246, 0.18);
+              pointer-events: none;
+            "></div>
+          `;
         }
 
         const compMarkerHtml = `
           <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+            ${auraHtml}
             <div style="
               width: 26px;
               height: 26px;
               border-radius: 6px;
               background: ${compColor};
-              border: 2px solid #FFFFFF;
-              ${statusGlow}
+              border: ${pinBorder};
               box-shadow: 0 3px 10px rgba(0,0,0,0.3);
               display: flex;
               align-items: center;
               justify-content: center;
               cursor: pointer;
               transform: rotate(45deg);
+              z-index: 3;
             ">
               <div style="transform: rotate(-45deg); display: flex; align-items: center; justify-content: center;">
                 ${catSvg}
@@ -320,14 +405,20 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
           </div>
         ` : '';
 
+        const roadGeomNotice = (isVerified && isRoadDamage) ? `
+          <div style="margin-top: 4px; font-size: 0.68rem; font-weight: 700; color: #DC2626; display: flex; align-items: center; gap: 4px;">
+            <span>${Array.isArray(comp.road_geometry) && comp.road_geometry.length > 1 ? '• Red outline road segment active' : '• Red damage marker (Point location)'}</span>
+          </div>
+        ` : '';
+
         const compPopup = `
-          <div style="font-family: Inter, sans-serif; min-width: 230px; max-width: 280px; padding: 2px;">
+          <div style="font-family: Inter, sans-serif; min-width: 240px; max-width: 290px; padding: 2px;">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
               <span style="font-family: monospace; font-size: 0.76rem; font-weight: 800; color: #0F172A; background: #F1F5F9; border: 1px solid #CBD5E1; padding: 2px 6px; border-radius: 4px;">
                 ${comp.ticket_number}
               </span>
-              <span style="font-size: 0.68rem; font-weight: 700; color: ${compColor}; background: ${compColor}15; padding: 2px 7px; border-radius: 12px; border: 1px solid ${compColor}33;">
-                ${comp.status || 'Submitted'}
+              <span style="font-size: 0.68rem; font-weight: 700; color: ${statusBadgeColor}; background: ${statusBadgeColor}15; padding: 2px 7px; border-radius: 12px; border: 1px solid ${statusBadgeColor}33;">
+                ${vStatus}
               </span>
             </div>
             <strong style="display: block; font-size: 0.84rem; color: #0F172A; font-weight: 700; line-height: 1.35; margin-bottom: 4px;">
@@ -337,12 +428,14 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
               ${comp.description ? (comp.description.slice(0, 95) + (comp.description.length > 95 ? '...' : '')) : ''}
             </div>
             ${photoSnippet}
+            ${roadGeomNotice}
             <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #E2E8F0; font-size: 0.7rem; color: #64748B;">
               <div><strong>Dept:</strong> <span style="color: #334155;">${comp.assigned_authority || comp.assigned_department || 'BBMP Redressal Cell'}</span></div>
               <div><strong>Location:</strong> <span style="color: #334155;">${comp.landmark_address || comp.ward_zone || 'Bengaluru'}</span></div>
+              ${comp.verification_reason ? `<div><strong>Verification:</strong> <span style="color: #0F172A;">${comp.verification_reason.slice(0, 70)}...</span></div>` : ''}
             </div>
             <button onclick="if(window.urbanPulseNavigateToGrievance) window.urbanPulseNavigateToGrievance('${comp.ticket_number}')" style="margin-top: 8px; width: 100%; background: #2563EB; color: #FFFFFF; border: none; padding: 7px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-              <span>Dispatch &amp; Manage in Console &rarr;</span>
+              <span>Inspect in Grievance Console &rarr;</span>
             </button>
           </div>
         `;
@@ -809,6 +902,65 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
                 )}
 
                 <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#64748B' }}>Verification Status:</span>
+                    <span style={{
+                      fontWeight: 800,
+                      fontSize: '0.72rem',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      background: selectedComplaint.verification_status === 'Verified' ? '#ECFDF5' :
+                                  selectedComplaint.verification_status === 'Needs Review' ? '#FFFBEB' :
+                                  selectedComplaint.verification_status === 'Rejected' ? '#FEF2F2' :
+                                  selectedComplaint.verification_status === 'Duplicate' ? '#F5F3FF' : '#EFF6FF',
+                      color: selectedComplaint.verification_status === 'Verified' ? '#047857' :
+                             selectedComplaint.verification_status === 'Needs Review' ? '#B45309' :
+                             selectedComplaint.verification_status === 'Rejected' ? '#B91C1C' :
+                             selectedComplaint.verification_status === 'Duplicate' ? '#6D28D9' : '#1D4ED8',
+                      border: `1px solid ${selectedComplaint.verification_status === 'Verified' ? '#A7F3D0' :
+                                          selectedComplaint.verification_status === 'Needs Review' ? '#FDE68A' :
+                                          selectedComplaint.verification_status === 'Rejected' ? '#FECACA' :
+                                          selectedComplaint.verification_status === 'Duplicate' ? '#DDD6FE' : '#BFDBFE'}`
+                    }}>
+                      {selectedComplaint.verification_status || 'Pending Verification'}
+                    </span>
+                  </div>
+
+                  {selectedComplaint.verification_reason && (
+                    <div style={{ background: '#FFFFFF', padding: '6px 8px', borderRadius: '6px', border: '1px solid #E2E8F0', color: '#1E293B', fontSize: '0.72rem' }}>
+                      <span style={{ color: '#64748B', fontWeight: 600 }}>Decision Note: </span>
+                      {selectedComplaint.verification_reason}
+                    </div>
+                  )}
+
+                  {selectedComplaint.verified_by && (
+                    <div><span style={{ color: '#64748B' }}>Verified By:</span> <strong>{selectedComplaint.verified_by}</strong> {selectedComplaint.verified_at ? `(${selectedComplaint.verified_at.slice(0, 16)})` : ''}</div>
+                  )}
+
+                  {selectedComplaint.duplicate_of_id && (
+                    <div style={{ background: '#F5F3FF', border: '1px solid #DDD6FE', padding: '4px 8px', borderRadius: '6px', color: '#6D28D9' }}>
+                      <strong>Linked Primary Incident:</strong> {selectedComplaint.duplicate_of_id}
+                    </div>
+                  )}
+
+                  {Array.isArray(selectedComplaint.road_geometry) && selectedComplaint.road_geometry.length > 1 && (
+                    <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', padding: '4px 8px', borderRadius: '6px', color: '#DC2626', fontWeight: 700 }}>
+                      Road Segment: Outlined in Red on Map ({selectedComplaint.road_geometry.length} Waypoints)
+                    </div>
+                  )}
+
+                  {selectedComplaint.evidence_assessment && (
+                    <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', padding: '6px 8px', borderRadius: '6px', fontSize: '0.7rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: 700, color: '#166534' }}>Computer Vision Assessment</span>
+                        <span style={{ fontWeight: 800, color: '#15803D' }}>{Math.round((selectedComplaint.evidence_assessment.confidence || 0) * 100)}% Match</span>
+                      </div>
+                      <div style={{ color: '#166534', lineHeight: 1.35 }}>
+                        {selectedComplaint.evidence_assessment.reason || selectedComplaint.evidence_assessment.rationale}
+                      </div>
+                    </div>
+                  )}
+
                   <div><span style={{ color: '#64748B' }}>Category:</span> <strong>{selectedComplaint.category}</strong></div>
                   <div><span style={{ color: '#64748B' }}>Urgency:</span> <strong style={{ color: selectedComplaint.urgency === 'Critical' ? '#DC2626' : '#D97706' }}>{selectedComplaint.urgency || 'Normal'}</strong></div>
                   <div><span style={{ color: '#64748B' }}>Assigned Dept:</span> <strong>{selectedComplaint.assigned_department || selectedComplaint.assigned_authority || 'Pending Assignment'}</strong></div>
