@@ -4,7 +4,16 @@ Dataset Ingestion, 14-Stage Preprocessing Pipeline, Random Forest Training,
 Model Evaluation, Data Source Management, and System Health.
 """
 
+import sys
 import os
+
+# Ensure both current directory and parent directory are on sys.path
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+for _dir in [_current_dir, _parent_dir]:
+    if _dir not in sys.path:
+        sys.path.insert(0, _dir)
+
 import io
 import time
 import json

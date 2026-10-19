@@ -18,7 +18,13 @@ from fastapi import APIRouter, HTTPException, Depends, Header, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
-from .database import SessionLocal, UserModel
+try:
+    from app.database import SessionLocal, UserModel
+except ImportError:
+    try:
+        from .database import SessionLocal, UserModel
+    except (ImportError, ValueError):
+        from database import SessionLocal, UserModel
 
 # Configuration
 JWT_SECRET = os.getenv("JWT_SECRET", os.getenv("SUPABASE_JWT_SECRET", "urbanpulse_super_secure_jwt_secret_key_bbmp_2026"))
