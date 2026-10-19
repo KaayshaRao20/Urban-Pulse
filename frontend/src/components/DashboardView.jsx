@@ -57,8 +57,25 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
     }
   };
 
+  const [liveWeather, setLiveWeather] = useState(null);
+
+  const fetchWeather = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/weather/all`);
+      if (res.ok) {
+        const d = await res.json();
+        setLiveWeather(d);
+      }
+    } catch (e) {
+      console.warn("Dashboard weather fetch note:", e);
+    }
+  };
+
   useEffect(() => {
     fetchGrievanceMetrics();
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   // Interactive Tactical Directive Dispatch State
@@ -122,9 +139,11 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
 
   const weather = {
     ...rawWeather,
-    temp_c: rawWeather.temperature_c ?? rawWeather.temp_c ?? 24,
-    condition: 'Light Rain',
-    rainfall_mm: Number(Math.max(0, (rawWeather.rainfall_mm ?? 2.4) + preset.rainMod).toFixed(1))
+    temp_c: liveWeather?.telemetry?.temperature_c ?? rawWeather.temperature_c ?? rawWeather.temp_c ?? 26.5,
+    condition: liveWeather?.telemetry?.condition ?? rawWeather.condition ?? 'Partly Cloudy',
+    rainfall_mm: Number(Math.max(0, (liveWeather?.telemetry?.rainfall_mm ?? rawWeather.rainfall_mm ?? 1.5) + preset.rainMod).toFixed(1)),
+    humidity_pct: liveWeather?.telemetry?.humidity_pct ?? 68,
+    wind_speed: liveWeather?.telemetry?.wind_speed_kmh ?? 14.5
   };
 
   // AI Directives Catalog
@@ -435,8 +454,9 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
       if (weatherInst.current) weatherInst.current.destroy();
       const ctx = weatherChartRef.current.getContext('2d');
 
-      const labels = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
-      const rainData = [0.4, 0.6, 1.1, 1.4, 1.9, 2.4, 2.9, 3.4, 4.0, 4.2, 3.8, 3.1, 2.7];
+      const historyItems = liveWeather?.telemetry?.history || [];
+      const labels = historyItems.length > 0 ? historyItems.map(h => h.time) : ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+      const rainData = historyItems.length > 0 ? historyItems.map(h => h.rainfall) : [0.4, 0.6, 1.1, 1.4, 1.9, 2.4, 2.9, 3.4, 4.0, 4.2, 3.8, 3.1, 2.7];
 
       weatherInst.current = new Chart(ctx, {
         type: 'bar',
@@ -489,7 +509,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
       if (crowdInst.current) crowdInst.current.destroy();
       if (weatherInst.current) weatherInst.current.destroy();
     };
-  }, [selectedCorridor, activeTimeRange, telemetryData]);
+  }, [selectedCorridor, activeTimeRange, telemetryData, liveWeather]);
 
   return (
     <div className="dashboard-exact-viewport">
@@ -584,8 +604,8 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
                 </svg>
               </div>
               <div className="weather-temp-col">
-                <div className="weather-temp-num">24°C</div>
-                <div className="weather-temp-label">Light Rain</div>
+                <div className="weather-temp-num">{weather.temp_c}°C</div>
+                <div className="weather-temp-label">{weather.condition}</div>
               </div>
               <div className="weather-v-divider" />
               <div className="weather-location-col">
@@ -594,6 +614,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
                   <circle cx="12" cy="9" r="2.5" />
                 </svg>
                 <span>Bengaluru</span>
+                <span style={{ fontSize: '0.62rem', opacity: 0.85, fontWeight: 700, letterSpacing: '0.5px' }}>IMD LIVE</span>
               </div>
             </div>
 
@@ -713,11 +734,11 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
               </svg>
             </div>
             <div className="metric-info-col">
-              <div className="metric-title-small">Weather Conditions</div>
-              <div className="metric-main-value">24°C</div>
+              <div className="metric-title-small">Weather Conditions (IMD)</div>
+              <div className="metric-main-value">{weather.temp_c}°C</div>
               <div className="metric-footer-row">
-                <span className="metric-sub-label">— 2.4 mm precip</span>
-                <span className="metric-badge green">Light Rain</span>
+                <span className="metric-sub-label">— {weather.rainfall_mm} mm precip • {weather.humidity_pct}% RH</span>
+                <span className="metric-badge green">{weather.condition}</span>
               </div>
             </div>
           </div>

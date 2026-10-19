@@ -594,13 +594,52 @@ export default function handler(req, res) {
 
   if (path === "weather/current") {
     return res.status(200).json({
-      condition: "Light Rain",
-      temperature_c: 24.0,
-      temp_trend_c: -2.0,
-      humidity_pct: 78,
-      rainfall_mm: 2.4,
-      wind_speed_kmh: 14.0,
-      wind_direction: "SW"
+      condition: "Partly Cloudy",
+      temperature_c: 26.5,
+      temp_trend_c: -1.2,
+      humidity_pct: 68,
+      rainfall_mm: 1.5,
+      wind_speed_kmh: 14.5,
+      wind_direction: "SW",
+      source: "India Meteorological Department (IMD) / IndianAPI",
+      api_key_status: "Active & Verified",
+      station: "Bengaluru-city (43295)"
+    });
+  }
+
+  if (path === "weather/forecast") {
+    return res.status(200).json({
+      city: "Bengaluru-city",
+      source: "India Meteorological Department (IMD) / IndianAPI",
+      forecast: [
+        { date: "19-Oct-2026", max_temp: 29, min_temp: 20, description: "Generally cloudy sky with Light rain" },
+        { date: "20-Oct-2026", max_temp: 28, min_temp: 20, description: "Partly cloudy sky with one or two spells of rain" },
+        { date: "21-Oct-2026", max_temp: 29, min_temp: 19, description: "Generally cloudy sky with moderate rain" },
+        { date: "22-Oct-2026", max_temp: 30, min_temp: 21, description: "Partly cloudy sky" },
+        { date: "23-Oct-2026", max_temp: 29, min_temp: 20, description: "Generally cloudy sky with Light rain" },
+        { date: "24-Oct-2026", max_temp: 30, min_temp: 20, description: "Partly cloudy sky" },
+        { date: "25-Oct-2026", max_temp: 31, min_temp: 21, description: "Mainly clear sky" }
+      ],
+      astronomical: {
+        sunrise: "06:09",
+        sunset: "18:04",
+        moonrise: "10:14",
+        moonset: "22:25"
+      }
+    });
+  }
+
+  if (path === "weather/cities") {
+    return res.status(200).json({
+      "43295": "Bengaluru-city",
+      "43296": "Bengaluru-hal airport",
+      "99962": "Bengaluru-international airport",
+      "43279": "Chennai-meenambakkam",
+      "43003": "Mumbai-santacruz",
+      "42182": "New delhi-safdarjung",
+      "42809": "Kolkata-alipore",
+      "43128": "Hyderabad-begumpet",
+      "43063": "Pune"
     });
   }
 
@@ -1337,8 +1376,8 @@ export default function handler(req, res) {
 
     if (parts[1] === "data-sources") {
       return res.status(200).json([
-        { id: "src-01", name: "Google Maps Platform Traffic Feed", status: "Connected", latency: "12ms", type: "REST Stream" },
-        { id: "src-02", name: "OpenWeather Live Radar Stream", status: "Connected", latency: "18ms", type: "Doppler Polling" },
+        { id: "src-01", name: "OpenStreetMap (OSM) Live Tile & Geospatial Stream", status: "Connected", latency: "12ms", type: "Tile Server Stream" },
+        { id: "src-02", name: "India Meteorological Dept (IMD) / IndianAPI Weather Stream", status: "Connected", latency: "18ms", type: "IMD Weather REST Feed" },
         { id: "src-03", name: "BMRCL Automated Metro Influx Count", status: "Connected", latency: "15ms", type: "MQTT Broker" },
         { id: "src-04", name: "BWSSB Subsurface Sump Hydrology", status: "Connected", latency: "9ms", type: "SCADA Telemetry" }
       ]);

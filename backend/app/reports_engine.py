@@ -301,7 +301,7 @@ INITIAL_REPORTS: List[Dict[str, Any]] = [
                 {"label": "Telemetry Ingestion", "value": "124,210 rec", "trend": "Real-time", "status": "normal"}
             ],
             "key_insights": [
-                "All 4 data stream feeds (Google Maps, OpenWeather, City Crowd, Project Telemetry) fully synced.",
+                "All 4 data stream feeds (OpenStreetMap, IMD / IndianAPI Weather, City Crowd, Project Telemetry) fully synced.",
                 "Zero unhandled critical telemetry breaches in the past 24-hour monitoring window.",
                 "System latency averaging 14ms across ML inference cluster."
             ],

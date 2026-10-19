@@ -386,27 +386,27 @@ for idx in range(7, 43):
 SEED_DATA_SOURCES = [
     {
         "id": "src-traffic-01",
-        "name": "Google Maps Traffic API",
-        "source_type": "Traffic API",
-        "endpoint_url": "https://routes.googleapis.com/directions/v2:computeRoutes",
+        "name": "OpenStreetMap (OSM) Live Tile & Geospatial Stream",
+        "source_type": "Geospatial & Map API",
+        "endpoint_url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         "status": "Connected",
         "last_sync": "27 Sep 2026 14:32:10",
         "last_error": None,
-        "refresh_interval_sec": 30,
+        "refresh_interval_sec": 15,
         "enabled": True,
-        "config_json": {"timeout_ms": 2500, "retry_attempts": 3, "auth_type": "Bearer Token"}
+        "config_json": {"provider": "OpenStreetMap Foundation", "license": "ODbL / Free Open Source", "status": "Active"}
     },
     {
         "id": "src-weather-01",
-        "name": "OpenWeather Meteorological Stream",
-        "source_type": "Weather API",
-        "endpoint_url": "https://api.openweathermap.org/data/3.0/onecall",
+        "name": "India Meteorological Dept (IMD) / IndianAPI Weather Stream",
+        "source_type": "Weather & Atmospheric API",
+        "endpoint_url": "https://weather.indianapi.in/india/weather",
         "status": "Connected",
         "last_sync": "27 Sep 2026 14:31:45",
         "last_error": None,
-        "refresh_interval_sec": 60,
+        "refresh_interval_sec": 30,
         "enabled": True,
-        "config_json": {"units": "metric", "stations": ["HAL", "Kempegowda", "Yelahanka"]}
+        "config_json": {"provider": "IMD & IndianAPI", "api_key": "sk-live-knNi8aM9FB1zCV3qja6LEJHysQgfp24f2HzFicjJ", "station": "Bengaluru-city (43295)", "fallback_resilience": True}
     },
     {
         "id": "src-crowd-01",
@@ -576,7 +576,7 @@ AUDIT_LOGS: List[Dict[str, Any]] = [
     {"id": "aud-001", "user": "Admin", "action": "DATASET_UPLOAD", "target_id": "ds-001", "details": "Uploaded Bengaluru_Traffic_2026.xlsx (12.4 MB)", "timestamp": "27 Sep 2026 14:10:00", "status": "SUCCESS"},
     {"id": "aud-002", "user": "Admin", "action": "MODEL_TRAIN", "target_id": "mod-rf-001", "details": "Trained RandomForestClassifier v2.1 with 94.2% accuracy", "timestamp": "27 Sep 2026 14:12:05", "status": "SUCCESS"},
     {"id": "aud-003", "user": "Admin", "action": "MODEL_ACTIVATE", "target_id": "mod-rf-001", "details": "Activated model v2.1 for citywide traffic inference", "timestamp": "27 Sep 2026 14:12:10", "status": "SUCCESS"},
-    {"id": "aud-004", "user": "Admin", "action": "SOURCE_TEST", "target_id": "src-traffic-01", "details": "Tested Google Maps API connection: HTTP 200 (42ms)", "timestamp": "27 Sep 2026 14:14:20", "status": "SUCCESS"},
+    {"id": "aud-004", "user": "Admin", "action": "SOURCE_TEST", "target_id": "src-traffic-01", "details": "Tested OpenStreetMap tile connection: HTTP 200 (28ms)", "timestamp": "27 Sep 2026 14:14:20", "status": "SUCCESS"},
     {"id": "aud-005", "user": "Admin", "action": "SYSTEM_UPDATE", "target_id": "global_config", "details": "Updated alert threshold critical level to 85.0%", "timestamp": "27 Sep 2026 14:15:00", "status": "SUCCESS"}
 ]
 

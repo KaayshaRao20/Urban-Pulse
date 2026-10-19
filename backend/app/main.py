@@ -80,6 +80,14 @@ except ImportError:
 
 app.include_router(auth_router)
 
+# Indian Meteorological Department (IMD) / IndianAPI Weather Engine
+try:
+    from app.weather_engine import router as weather_router, fetch_live_weather
+except ImportError:
+    from weather_engine import router as weather_router, fetch_live_weather
+
+app.include_router(weather_router)
+
 @app.on_event("startup")
 def startup_db_init():
     try:
@@ -144,20 +152,20 @@ STANDARD_FIELDS = [
 DATA_SOURCES_STORE: Dict[str, Dict[str, Any]] = {
     "src-001": {
         "id": "src-001",
-        "name": "Google Maps Traffic",
-        "provider": "Google Maps Platform",
-        "source_type": "Traffic API",
-        "endpoint": "https://routes.googleapis.com",
+        "name": "OpenStreetMap (OSM) Live Tile & Geospatial Stream",
+        "provider": "OpenStreetMap Foundation (Free / Open Source)",
+        "source_type": "Geospatial & Map API",
+        "endpoint": "https://tile.openstreetmap.org",
         "last_fetch": "27 Sep 2026 14:32",
         "status": "Connected",
         "auto_ingest": True
     },
     "src-002": {
         "id": "src-002",
-        "name": "OpenWeather",
-        "provider": "OpenWeather Ltd",
-        "source_type": "Weather API",
-        "endpoint": "https://api.openweathermap.org",
+        "name": "India Meteorological Department (IMD) / IndianAPI Weather Stream",
+        "provider": "IMD & IndianAPI Weather Network",
+        "source_type": "Weather & Atmospheric API",
+        "endpoint": "https://weather.indianapi.in",
         "last_fetch": "27 Sep 2026 14:28",
         "status": "Connected",
         "auto_ingest": True
@@ -909,6 +917,13 @@ def get_current_crowd():
 
 @app.get("/api/weather/current", response_model=WeatherTelemetrySchema)
 def get_current_weather():
+    try:
+        live = fetch_live_weather("Bengaluru")
+        if "telemetry" in live:
+            return live["telemetry"]
+    except Exception as e:
+        print(f"Live weather fallback trigger: {e}")
+
     idx = TELEMETRY_ENGINE.get("current_index", 0)
     rec = TELEMETRY_CACHE[idx] if TELEMETRY_CACHE and idx < len(TELEMETRY_CACHE) else {}
     

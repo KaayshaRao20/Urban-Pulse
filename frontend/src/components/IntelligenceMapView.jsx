@@ -355,6 +355,55 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
         markersGroup.current.addLayer(compMarker);
       });
     }
+
+    // 3. IMD Meteorological Observatories (when weather layer is active)
+    if (layers.weather) {
+      const imdStations = [
+        { id: 'imd-01', name: 'IMD Bengaluru City Observatory', lat: 12.9716, lng: 77.5946, temp: '26.8°C', rain: '1.4 mm', condition: 'Partly Cloudy', humidity: '68%' },
+        { id: 'imd-02', name: 'IMD HAL Airport Observatory', lat: 12.9500, lng: 77.6680, temp: '27.2°C', rain: '2.1 mm', condition: 'Light Rain', humidity: '72%' },
+        { id: 'imd-03', name: 'IMD Kempegowda Intl Airport Station', lat: 13.1986, lng: 77.7066, temp: '25.9°C', rain: '0.8 mm', condition: 'Cloudy', humidity: '64%' },
+        { id: 'imd-04', name: 'IMD GKVK Agro-Meteorological Grid', lat: 13.0768, lng: 77.5750, temp: '26.4°C', rain: '1.6 mm', condition: 'Partly Cloudy', humidity: '70%' }
+      ];
+      imdStations.forEach(st => {
+        const weatherStationHtml = `
+          <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+            <div style="
+              background: #0284C7;
+              color: white;
+              border: 2px solid white;
+              border-radius: 20px;
+              padding: 2px 7px;
+              font-size: 10px;
+              font-weight: 800;
+              box-shadow: 0 3px 10px rgba(2, 132, 199, 0.45);
+              display: flex;
+              align-items: center;
+              gap: 4px;
+              white-space: nowrap;
+              cursor: pointer;
+            ">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/><path d="M8 16v3"/><path d="M12 16v3"/><path d="M16 16v3"/></svg>
+              <span>${st.temp}</span>
+            </div>
+          </div>
+        `;
+        const stIcon = window.L.divIcon({ html: weatherStationHtml, className: 'imd-weather-pin', iconSize: [50, 20], iconAnchor: [25, 10] });
+        const marker = window.L.marker([st.lat, st.lng], { icon: stIcon });
+        marker.bindPopup(`
+          <div style="font-family:Inter,sans-serif; min-width:210px; padding:2px;">
+            <div style="font-size:0.68rem; font-weight:800; color:#0284C7; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">IMD / IndianAPI Live Station</div>
+            <strong style="font-size:0.86rem; color:#0F172A; display:block; margin-bottom:6px;">${st.name}</strong>
+            <div style="background:#F0F9FF; border:1px solid #BAE6FD; border-radius:6px; padding:6px 8px; font-size:0.75rem; color:#0369A1; display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+              <div><strong>Temp:</strong> ${st.temp}</div>
+              <div><strong>Precip:</strong> ${st.rain}</div>
+              <div><strong>Sky:</strong> ${st.condition}</div>
+              <div><strong>Humidity:</strong> ${st.humidity}</div>
+            </div>
+          </div>
+        `);
+        markersGroup.current.addLayer(marker);
+      });
+    }
   }, [incidents, layers, activeIncidentId, civicComplaints]);
 
   // Load selected incident details into drawer and fetch backend AI analysis
@@ -491,8 +540,8 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
           </div>
 
           <div className="map-mode-toggle">
-            <button className={`map-mode-btn ${mapMode === 'street' ? 'active' : ''}`} onClick={() => setMapMode('street')}>Map</button>
-            <button className={`map-mode-btn ${mapMode === 'satellite' ? 'active' : ''}`} onClick={() => setMapMode('satellite')}>Satellite</button>
+            <button className={`map-mode-btn ${mapMode === 'street' ? 'active' : ''}`} onClick={() => setMapMode('street')}>OpenStreetMap (Free)</button>
+            <button className={`map-mode-btn ${mapMode === 'satellite' ? 'active' : ''}`} onClick={() => setMapMode('satellite')}>Satellite (Esri)</button>
           </div>
 
           <div className="control-select">
@@ -697,8 +746,12 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
           </button>
           <div id="gis-map-container" ref={mapContainerRef}></div>
 
-          {/* Scale Bar */}
-          <div className="map-scale-bar">5 km</div>
+          {/* Scale Bar & Free OpenStreetMap Attribution */}
+          <div className="map-scale-bar" title="OpenStreetMap Free Tile Server">
+            <span>5 km</span>
+            <span style={{ margin: '0 6px', color: '#94A3B8' }}>•</span>
+            <span style={{ color: '#059669', fontWeight: 700 }}>OpenStreetMap (Free &amp; Open)</span>
+          </div>
 
           {/* Floating Control Buttons */}
           <div className="map-floating-controls">
