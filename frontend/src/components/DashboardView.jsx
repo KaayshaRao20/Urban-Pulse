@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Chart from 'chart.js/auto';
 import { API_BASE } from '../config/api';
 
@@ -6,12 +6,43 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
   const [selectedCorridor, setSelectedCorridor] = useState('ALL');
   const [activeTimeRange, setActiveTimeRange] = useState('24h');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchInputRef = useRef(null);
+  const searchContainerRef = useRef(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentTime, setCurrentTime] = useState({
     dateStr: 'Tue, 17 Oct 2026',
     timeStr: '11:56 AM',
     liveStreamStr: '11:56:22 AM'
   });
+
+  // Global Ctrl+K / Cmd+K and Escape keyboard listeners
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        setIsSearchFocused(true);
+      }
+      if (e.key === 'Escape') {
+        setIsSearchFocused(false);
+        searchInputRef.current?.blur();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Click outside to close command dropdown
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setIsSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Keep live clock in sync
   useEffect(() => {
@@ -243,6 +274,47 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
     { name: 'CCTV & Video Feeds', latency: '24ms', status: 'Operational' },
     { name: 'Predictive Analytics Engine', latency: '8ms', status: 'Operational' }
   ];
+
+  // Search Collections for Command Palette
+  const allNavigationItems = [
+    { type: 'view', id: 'map', label: 'GIS Live Intelligence Map', desc: 'Real-time city layers, incidents, cameras & civic issues', badge: 'Map' },
+    { type: 'view', id: 'grievances', label: 'Civic Grievance Management', desc: 'Triage citizen complaints, dispatch squads & track SLA', badge: 'Complaints' },
+    { type: 'view', id: 'alerts', label: 'Incident & Emergency Alerts', desc: 'Critical city warnings, traffic gridlocks & weather hazards', badge: 'Alerts' },
+    { type: 'view', id: 'analytics', label: 'Urban Telemetry Analytics', desc: 'Historical congestion curves, crowd heatmaps & trends', badge: 'Analytics' },
+    { type: 'view', id: 'predictive_calendar', label: 'Predictive Operations Calendar', desc: 'Forecasted city events, high congestion dates & planning', badge: 'Calendar' },
+    { type: 'view', id: 'simulation', label: 'Scenario Simulation Engine', desc: 'Simulate weather events, road closures & crowd surges', badge: 'Simulation' },
+    { type: 'view', id: 'focus', label: 'Corridor Focus & Dispatch', desc: 'Granular corridor inspection and squad dispatching', badge: 'Dispatch' },
+    { type: 'view', id: 'reports', label: 'Executive Operations Reports', desc: 'Generate and download official PDF/CSV municipal dossiers', badge: 'Reports' },
+    { type: 'view', id: 'settings', label: 'System Configuration', desc: 'API thresholds, notification rules & role permissions', badge: 'Settings' }
+  ];
+
+  const allCorridorItems = [
+    { type: 'corridor', id: 'ALL', label: 'All Urban Sectors (Bengaluru)', desc: 'Aggregate view across 8 municipal zones' },
+    { type: 'corridor', id: 'MARATHAHALLI', label: 'Marathahalli – Outer Ring Road', desc: 'High-density IT corridor & arterial underpass' },
+    { type: 'corridor', id: 'WHITEFIELD', label: 'Whitefield Tech Corridor', desc: 'ITPL main line, metro interchange & junction' },
+    { type: 'corridor', id: 'KORAMANGALA', label: 'Koramangala 80ft Road & Sony World', desc: 'Major commercial arterial & stormwater basin' },
+    { type: 'corridor', id: 'SILK_BOARD', label: 'Silk Board Junction', desc: 'South Bengaluru primary transit confluence' },
+    { type: 'corridor', id: 'INDIRANAGAR', label: 'Indiranagar 100ft Road', desc: 'Commercial corridor & arterial connector' },
+    { type: 'corridor', id: 'MG_ROAD', label: 'MG Road & Central CBD', desc: 'Central administrative and metro interchange node' }
+  ];
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) {
+      return {
+        views: allNavigationItems.slice(0, 3),
+        corridors: allCorridorItems.slice(0, 3),
+        directives: aiRecommendationsList.slice(0, 2),
+        alerts: activeAlertsList.slice(0, 2)
+      };
+    }
+    return {
+      views: allNavigationItems.filter(v => v.label.toLowerCase().includes(q) || v.desc.toLowerCase().includes(q)),
+      corridors: allCorridorItems.filter(c => c.label.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q)),
+      directives: aiRecommendationsList.filter(d => d.title.toLowerCase().includes(q) || d.targetCorridor.toLowerCase().includes(q) || d.actionPlan.toLowerCase().includes(q)),
+      alerts: activeAlertsList.filter(a => a.title.toLowerCase().includes(q) || a.location.toLowerCase().includes(q))
+    };
+  }, [searchQuery, aiRecommendationsList, activeAlertsList]);
 
   const handleOpenDispatchModal = (item) => {
     setDispatchModal(item);
@@ -547,20 +619,150 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
             <span className="subtag-intel">Live City Intelligence</span>
           </div>
 
-          {/* Center Search Input */}
-          <div className="command-search-wrap">
+          {/* Center Search Input & Interactive Command Palette */}
+          <div className="command-search-wrap" ref={searchContainerRef}>
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#64748B" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <input
+              ref={searchInputRef}
               type="text"
               className="command-search-input"
               placeholder="Search location, incident, or keyword..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSearchFocused(true);
+              }}
             />
-            <div className="command-search-kbd">Ctrl K</div>
+            <div
+              className="command-search-kbd"
+              title="Click or press Ctrl+K to search"
+              onClick={() => {
+                searchInputRef.current?.focus();
+                setIsSearchFocused(true);
+              }}
+            >
+              Ctrl K
+            </div>
+
+            {/* Live Command Palette Dropdown */}
+            {isSearchFocused && (
+              <div className="command-search-dropdown">
+                {/* Views Section */}
+                {searchResults.views && searchResults.views.length > 0 && (
+                  <div className="search-dropdown-section">
+                    <div className="search-dropdown-group-title">Navigation Views</div>
+                    {searchResults.views.map(v => (
+                      <div
+                        key={v.id}
+                        className="search-dropdown-item"
+                        onClick={() => {
+                          if (onNavigate) onNavigate(v.id);
+                          setIsSearchFocused(false);
+                          setSearchQuery('');
+                          showToast(`Opened ${v.label}`);
+                        }}
+                      >
+                        <div className="search-item-left">
+                          <div className="search-item-icon blue">🧭</div>
+                          <div className="search-item-texts">
+                            <div className="search-item-title">{v.label}</div>
+                            <div className="search-item-desc">{v.desc}</div>
+                          </div>
+                        </div>
+                        <span className="search-item-badge">{v.badge}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Corridors Section */}
+                {searchResults.corridors && searchResults.corridors.length > 0 && (
+                  <div className="search-dropdown-section">
+                    <div className="search-dropdown-group-title">Monitored Corridors</div>
+                    {searchResults.corridors.map(c => (
+                      <div
+                        key={c.id}
+                        className="search-dropdown-item"
+                        onClick={() => {
+                          setSelectedCorridor(c.id);
+                          setIsSearchFocused(false);
+                          setSearchQuery('');
+                          showToast(`Telemetry filtered to ${c.label}`);
+                        }}
+                      >
+                        <div className="search-item-left">
+                          <div className="search-item-icon green">📍</div>
+                          <div className="search-item-texts">
+                            <div className="search-item-title">{c.label}</div>
+                            <div className="search-item-desc">{c.desc}</div>
+                          </div>
+                        </div>
+                        <span className="search-item-badge">Corridor</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Alerts Section */}
+                {searchResults.alerts && searchResults.alerts.length > 0 && (
+                  <div className="search-dropdown-section">
+                    <div className="search-dropdown-group-title">Active Alerts</div>
+                    {searchResults.alerts.map(a => (
+                      <div
+                        key={a.id}
+                        className="search-dropdown-item"
+                        onClick={() => {
+                          if (onNavigate) onNavigate('alerts');
+                          setIsSearchFocused(false);
+                          setSearchQuery('');
+                          showToast(`Navigated to Alert: ${a.title}`);
+                        }}
+                      >
+                        <div className="search-item-left">
+                          <div className="search-item-icon red">⚠️</div>
+                          <div className="search-item-texts">
+                            <div className="search-item-title">{a.title}</div>
+                            <div className="search-item-desc">{a.location} • {a.time}</div>
+                          </div>
+                        </div>
+                        <span className="search-item-badge red">{a.severity}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Directives Section */}
+                {searchResults.directives && searchResults.directives.length > 0 && (
+                  <div className="search-dropdown-section">
+                    <div className="search-dropdown-group-title">Tactical Directives</div>
+                    {searchResults.directives.map(d => (
+                      <div
+                        key={d.id}
+                        className="search-dropdown-item"
+                        onClick={() => {
+                          handleOpenDispatchModal(d);
+                          setIsSearchFocused(false);
+                          setSearchQuery('');
+                        }}
+                      >
+                        <div className="search-item-left">
+                          <div className="search-item-icon purple">⚡</div>
+                          <div className="search-item-texts">
+                            <div className="search-item-title">{d.title}</div>
+                            <div className="search-item-desc">{d.authority}</div>
+                          </div>
+                        </div>
+                        <span className="search-item-badge blue">Dispatch</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right Date/Time & Avatar */}
