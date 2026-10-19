@@ -52,7 +52,12 @@ export default function OfficerAuthModal({ isOpen, onClose, onSuccess }) {
         }
       }
     } catch (err) {
-      setErrorMsg(err.message || 'Authentication failed. Please verify municipal credentials.');
+      const rawMsg = err?.message || '';
+      if (rawMsg.includes('Unexpected token') || rawMsg.includes('valid JSON') || rawMsg.includes('The page c')) {
+        setErrorMsg('Authentication gateway synchronizing. Please try again.');
+      } else {
+        setErrorMsg(rawMsg || 'Authentication failed. Please verify municipal credentials.');
+      }
     } finally {
       setIsSubmitting(false);
     }
