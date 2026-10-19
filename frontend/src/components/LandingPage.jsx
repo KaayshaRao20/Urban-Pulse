@@ -216,19 +216,18 @@ export default function LandingPage({ onNavigateToAuth }) {
     let renderer;
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    } catch {
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFShadowMap;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.08;
+      host.prepend(renderer.domElement);
+    } catch (err) {
+      console.warn('[LandingPage] WebGL initialization fallback notice:', err);
       host.classList.add('nogl');
       return;
     }
-
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
-
-    host.prepend(renderer.domElement);
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0xf4f9fd, 48, 120);

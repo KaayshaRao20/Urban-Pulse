@@ -263,56 +263,67 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
   const peakTooltipPlugin = {
     id: 'peakTooltipPlugin',
     afterDraw(chart, args, options) {
-      if (!options || !options.peakLabel) return;
-      const { ctx, scales } = chart;
-      const { x, y } = scales;
-      const peakIndex = options.peakIndex ?? 3;
-      const xPos = x.getPixelForTick(peakIndex);
-      const yVal = options.peakValue ?? 62;
-      const yPos = y.getPixelForValue(yVal);
-      const isLight = options.theme === 'light';
+      try {
+        if (!options || !options.peakLabel) return;
+        const { ctx, scales } = chart;
+        if (!ctx || !scales || !scales.x || !scales.y) return;
+        const { x, y } = scales;
+        const peakIndex = options.peakIndex ?? 3;
+        const xPos = typeof x.getPixelForTick === 'function' ? x.getPixelForTick(peakIndex) : (x.getPixelForValue ? x.getPixelForValue(peakIndex) : 0);
+        if (typeof xPos !== 'number' || isNaN(xPos)) return;
+        const yVal = options.peakValue ?? 62;
+        const yPos = typeof y.getPixelForValue === 'function' ? y.getPixelForValue(yVal) : 0;
+        if (typeof yPos !== 'number' || isNaN(yPos)) return;
+        const isLight = options.theme === 'light';
 
-      ctx.save();
-      const textLine1 = options.peakLabel;
-      const textLine2 = options.peakSub || '';
-      ctx.font = 'bold 10px "Plus Jakarta Sans", sans-serif';
-      const textWidth = Math.max(ctx.measureText(textLine1).width, ctx.measureText(textLine2).width) + 16;
-      const boxHeight = textLine2 ? 32 : 20;
-      const boxX = xPos - textWidth / 2;
-      const boxY = yPos - boxHeight - 8;
+        ctx.save();
+        const textLine1 = options.peakLabel;
+        const textLine2 = options.peakSub || '';
+        ctx.font = 'bold 10px "Plus Jakarta Sans", sans-serif';
+        const textWidth = Math.max(ctx.measureText(textLine1).width, ctx.measureText(textLine2).width) + 16;
+        const boxHeight = textLine2 ? 32 : 20;
+        const boxX = xPos - textWidth / 2;
+        const boxY = yPos - boxHeight - 8;
 
-      // Draw capsule
-      ctx.fillStyle = isLight ? '#FFFFFF' : 'rgba(15, 23, 42, 0.92)';
-      ctx.strokeStyle = isLight ? '#E2E8F0' : 'rgba(51, 65, 85, 0.4)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(boxX, boxY, textWidth, boxHeight, 6);
-      ctx.fill();
-      ctx.stroke();
-
-      // Triangle pointer pointing down
-      ctx.beginPath();
-      ctx.moveTo(xPos - 4, boxY + boxHeight);
-      ctx.lineTo(xPos, boxY + boxHeight + 4);
-      ctx.lineTo(xPos + 4, boxY + boxHeight);
-      ctx.closePath();
-      ctx.fillStyle = isLight ? '#FFFFFF' : 'rgba(15, 23, 42, 0.92)';
-      ctx.fill();
-      if (isLight) {
-        ctx.strokeStyle = '#E2E8F0';
+        // Draw capsule
+        ctx.fillStyle = isLight ? '#FFFFFF' : 'rgba(15, 23, 42, 0.92)';
+        ctx.strokeStyle = isLight ? '#E2E8F0' : 'rgba(51, 65, 85, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(boxX, boxY, textWidth, boxHeight, 6);
+        } else {
+          ctx.rect(boxX, boxY, textWidth, boxHeight);
+        }
+        ctx.fill();
         ctx.stroke();
-      }
 
-      // Text 1
-      ctx.fillStyle = isLight ? '#0F172A' : '#FFFFFF';
-      ctx.textAlign = 'center';
-      ctx.fillText(textLine1, xPos, boxY + 13);
-      if (textLine2) {
-        ctx.font = '500 9px "Plus Jakarta Sans", sans-serif';
-        ctx.fillStyle = isLight ? '#64748B' : '#94A3B8';
-        ctx.fillText(textLine2, xPos, boxY + 25);
+        // Triangle pointer pointing down
+        ctx.beginPath();
+        ctx.moveTo(xPos - 4, boxY + boxHeight);
+        ctx.lineTo(xPos, boxY + boxHeight + 4);
+        ctx.lineTo(xPos + 4, boxY + boxHeight);
+        ctx.closePath();
+        ctx.fillStyle = isLight ? '#FFFFFF' : 'rgba(15, 23, 42, 0.92)';
+        ctx.fill();
+        if (isLight) {
+          ctx.strokeStyle = '#E2E8F0';
+          ctx.stroke();
+        }
+
+        // Text 1
+        ctx.fillStyle = isLight ? '#0F172A' : '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.fillText(textLine1, xPos, boxY + 13);
+        if (textLine2) {
+          ctx.font = '500 9px "Plus Jakarta Sans", sans-serif';
+          ctx.fillStyle = isLight ? '#64748B' : '#94A3B8';
+          ctx.fillText(textLine2, xPos, boxY + 25);
+        }
+        ctx.restore();
+      } catch (err) {
+        console.warn('[peakTooltipPlugin] skipped render due to notice:', err);
       }
-      ctx.restore();
     }
   };
 

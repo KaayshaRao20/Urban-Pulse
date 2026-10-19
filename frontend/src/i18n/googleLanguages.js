@@ -202,7 +202,8 @@ export function initGoogleTranslate() {
 
   window.googleTranslateElementInit = function () {
     try {
-      if (window.google && window.google.translate) {
+      const container = document.getElementById('google_translate_element');
+      if (window.google && window.google.translate && container) {
         new window.google.translate.TranslateElement(
           {
             pageLanguage: 'en',
@@ -216,6 +217,9 @@ export function initGoogleTranslate() {
       console.warn('Google Translate init:', e);
     }
   };
+
+  const container = document.getElementById('google_translate_element');
+  if (!container) return;
 
   if (!document.getElementById('google-translate-script')) {
     const script = document.createElement('script');

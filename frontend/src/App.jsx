@@ -18,6 +18,7 @@ import OfficerAuthModal from './components/OfficerAuthModal';
 
 import LoginPage from './components/LoginPage';
 import LandingPage from './components/LandingPage';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import { API_BASE } from './config/api';
 
@@ -146,15 +147,21 @@ function AppContent() {
   // 1. Unauthenticated Visitor Flow: Landing Page or Login / Register Page
   if (!isAuthenticated) {
     if (unauthView === 'landing') {
-      return <LandingPage onNavigateToAuth={handleNavigateToAuth} />;
+      return (
+        <ErrorBoundary>
+          <LandingPage onNavigateToAuth={handleNavigateToAuth} />
+        </ErrorBoundary>
+      );
     }
     return (
-      <LoginPage
-        onAuthSuccess={handleAuthSuccess}
-        onBackToLanding={handleBackToLanding}
-        initialMode={authInitialMode}
-        initialType={authInitialType}
-      />
+      <ErrorBoundary>
+        <LoginPage
+          onAuthSuccess={handleAuthSuccess}
+          onBackToLanding={handleBackToLanding}
+          initialMode={authInitialMode}
+          initialType={authInitialType}
+        />
+      </ErrorBoundary>
     );
   }
 
@@ -173,14 +180,16 @@ function AppContent() {
       {/* ------------------------------------------------------------- */}
       {appMode === 'citizen' ? (
         <div className="citizen-full-shell">
-          <CitizenPortalView
-            onSwitchToAuthority={handleSwitchToAuthority}
-            onOpenOfficerAuth={openAuthModal}
-            isAuthenticated={isAuthenticated}
-            officer={officer}
-            user={user}
-            onLogout={logout}
-          />
+          <ErrorBoundary>
+            <CitizenPortalView
+              onSwitchToAuthority={handleSwitchToAuthority}
+              onOpenOfficerAuth={openAuthModal}
+              isAuthenticated={isAuthenticated}
+              officer={officer}
+              user={user}
+              onLogout={logout}
+            />
+          </ErrorBoundary>
         </div>
       ) : (
         /* ------------------------------------------------------------- */
@@ -197,33 +206,35 @@ function AppContent() {
           />
 
           <main className="workspace-area">
-            {activeView === 'dashboard' && (
-              <DashboardView
-                telemetryData={telemetryData}
-                onNavigate={setActiveView}
-                onRefresh={fetchTelemetry}
-              />
-            )}
-            {activeView === 'map' && (
-              <IntelligenceMapView
-                timestamp={timestamp}
-                onNavigateToGrievance={handleNavigateToGrievance}
-              />
-            )}
-            {activeView === 'grievances' && (
-              <GrievanceManagementView
-                initialTicketId={selectedGrievanceId}
-              />
-            )}
-            {activeView === 'alerts' && (
-              <AlertsIncidentsView onCriticalCountChange={setCriticalAlertsCount} />
-            )}
-            {activeView === 'analytics' && <AnalyticsView />}
-            {activeView === 'predictive_calendar' && <PredictiveCalendarView timestamp={timestamp} />}
-            {activeView === 'simulation' && <SimulationView timestamp={timestamp} />}
-            {activeView === 'focus' && <FocusView timestamp={timestamp} />}
-            {activeView === 'reports' && <ReportsView />}
-            {activeView === 'settings' && <SettingsView />}
+            <ErrorBoundary>
+              {activeView === 'dashboard' && (
+                <DashboardView
+                  telemetryData={telemetryData}
+                  onNavigate={setActiveView}
+                  onRefresh={fetchTelemetry}
+                />
+              )}
+              {activeView === 'map' && (
+                <IntelligenceMapView
+                  timestamp={timestamp}
+                  onNavigateToGrievance={handleNavigateToGrievance}
+                />
+              )}
+              {activeView === 'grievances' && (
+                <GrievanceManagementView
+                  initialTicketId={selectedGrievanceId}
+                />
+              )}
+              {activeView === 'alerts' && (
+                <AlertsIncidentsView onCriticalCountChange={setCriticalAlertsCount} />
+              )}
+              {activeView === 'analytics' && <AnalyticsView />}
+              {activeView === 'predictive_calendar' && <PredictiveCalendarView timestamp={timestamp} />}
+              {activeView === 'simulation' && <SimulationView timestamp={timestamp} />}
+              {activeView === 'focus' && <FocusView timestamp={timestamp} />}
+              {activeView === 'reports' && <ReportsView />}
+              {activeView === 'settings' && <SettingsView />}
+            </ErrorBoundary>
           </main>
         </div>
       )}
