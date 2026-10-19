@@ -177,20 +177,19 @@ export function applyGoogleTranslate(langCode) {
     }
 
     const cookieVal = `/en/${langCode}`;
-    document.cookie = `googtrans=${cookieVal}; path=/;`;
-    document.cookie = `googtrans=${cookieVal}; domain=${hostname}; path=/;`;
-    if (!isLocal && hostname.includes('.')) {
+    document.cookie = `googtrans=${cookieVal}; path=/; SameSite=Lax;`;
+    if (!isLocal && !hostname.endsWith('.vercel.app') && hostname.includes('.')) {
       const rootDomain = '.' + hostname.split('.').slice(-2).join('.');
-      document.cookie = `googtrans=${cookieVal}; domain=${rootDomain}; path=/;`;
+      document.cookie = `googtrans=${cookieVal}; domain=${rootDomain}; path=/; SameSite=Lax;`;
     }
 
     localStorage.setItem('urbanpulse_citizen_lang', langCode);
 
     // Trigger select element if Google Translate has mounted it
-    const select = document.querySelector('.goog-te-combo');
-    if (select) {
-      select.value = langCode;
-      select.dispatchEvent(new Event('change'));
+    const combo = document.querySelector('.goog-te-combo') || document.querySelector('select.goog-te-combo');
+    if (combo) {
+      combo.value = langCode;
+      combo.dispatchEvent(new Event('change', { bubbles: true }));
     }
   } catch (err) {
     console.warn('Google Translate trigger:', err);

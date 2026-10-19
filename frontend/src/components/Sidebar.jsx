@@ -10,6 +10,12 @@ export default function Sidebar({
   isOpen = false,
   onClose
 }) {
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [isHovered, setIsHovered] = React.useState(false);
+
+  // Expanded if not collapsed, or when hovered over in collapsed mode
+  const isExpanded = !isCollapsed || isHovered;
+
   const navItems = [
     {
       id: 'dashboard',
@@ -128,42 +134,67 @@ export default function Sidebar({
   const avatarLetter = (displayName[0] || 'A').toUpperCase();
 
   return (
-    <aside className={`app-sidebar modern-sidebar ${isOpen ? 'mobile-open' : ''}`}>
+    <aside
+      className={`app-sidebar modern-sidebar ${isOpen ? 'mobile-open' : ''} ${isExpanded ? 'is-expanded' : 'is-collapsed'}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <div>
         {/* Brand Header */}
         <div className="sidebar-brand-exact">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
             <img
               src="/assets/urbanpulse_ref_badge_hd.png"
               alt="UrbanPulse Emblem"
               className="sidebar-brand-logo-img"
             />
-            <div>
-              <div className="sidebar-brand-name">
-                <span className="brand-green-exact">Urban</span>
-                <span className="brand-navy-exact">Pulse</span>
+            {isExpanded && (
+              <div className="sidebar-brand-text-block">
+                <div className="sidebar-brand-name">
+                  <span className="brand-green-exact">Urban</span>
+                  <span className="brand-navy-exact">Pulse</span>
+                </div>
+                <div className="sidebar-brand-tag-exact">
+                  <div>SMART CITY MONITORING</div>
+                  <div>& RESPONSE NETWORK</div>
+                </div>
               </div>
-              <div className="sidebar-brand-tag-exact">
-                <div>SMART CITY MONITORING</div>
-                <div>& RESPONSE NETWORK</div>
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* Close button on mobile screens */}
-          {onClose && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {/* Desktop Collapse / Expand Pin Toggle Button */}
             <button
               type="button"
-              className="sidebar-mobile-close-btn"
-              onClick={onClose}
-              aria-label="Close Navigation Menu"
+              className="sidebar-toggle-pin-btn"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              title={isCollapsed ? "Expand Sidebar (or hover on mouse visit)" : "Collapse Sidebar to Compact Mode"}
+              aria-label="Toggle Sidebar width"
             >
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
+                {isCollapsed ? (
+                  <polyline points="13 17 18 12 13 7" />
+                ) : (
+                  <polyline points="11 17 6 12 11 7" />
+                )}
               </svg>
             </button>
-          )}
+
+            {/* Close button on mobile screens */}
+            {onClose && (
+              <button
+                type="button"
+                className="sidebar-mobile-close-btn"
+                onClick={onClose}
+                aria-label="Close Navigation Menu"
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Menu Navigation Items */}
@@ -174,20 +205,24 @@ export default function Sidebar({
               <button
                 key={item.id}
                 type="button"
-                className={`sidebar-nav-btn ${isActive ? 'active' : ''}`}
+                className={`sidebar-nav-btn ${isActive ? 'active' : ''} ${!isExpanded ? 'collapsed-btn' : ''}`}
                 onClick={() => {
                   setActiveView(item.id);
                   if (onClose) onClose();
                 }}
+                title={item.label}
               >
                 <div className="sidebar-nav-btn-left">
                   <span className={`sidebar-nav-icon ${isActive ? 'active-icon-box' : ''}`}>
                     {item.icon}
                   </span>
-                  <span className="sidebar-nav-label">{item.label}</span>
+                  {isExpanded && <span className="sidebar-nav-label">{item.label}</span>}
                 </div>
-                {item.badge && (
+                {item.badge && isExpanded && (
                   <span className="sidebar-nav-badge">{item.badge}</span>
+                )}
+                {item.badge && !isExpanded && (
+                  <span className="sidebar-dot-badge" />
                 )}
               </button>
             );
@@ -201,7 +236,7 @@ export default function Sidebar({
         {onSwitchToCitizen && (
           <button
             type="button"
-            className="sidebar-switch-portal-btn"
+            className={`sidebar-switch-portal-btn ${!isExpanded ? 'collapsed-portal-btn' : ''}`}
             onClick={() => {
               onSwitchToCitizen();
               if (onClose) onClose();
@@ -214,37 +249,41 @@ export default function Sidebar({
               <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
               <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
-            <span>Citizen Portal</span>
-            <span className="portal-arrow">→</span>
+            {isExpanded && <span>Citizen Portal</span>}
+            {isExpanded && <span className="portal-arrow">→</span>}
           </button>
         )}
 
         {/* Profile Card */}
         <div
-          className="sidebar-profile-card"
+          className={`sidebar-profile-card ${!isExpanded ? 'collapsed-profile' : ''}`}
           onClick={() => {
             setActiveView('settings');
             if (onClose) onClose();
           }}
-          title="Open Admin Settings"
+          title={isExpanded ? "Open Admin Settings" : displayName}
         >
           <div className="profile-card-left">
             <div className="profile-avatar-circle">{avatarLetter}</div>
-            <div className="profile-text-wrap">
-              <div className="profile-name">{displayName}</div>
-              <div className="profile-role">{displayRole}</div>
-            </div>
+            {isExpanded && (
+              <div className="profile-text-wrap">
+                <div className="profile-name">{displayName}</div>
+                <div className="profile-role">{displayRole}</div>
+              </div>
+            )}
           </div>
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#64748B" strokeWidth="2.5">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
+          {isExpanded && (
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#64748B" strokeWidth="2.5">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          )}
         </div>
 
         {/* Sign Out Row */}
         {onLogout && (
           <button
             type="button"
-            className="sidebar-logout-btn"
+            className={`sidebar-logout-btn ${!isExpanded ? 'collapsed-logout' : ''}`}
             onClick={onLogout}
             title="Log Out of Authority Console"
           >
@@ -253,7 +292,7 @@ export default function Sidebar({
               <polyline points="16 17 21 12 16 7" />
               <line x1="21" y1="12" x2="9" y2="12" />
             </svg>
-            <span>Log Out</span>
+            {isExpanded && <span>Log Out</span>}
           </button>
         )}
       </div>

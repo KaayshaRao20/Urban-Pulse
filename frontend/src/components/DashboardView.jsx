@@ -241,7 +241,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
     { name: 'Crowd Data', latency: '14ms', status: 'Operational' },
     { name: 'Metro Data', latency: '19ms', status: 'Operational' },
     { name: 'CCTV & Video Feeds', latency: '24ms', status: 'Operational' },
-    { name: 'AI Prediction Engine', latency: '8ms', status: 'Operational' }
+    { name: 'Predictive Analytics Engine', latency: '8ms', status: 'Operational' }
   ];
 
   const handleOpenDispatchModal = (item) => {
@@ -1007,7 +1007,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" strokeWidth="2">
                   <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                 </svg>
-                <span className="op-card-title">AI Recommendations</span>
+                <span className="op-card-title">Tactical Directives</span>
               </div>
               <button
                 type="button"
