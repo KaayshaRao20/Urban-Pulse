@@ -252,17 +252,17 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
       </div>
 
       {/* Top Toolbar Controls Row */}
-      <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: '0.85rem 1rem', marginBottom: '0.85rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+      <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 8, padding: '0.65rem 0.85rem', marginBottom: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
         
         {/* Left Filter Dropdowns */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           
           {/* Location Selector */}
           <div style={{ position: 'relative' }}>
             <select
               value={selectedLocation}
               onChange={(e) => setSelectedLocation(e.target.value)}
-              style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: 8, padding: '0.45rem 0.85rem 0.45rem 2rem', fontSize: '0.78rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', outline: 'none' }}
+              style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.38rem 0.75rem 0.38rem 1.8rem', fontSize: '0.76rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', outline: 'none' }}
             >
               <option value="all">Bengaluru (Citywide)</option>
               {locationsList.filter(l => l.id !== 'loc-all').map(l => (
@@ -275,7 +275,7 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
           <select
             value={selectedEventType}
             onChange={(e) => setSelectedEventType(e.target.value)}
-            style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: 8, padding: '0.45rem 0.85rem', fontSize: '0.78rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', outline: 'none' }}
+            style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.38rem 0.75rem', fontSize: '0.76rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', outline: 'none' }}
           >
             <option value="all">All Event Types</option>
             <option value="traffic">Traffic Surge</option>
@@ -290,7 +290,7 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
           <select
             value={selectedSeverity}
             onChange={(e) => setSelectedSeverity(e.target.value)}
-            style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: 8, padding: '0.45rem 0.85rem', fontSize: '0.78rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', outline: 'none' }}
+            style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.38rem 0.75rem', fontSize: '0.76rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', outline: 'none' }}
           >
             <option value="all">All Severities</option>
             <option value="high">High Severity</option>
@@ -300,40 +300,40 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
         </div>
 
         {/* Right Navigation & View Switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           
           {/* Today / Prev / Next */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
             <button
               onClick={handleToday}
-              style={{ background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.4rem 0.75rem', fontSize: '0.75rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer' }}
+              style={{ background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: 5, padding: '0.35rem 0.65rem', fontSize: '0.72rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer' }}
             >
               Today
             </button>
             <button
               onClick={handlePrevMonth}
-              style={{ background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.4rem 0.65rem', fontSize: '0.75rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: 5, padding: '0.35rem 0.55rem', fontSize: '0.72rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               title="Previous Month"
             >
-              <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+              <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             <button
               onClick={handleNextMonth}
-              style={{ background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.4rem 0.65rem', fontSize: '0.75rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: 5, padding: '0.35rem 0.55rem', fontSize: '0.72rem', fontWeight: 700, color: '#0F172A', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               title="Next Month"
             >
-              <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+              <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" fill="none" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </div>
 
           {/* Month Selector Display */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: 8, padding: '0.4rem 0.75rem', fontSize: '0.8rem', fontWeight: 800, color: '#0F172A' }}>
-            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.35rem 0.65rem', fontSize: '0.76rem', fontWeight: 800, color: '#0F172A' }}>
+            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             <span>{monthNames[currentMonth]} {currentYear}</span>
           </div>
 
           {/* Month / Week / List View Selector Tabs */}
-          <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', borderRadius: 8, padding: 3 }}>
+          <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', borderRadius: 6, padding: 2 }}>
             {['Month', 'Week', 'List'].map(mode => {
               const key = mode.toLowerCase();
               const isSel = viewMode === key;
@@ -345,9 +345,9 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                     border: 'none',
                     background: isSel ? '#059669' : 'transparent',
                     color: isSel ? '#FFFFFF' : '#64748B',
-                    borderRadius: 6,
-                    padding: '0.35rem 0.75rem',
-                    fontSize: '0.75rem',
+                    borderRadius: 5,
+                    padding: '0.3rem 0.65rem',
+                    fontSize: '0.72rem',
                     fontWeight: 700,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease'
@@ -363,45 +363,44 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
       </div>
 
       {/* Categories Legend Bar & Search Row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '8px' }}>
         
         {/* Category Legend Pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', fontSize: '0.72rem', fontWeight: 600, color: '#475569' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444' }}></span> Traffic Surge</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563EB' }}></span> Large Crowd</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0284C7' }}></span> Weather Impact</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#7C3AED' }}></span> Public Event</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#EA580C' }}></span> Road Work</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#059669' }}></span> Festival / Holiday</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#94A3B8' }}></span> Other</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: '0.7rem', fontWeight: 600, color: '#475569' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: '#EF4444' }}></span> Traffic Surge</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: '#2563EB' }}></span> Large Crowd</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: '#0284C7' }}></span> Weather Impact</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: '#7C3AED' }}></span> Public Event</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: '#EA580C' }}></span> Road Work</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: '#059669' }}></span> Festival</span>
         </div>
 
         {/* Search Input Box */}
-        <div style={{ position: 'relative', width: 220 }}>
+        <div style={{ position: 'relative', width: 200 }}>
           <input
             type="text"
             placeholder="Search events..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ width: '100%', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: 8, padding: '0.35rem 0.65rem 0.35rem 1.8rem', fontSize: '0.75rem', outline: 'none' }}
+            style={{ width: '100%', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: 6, padding: '0.32rem 0.55rem 0.32rem 1.6rem', fontSize: '0.74rem', outline: 'none' }}
           />
-          <svg viewBox="0 0 24 24" style={{ position: 'absolute', left: 7, top: 7, width: 14, height: 14, stroke: '#94A3B8', fill: 'none', strokeWidth: 2 }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <svg viewBox="0 0 24 24" style={{ position: 'absolute', left: 6, top: 6, width: 13, height: 13, stroke: '#94A3B8', fill: 'none', strokeWidth: 2 }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </div>
       </div>
 
       {/* Main Grid: Calendar (Left) + Right Date Detail Panel */}
-      <div className="calendar-main-grid" style={{ display: 'grid', gridTemplateColumns: viewMode === 'month' ? '1fr 340px' : '1fr', gap: '1.25rem', alignItems: 'start' }}>
+      <div className="calendar-main-grid" style={{ display: 'grid', gridTemplateColumns: viewMode === 'month' ? '1fr 310px' : '1fr', gap: '1rem', alignItems: 'start' }}>
         
         {/* =================================================================== */}
         {/* CALENDAR MAIN AREA (MONTH / WEEK / LIST VIEWS)                     */}
         {/* =================================================================== */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 8, padding: '0.75rem 0.85rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
           
           {/* MONTH VIEW GRID */}
           {viewMode === 'month' && (
             <div>
               {/* Day Header Row */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px', marginBottom: '8px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 800, color: '#64748B', letterSpacing: '0.5px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px', marginBottom: '6px', textAlign: 'center', fontSize: '0.68rem', fontWeight: 800, color: '#64748B', letterSpacing: '0.5px' }}>
                 <div>SUN</div>
                 <div>MON</div>
                 <div>TUE</div>
@@ -412,7 +411,7 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
               </div>
 
               {/* 35 Calendar Cells Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px' }}>
                 {gridDays.map((cell, idx) => {
                   const evts = getEventsForDate(cell.dateIso);
                   const isSelected = selectedDateIso === cell.dateIso;
@@ -423,11 +422,11 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                       key={idx}
                       onClick={() => setSelectedDateIso(cell.dateIso)}
                       style={{
-                        minHeight: 88,
+                        minHeight: 74,
                         background: isSelected ? '#F0FDF4' : (cell.isCurrentMonth ? '#FFFFFF' : '#FAFAFA'),
                         border: isSelected ? '2px solid #10B981' : '1px solid #F1F5F9',
-                        borderRadius: 8,
-                        padding: '6px',
+                        borderRadius: 6,
+                        padding: '4px 5px',
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
@@ -557,33 +556,33 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
         {/* RIGHT SIDE PANEL: SELECTED DATE PREDICTION DETAILS                  */}
         {/* =================================================================== */}
         {viewMode === 'month' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             
             {/* Header: Selected Date Title & Count */}
-            <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+            <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 8, padding: '0.75rem 0.85rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
               
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 24, height: 24, borderRadius: '50%', background: '#059669', color: '#FFFFFF', fontWeight: 800, fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#059669', color: '#FFFFFF', fontWeight: 800, fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {selectedDateIso ? selectedDateIso.split('-')[2] : '24'}
                   </span>
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0F172A' }}>
+                  <h3 style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
                     {formatSelectedDateHeader(selectedDateIso)}
                   </h3>
                 </div>
 
-                <span style={{ background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0', padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 800 }}>
-                  {selectedDateEvents.length} Predicted Events
+                <span style={{ background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0', padding: '2px 6px', borderRadius: 10, fontSize: '0.68rem', fontWeight: 800 }}>
+                  {selectedDateEvents.length} Events
                 </span>
               </div>
 
               {/* Stack of Predicted Events for this Date */}
               {selectedDateEvents.length === 0 ? (
-                <div style={{ padding: '1rem', textAlign: 'center', color: '#64748B', fontSize: '0.78rem', background: '#F8FAFC', borderRadius: 8 }}>
+                <div style={{ padding: '0.85rem', textAlign: 'center', color: '#64748B', fontSize: '0.75rem', background: '#F8FAFC', borderRadius: 6 }}>
                   No predicted urban risk events for this date.
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
                   {selectedDateEvents.map((ev) => {
                     const isSelectedEvt = selectedEventId === ev.id;
                     const isWhyExpanded = expandedWhyId === ev.id;
@@ -595,9 +594,9 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                         style={{
                           background: isSelectedEvt ? '#FFFFFF' : '#FAFAFA',
                           border: isSelectedEvt ? `1.5px solid ${ev.text_color || '#EF4444'}` : '1px solid #E2E8F0',
-                          borderRadius: 10,
-                          padding: '0.85rem',
-                          boxShadow: isSelectedEvt ? '0 2px 6px rgba(0,0,0,0.04)' : 'none',
+                          borderRadius: 6,
+                          padding: '0.65rem',
+                          boxShadow: isSelectedEvt ? '0 1px 4px rgba(0,0,0,0.03)' : 'none',
                           cursor: 'pointer',
                           transition: 'all 0.15s ease'
                         }}

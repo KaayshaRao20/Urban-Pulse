@@ -457,66 +457,66 @@ export default function GrievanceManagementView({ initialTicketId }) {
       {metrics && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-          gap: '12px',
-          marginTop: '1rem'
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: '10px',
+          marginTop: '0.85rem'
         }}>
-          <div className="glass-panel" style={{ padding: '12px 14px' }}>
-            <div style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 600 }}>Total Complaints</div>
-            <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', marginTop: '2px' }}>
+          <div className="glass-panel" style={{ padding: '10px 12px' }}>
+            <div style={{ fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>Total Complaints</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', marginTop: '2px' }}>
               {metrics.total_complaints}
             </div>
-            <div style={{ fontSize: '0.66rem', color: '#6EE7B7', marginTop: '4px', fontWeight: 600 }}>
+            <div style={{ fontSize: '0.65rem', color: '#059669', marginTop: '2px', fontWeight: 600 }}>
               Across 8 BBMP Zones
             </div>
           </div>
 
-          <div className="glass-panel" style={{ padding: '12px 14px' }}>
-            <div style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 600 }}>Awaiting Assignment</div>
-            <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#FCD34D', marginTop: '2px' }}>
+          <div className="glass-panel" style={{ padding: '10px 12px' }}>
+            <div style={{ fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>Awaiting Assignment</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#D97706', marginTop: '2px' }}>
               {metrics.awaiting_assignment_count}
             </div>
-            <div style={{ fontSize: '0.66rem', color: '#FCD34D', marginTop: '4px', fontWeight: 600 }}>
+            <div style={{ fontSize: '0.65rem', color: '#D97706', marginTop: '2px', fontWeight: 600 }}>
               {metrics.submitted_count} New &bull; {metrics.under_review_count} In Review
             </div>
           </div>
 
-          <div className="glass-panel" style={{ padding: '12px 14px' }}>
-            <div style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 600 }}>Active in Field</div>
-            <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#60A5FA', marginTop: '2px' }}>
+          <div className="glass-panel" style={{ padding: '10px 12px' }}>
+            <div style={{ fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>Active in Field</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#2563EB', marginTop: '2px' }}>
               {metrics.active_field_count}
             </div>
-            <div style={{ fontSize: '0.66rem', color: '#93C5FD', marginTop: '4px', fontWeight: 600 }}>
+            <div style={{ fontSize: '0.65rem', color: '#2563EB', marginTop: '2px', fontWeight: 600 }}>
               {metrics.dispatched_count} Dispatched &bull; {metrics.in_progress_count} Repairing
             </div>
           </div>
 
-          <div className="glass-panel" style={{ padding: '12px 14px' }}>
-            <div style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 600 }}>Resolved & Closed</div>
-            <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#6EE7B7', marginTop: '2px' }}>
+          <div className="glass-panel" style={{ padding: '10px 12px' }}>
+            <div style={{ fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>Resolved & Closed</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
               {metrics.resolved_count}
             </div>
-            <div style={{ fontSize: '0.66rem', color: '#6EE7B7', marginTop: '4px', fontWeight: 600 }}>
+            <div style={{ fontSize: '0.65rem', color: '#059669', marginTop: '2px', fontWeight: 600 }}>
               SLA Compliance: {metrics.sla_compliance_pct}%
             </div>
           </div>
 
-          <div className="glass-panel" style={{ padding: '12px 14px' }}>
-            <div style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 600 }}>Escalated / Reopened</div>
-            <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#FCA5A5', marginTop: '2px' }}>
+          <div className="glass-panel" style={{ padding: '10px 12px' }}>
+            <div style={{ fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>Escalated / Reopened</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#DC2626', marginTop: '2px' }}>
               {metrics.reopened_count}
             </div>
-            <div style={{ fontSize: '0.66rem', color: '#64748B', marginTop: '4px' }}>
+            <div style={{ fontSize: '0.65rem', color: '#64748B', marginTop: '2px' }}>
               {metrics.rejected_count} Rejected / Non-Jurisdictional
             </div>
           </div>
 
-          <div className="glass-panel" style={{ padding: '12px 14px' }}>
-            <div style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 600 }}>Avg Resolution Time</div>
-            <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', marginTop: '2px' }}>
+          <div className="glass-panel" style={{ padding: '10px 12px' }}>
+            <div style={{ fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>Avg Resolution Time</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', marginTop: '2px' }}>
               {metrics.avg_resolution_hours}h
             </div>
-            <div style={{ fontSize: '0.66rem', color: '#64748B', marginTop: '4px' }}>
+            <div style={{ fontSize: '0.65rem', color: '#64748B', marginTop: '2px' }}>
               Response: {metrics.avg_response_hours}h
             </div>
           </div>

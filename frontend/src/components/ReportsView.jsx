@@ -595,60 +595,60 @@ END OF MUNICIPAL DOSSIER
       </div>
 
       {/* --- SUMMARY CARDS ROW (5 Cards Matching Screenshot) --- */}
-      <div className="reports-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '1.25rem' }}>
+      <div className="reports-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '1rem' }}>
         
         {/* 1. Total Reports */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#DBEAFE', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.65rem 0.85rem', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#DBEAFE', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           </div>
           <div>
-            <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 600 }}>Total Reports</div>
-            <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, marginTop: 4 }}>{summary.total_reports}</div>
+            <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Total Reports</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, marginTop: 2 }}>{summary.total_reports}</div>
           </div>
         </div>
 
         {/* 2. Generated */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="16 10 11 15 8 12"/></svg>
+        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.65rem 0.85rem', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#DCFCE7', color: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="16 10 11 15 8 12"/></svg>
           </div>
           <div>
-            <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 600 }}>Generated</div>
-            <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, marginTop: 4 }}>{summary.generated}</div>
+            <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Generated</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, marginTop: 2 }}>{summary.generated}</div>
           </div>
         </div>
 
         {/* 3. Downloaded */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#DBEAFE', color: '#1D4ED8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.65rem 0.85rem', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#DBEAFE', color: '#1D4ED8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           </div>
           <div>
-            <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 600 }}>Downloaded</div>
-            <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, marginTop: 4 }}>{summary.downloaded}</div>
+            <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Downloaded</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, marginTop: 2 }}>{summary.downloaded}</div>
           </div>
         </div>
 
         {/* 4. Submitted */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#FFEDD5', color: '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.65rem 0.85rem', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#FFEDD5', color: '#EA580C', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
           </div>
           <div>
-            <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 600 }}>Submitted</div>
-            <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, marginTop: 4 }}>{summary.submitted}</div>
+            <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Submitted</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, marginTop: 2 }}>{summary.submitted}</div>
           </div>
         </div>
 
         {/* 5. Recent (24h) */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#F3E8FF', color: '#9333EA', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '0.65rem 0.85rem', display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#F3E8FF', color: '#9333EA', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
           <div>
-            <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 600 }}>Recent (24h)</div>
-            <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, marginTop: 4 }}>{summary.recent_24h}</div>
+            <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Recent (24h)</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', lineHeight: 1, marginTop: 2 }}>{summary.recent_24h}</div>
           </div>
         </div>
       </div>

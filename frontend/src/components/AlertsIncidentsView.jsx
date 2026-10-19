@@ -495,7 +495,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
       </div>
 
       {/* --- TOP SUMMARY CARDS (5 Cards Matching Screenshot) --- */}
-      <div className="alerts-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '1.25rem' }}>
+      <div className="alerts-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '1rem' }}>
         
         {/* 1. Critical Card */}
         <div
@@ -503,8 +503,8 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
           style={{
             background: '#FFFFFF',
             border: filterSeverity.toLowerCase() === 'critical' ? '2px solid #EF4444' : '1px solid #FEE2E2',
-            borderRadius: '12px',
-            padding: '1rem',
+            borderRadius: '8px',
+            padding: '0.65rem 0.85rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -513,16 +513,16 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
             transition: 'all 0.15s ease'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#EF4444', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></svg>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#EF4444', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></svg>
             </div>
             <div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{summary.critical}</div>
-              <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 600, marginTop: 4 }}>Critical</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{summary.critical}</div>
+              <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600, marginTop: 2 }}>Critical</div>
             </div>
           </div>
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="#94A3B8" fill="none" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="#94A3B8" fill="none" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
         </div>
 
         {/* 2. High Card */}
@@ -531,8 +531,8 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
           style={{
             background: '#FFFFFF',
             border: filterSeverity.toLowerCase() === 'high' ? '2px solid #F97316' : '1px solid #FFEDD5',
-            borderRadius: '12px',
-            padding: '1rem',
+            borderRadius: '8px',
+            padding: '0.65rem 0.85rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -541,16 +541,16 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
             transition: 'all 0.15s ease'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#F97316', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#F97316', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
             </div>
             <div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{summary.high}</div>
-              <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 600, marginTop: 4 }}>High</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{summary.high}</div>
+              <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600, marginTop: 2 }}>High</div>
             </div>
           </div>
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="#94A3B8" fill="none" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="#94A3B8" fill="none" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
         </div>
 
         {/* 3. Moderate Card */}
@@ -559,8 +559,8 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
           style={{
             background: '#FFFFFF',
             border: filterSeverity.toLowerCase() === 'moderate' ? '2px solid #3B82F6' : '1px solid #DBEAFE',
-            borderRadius: '12px',
-            padding: '1rem',
+            borderRadius: '8px',
+            padding: '0.65rem 0.85rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -569,16 +569,16 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
             transition: 'all 0.15s ease'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#3B82F6', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#3B82F6', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             </div>
             <div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{summary.moderate}</div>
-              <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 600, marginTop: 4 }}>Moderate</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{summary.moderate}</div>
+              <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600, marginTop: 2 }}>Moderate</div>
             </div>
           </div>
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="#94A3B8" fill="none" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="#94A3B8" fill="none" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
         </div>
 
         {/* 4. Low Card */}
@@ -587,8 +587,8 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
           style={{
             background: '#FFFFFF',
             border: filterSeverity.toLowerCase() === 'low' ? '2px solid #10B981' : '1px solid #DCFCE7',
-            borderRadius: '12px',
-            padding: '1rem',
+            borderRadius: '8px',
+            padding: '0.65rem 0.85rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -597,16 +597,16 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
             transition: 'all 0.15s ease'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#10B981', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#10B981', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
             <div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{summary.low}</div>
-              <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 600, marginTop: 4 }}>Low</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{summary.low}</div>
+              <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600, marginTop: 2 }}>Low</div>
             </div>
           </div>
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="#94A3B8" fill="none" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="#94A3B8" fill="none" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
         </div>
 
         {/* 5. Total Active Card */}
@@ -615,8 +615,8 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
           style={{
             background: '#FFFFFF',
             border: filterSeverity === 'all' ? '2px solid #64748B' : '1px solid #E2E8F0',
-            borderRadius: '12px',
-            padding: '1rem',
+            borderRadius: '8px',
+            padding: '0.65rem 0.85rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -625,16 +625,16 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
             transition: 'all 0.15s ease'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#64748B', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/></svg>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#64748B', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/></svg>
             </div>
             <div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{summary.total_active}</div>
-              <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 600, marginTop: 4 }}>Total Active</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{summary.total_active}</div>
+              <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600, marginTop: 2 }}>Total Active</div>
             </div>
           </div>
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="#94A3B8" fill="none" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="#94A3B8" fill="none" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
         </div>
       </div>
 
