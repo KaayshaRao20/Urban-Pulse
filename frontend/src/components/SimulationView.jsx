@@ -230,7 +230,7 @@ export default function SimulationView({ timestamp }) {
       </div>
 
       {/* Main 2-Column Grid Workspace */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+      <div className="simulation-main-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
         
         {/* LEFT COLUMN: Panel 1 - Input Parameters */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -251,7 +251,7 @@ export default function SimulationView({ timestamp }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               
               {/* Row 1: Location, Date, Time */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr', gap: '8px' }}>
+              <div className="simulation-form-row-3" style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr', gap: '8px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#64748B', marginBottom: 4 }}>Location / Zone</label>
                   <select value={location} onChange={(e) => setLocation(e.target.value)} style={{ width: '100%', padding: '0.45rem 0.65rem', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: '0.8rem', fontWeight: 600, color: '#0F172A', outline: 'none' }}>

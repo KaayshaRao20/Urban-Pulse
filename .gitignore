@@ -50,3 +50,4 @@ Thumbs.db
 backend/urbanpulse_dev.db
 backend/uploads/
 frontend/start_vite.js
+scratch/

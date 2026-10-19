@@ -254,7 +254,7 @@ export default function FocusView({ timestamp: globalTimestamp }) {
       </div>
 
       {/* Main 3-Column Layout Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr 320px', gap: '1.25rem', alignItems: 'start' }}>
+      <div className="focus-main-grid" style={{ display: 'grid', gridTemplateColumns: '320px 1fr 320px', gap: '1.25rem', alignItems: 'start' }}>
         
         {/* =================================================================== */}
         {/* COLUMN 1: LEFT CONTROLS                                             */}

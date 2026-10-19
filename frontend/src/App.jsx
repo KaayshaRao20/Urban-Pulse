@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -48,6 +48,7 @@ function AppContent() {
   const [telemetryData, setTelemetryData] = useState(null);
   const [connectionLost, setConnectionLost] = useState(false);
   const [timestamp, setTimestamp] = useState('');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Automatically align appMode with user role upon login or session restore
   useEffect(() => {
@@ -60,22 +61,34 @@ function AppContent() {
     }
   }, [isAuthenticated, user]);
 
+  const consecutiveFailuresRef = useRef(0);
+
   const fetchTelemetry = async () => {
     try {
       const res = await fetch(`${API_BASE}/dashboard/overview`);
       if (!res.ok) throw new Error("Telemetry backend unavailable");
-      const data = await res.json();
-      setTelemetryData(data);
-      setConnectionLost(false);
-      if (data.timestamp) setTimestamp(data.timestamp);
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : null;
+      if (data && (data.metrics || data.city_status)) {
+        setTelemetryData(data);
+        consecutiveFailuresRef.current = 0;
+        setConnectionLost(false);
+        if (data.timestamp) setTimestamp(data.timestamp);
+      } else {
+        throw new Error("Invalid telemetry payload");
+      }
     } catch (err) {
-      setConnectionLost(true);
+      consecutiveFailuresRef.current += 1;
+      // Only show offline banner if persistent network failure (3 consecutive polls = ~12s)
+      if (consecutiveFailuresRef.current >= 3) {
+        setConnectionLost(true);
+      }
     }
   };
 
   useEffect(() => {
     fetchTelemetry();
-    const interval = setInterval(fetchTelemetry, 2000);
+    const interval = setInterval(fetchTelemetry, 4000);
     return () => clearInterval(interval);
   }, []);
 
@@ -196,13 +209,70 @@ function AppContent() {
         /* PORTAL MODE 2: MUNICIPAL AUTHORITY COMMAND CONSOLE (PROTECTED)*/
         /* ------------------------------------------------------------- */
         <div className="app-shell">
+          {/* Mobile Top Header (<= 900px) */}
+          <div className="authority-mobile-topbar">
+            <button
+              type="button"
+              className="authority-mobile-menu-btn"
+              onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+              aria-label="Toggle navigation drawer"
+            >
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+
+            <div className="authority-mobile-brand">
+              <img
+                src="/assets/urbanpulse_ref_badge_hd.png"
+                alt="UrbanPulse Emblem"
+                className="authority-mobile-logo"
+              />
+              <span className="authority-mobile-title">
+                <span className="brand-green-exact">Urban</span>
+                <span className="brand-navy-exact">Pulse</span>
+              </span>
+              <span className="authority-mobile-tag">ICCC</span>
+            </div>
+
+            <button
+              type="button"
+              className="authority-mobile-citizen-btn"
+              onClick={() => setAppMode('citizen')}
+              title="Switch to Citizen Portal"
+            >
+              <span>Citizen</span>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Backdrop Overlay when drawer is active */}
+          {isMobileSidebarOpen && (
+            <div
+              className="mobile-sidebar-backdrop"
+              onClick={() => setIsMobileSidebarOpen(false)}
+            />
+          )}
+
           <Sidebar
             activeView={activeView}
-            setActiveView={setActiveView}
+            setActiveView={(view) => {
+              setActiveView(view);
+              setIsMobileSidebarOpen(false);
+            }}
             criticalAlertsCount={criticalAlertsCount}
             officer={user}
             onLogout={logout}
-            onSwitchToCitizen={() => setAppMode('citizen')}
+            onSwitchToCitizen={() => {
+              setAppMode('citizen');
+              setIsMobileSidebarOpen(false);
+            }}
+            isOpen={isMobileSidebarOpen}
+            onClose={() => setIsMobileSidebarOpen(false)}
           />
 
           <main className="workspace-area">
@@ -236,6 +306,87 @@ function AppContent() {
               {activeView === 'settings' && <SettingsView />}
             </ErrorBoundary>
           </main>
+
+          {/* Mobile Bottom Navigation Bar (<= 900px) */}
+          <nav className="authority-mobile-bottom-nav" aria-label="Quick Mobile Navigation">
+            <button
+              type="button"
+              className={`authority-bottom-nav-item ${activeView === 'dashboard' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveView('dashboard');
+                setIsMobileSidebarOpen(false);
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M3 10.25L12 3l9 7.25V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-9.75z" />
+              </svg>
+              <span>Dashboard</span>
+            </button>
+
+            <button
+              type="button"
+              className={`authority-bottom-nav-item ${activeView === 'map' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveView('map');
+                setIsMobileSidebarOpen(false);
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                <circle cx="12" cy="9" r="2.5" />
+              </svg>
+              <span>Map</span>
+            </button>
+
+            <button
+              type="button"
+              className={`authority-bottom-nav-item ${activeView === 'grievances' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveView('grievances');
+                setIsMobileSidebarOpen(false);
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                <line x1="9" y1="10" x2="15" y2="10" />
+                <line x1="12" y1="7" x2="12" y2="13" />
+              </svg>
+              <span>Grievances</span>
+            </button>
+
+            <button
+              type="button"
+              className={`authority-bottom-nav-item ${activeView === 'alerts' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveView('alerts');
+                setIsMobileSidebarOpen(false);
+              }}
+            >
+              <div className="bottom-nav-badge-wrap">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                {criticalAlertsCount > 0 && (
+                  <span className="bottom-nav-badge">{criticalAlertsCount}</span>
+                )}
+              </div>
+              <span>Alerts</span>
+            </button>
+
+            <button
+              type="button"
+              className={`authority-bottom-nav-item ${isMobileSidebarOpen ? 'active' : ''}`}
+              onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="1.5" />
+                <circle cx="19" cy="12" r="1.5" />
+                <circle cx="5" cy="12" r="1.5" />
+              </svg>
+              <span>More</span>
+            </button>
+          </nav>
         </div>
       )}
 

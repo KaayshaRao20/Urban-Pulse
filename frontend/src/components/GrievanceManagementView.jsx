@@ -623,7 +623,7 @@ export default function GrievanceManagementView({ initialTicketId }) {
       </div>
 
       {/* Main Two-Column Layout */}
-      <div style={{
+      <div className="grievance-main-grid" style={{
         display: 'grid',
         gridTemplateColumns: 'minmax(330px, 390px) 1fr',
         gap: '16px',

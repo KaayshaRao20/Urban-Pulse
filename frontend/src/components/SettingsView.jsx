@@ -433,7 +433,7 @@ export default function SettingsView() {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'transparent', height: '100%', overflowY: 'auto', borderRadius: '20px' }}>
       
       {/* Top Header Bar Matching UrbanPulse System Exactly */}
-      <header style={{
+      <header className="settings-top-header" style={{
         height: '64px',
         background: 'rgba(255, 255, 255, 0.92)',
         backdropFilter: 'blur(20px)',
@@ -558,13 +558,13 @@ export default function SettingsView() {
         {/* TAB 1: DATASET MANAGEMENT (STRICT IMAGE REFERENCE REPRODUCTION) */}
         {/* ------------------------------------------------------------- */}
         {activeTab === 'datasets' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: '24px', alignItems: 'start' }}>
+          <div className="settings-main-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: '24px', alignItems: 'start' }}>
             
             {/* Left Main Column */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
               {/* 5 Summary Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px' }}>
+              <div className="settings-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px' }}>
                 {/* Total Datasets */}
                 <div style={{ background: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#DC2626' }}>

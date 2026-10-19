@@ -495,7 +495,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
       </div>
 
       {/* --- TOP SUMMARY CARDS (5 Cards Matching Screenshot) --- */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '1.25rem' }}>
+      <div className="alerts-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '1.25rem' }}>
         
         {/* 1. Critical Card */}
         <div
@@ -753,7 +753,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
       </div>
 
       {/* --- TWO-COLUMN MAIN CONTENT AREA --- */}
-      <div style={{ display: 'grid', gridTemplateColumns: '44% 54%', gap: '20px', alignItems: 'start' }}>
+      <div className="alerts-main-grid" style={{ display: 'grid', gridTemplateColumns: '44% 54%', gap: '20px', alignItems: 'start' }}>
         
         {/* === LEFT COLUMN: LIVE ALERTS LIST === */}
         <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>

@@ -6,7 +6,9 @@ export default function Sidebar({
   criticalAlertsCount = 5,
   officer,
   onLogout,
-  onSwitchToCitizen
+  onSwitchToCitizen,
+  isOpen = false,
+  onClose
 }) {
   const navItems = [
     {
@@ -25,6 +27,28 @@ export default function Sidebar({
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
           <circle cx="12" cy="9" r="2.5" />
+        </svg>
+      )
+    },
+    {
+      id: 'grievances',
+      label: 'Grievance Redressal',
+      icon: (
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          <line x1="9" y1="10" x2="15" y2="10" />
+          <line x1="12" y1="7" x2="12" y2="13" />
+        </svg>
+      )
+    },
+    {
+      id: 'alerts',
+      label: 'Alerts & Incidents',
+      badge: String(criticalAlertsCount ?? 5),
+      icon: (
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
       )
     },
@@ -67,17 +91,6 @@ export default function Sidebar({
       )
     },
     {
-      id: 'alerts',
-      label: 'Alerts & Incidents',
-      badge: String(criticalAlertsCount ?? 5),
-      icon: (
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-      )
-    },
-    {
       id: 'analytics',
       label: 'Analytics',
       icon: (
@@ -110,30 +123,47 @@ export default function Sidebar({
     }
   ];
 
-  const displayName = 'Admin';
-  const displayRole = 'Urban Authority';
-  const avatarLetter = 'A';
+  const displayName = officer?.name || officer?.full_name || 'Admin';
+  const displayRole = officer?.department || 'Urban Authority';
+  const avatarLetter = (displayName[0] || 'A').toUpperCase();
 
   return (
-    <aside className="app-sidebar modern-sidebar">
+    <aside className={`app-sidebar modern-sidebar ${isOpen ? 'mobile-open' : ''}`}>
       <div>
         {/* Brand Header */}
         <div className="sidebar-brand-exact">
-          <img
-            src="/assets/urbanpulse_ref_badge_hd.png"
-            alt="UrbanPulse Emblem"
-            className="sidebar-brand-logo-img"
-          />
-          <div>
-            <div className="sidebar-brand-name">
-              <span className="brand-green-exact">Urban</span>
-              <span className="brand-navy-exact">Pulse</span>
-            </div>
-            <div className="sidebar-brand-tag-exact">
-              <div>SMART CITY MONITORING</div>
-              <div>& RESPONSE NETWORK</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <img
+              src="/assets/urbanpulse_ref_badge_hd.png"
+              alt="UrbanPulse Emblem"
+              className="sidebar-brand-logo-img"
+            />
+            <div>
+              <div className="sidebar-brand-name">
+                <span className="brand-green-exact">Urban</span>
+                <span className="brand-navy-exact">Pulse</span>
+              </div>
+              <div className="sidebar-brand-tag-exact">
+                <div>SMART CITY MONITORING</div>
+                <div>& RESPONSE NETWORK</div>
+              </div>
             </div>
           </div>
+
+          {/* Close button on mobile screens */}
+          {onClose && (
+            <button
+              type="button"
+              className="sidebar-mobile-close-btn"
+              onClick={onClose}
+              aria-label="Close Navigation Menu"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Menu Navigation Items */}
@@ -145,7 +175,10 @@ export default function Sidebar({
                 key={item.id}
                 type="button"
                 className={`sidebar-nav-btn ${isActive ? 'active' : ''}`}
-                onClick={() => setActiveView(item.id)}
+                onClick={() => {
+                  setActiveView(item.id);
+                  if (onClose) onClose();
+                }}
               >
                 <div className="sidebar-nav-btn-left">
                   <span className={`sidebar-nav-icon ${isActive ? 'active-icon-box' : ''}`}>
@@ -164,10 +197,35 @@ export default function Sidebar({
 
       {/* Bottom Profile & Sign Out Area */}
       <div className="sidebar-bottom-area">
+        {/* Switch to Citizen Portal Button */}
+        {onSwitchToCitizen && (
+          <button
+            type="button"
+            className="sidebar-switch-portal-btn"
+            onClick={() => {
+              onSwitchToCitizen();
+              if (onClose) onClose();
+            }}
+            title="Switch to Public Citizen Portal"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            <span>Citizen Portal</span>
+            <span className="portal-arrow">→</span>
+          </button>
+        )}
+
         {/* Profile Card */}
         <div
           className="sidebar-profile-card"
-          onClick={() => setActiveView('settings')}
+          onClick={() => {
+            setActiveView('settings');
+            if (onClose) onClose();
+          }}
           title="Open Admin Settings"
         >
           <div className="profile-card-left">

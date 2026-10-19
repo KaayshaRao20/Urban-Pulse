@@ -420,14 +420,15 @@ try:
 except Exception as e:
     print(f"[UrbanPulse Database] Primary engine initialization note ({DB_URL}): {e}")
     fallback_success = False
-    for alt_prefix in ["postgresql+psycopg://", "postgresql://"]:
+    for alt_prefix in ["postgresql+psycopg2://", "postgresql+psycopg://", "postgresql://"]:
         try:
             alt_url = RAW_DB_URL.replace("postgres://", alt_prefix, 1).replace("postgresql://", alt_prefix, 1)
             engine = create_db_engine(alt_url)
             DB_URL = alt_url
             fallback_success = True
             break
-        except Exception:
+        except Exception as e_driver:
+            print(f"[UrbanPulse Database] Driver prefix {alt_prefix} attempt note: {e_driver}")
             continue
     if not fallback_success:
         print("[UrbanPulse Database] Engaging resilient SQLite fallback.")
@@ -441,15 +442,14 @@ def init_db():
         Base.metadata.create_all(bind=engine)
     except Exception as e:
         print(f"[UrbanPulse Database] Schema initialization note: {e}")
-        return
     
-    # Safe SQLite column migration for civic_complaints table (only run on SQLite)
-    if "sqlite" in DB_URL:
-        try:
-            with engine.connect() as conn:
+    # Safe schema migration for both PostgreSQL and SQLite
+    try:
+        with engine.connect() as conn:
+            if "sqlite" in str(DB_URL).lower():
+                # SQLite column migration using PRAGMA
                 result = conn.execute(text("PRAGMA table_info(civic_complaints)"))
                 existing_cols = {row[1] for row in result.fetchall()}
-                
                 new_columns = [
                     ("assigned_department", "VARCHAR(150)"),
                     ("assigned_squad", "VARCHAR(150)"),
@@ -466,7 +466,6 @@ def init_db():
                     if col_name not in existing_cols:
                         conn.execute(text(f"ALTER TABLE civic_complaints ADD COLUMN {col_name} {col_type}"))
 
-                # Safe SQLite column migration for users table
                 result_users = conn.execute(text("PRAGMA table_info(users)"))
                 existing_user_cols = {row[1] for row in result_users.fetchall()}
                 new_user_cols = [
@@ -484,10 +483,39 @@ def init_db():
                 for col_name, col_type in new_user_cols:
                     if col_name not in existing_user_cols:
                         conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
-
                 conn.commit()
-        except Exception as e:
-            print(f"Database schema migration note: {e}")
+            else:
+                # PostgreSQL column migration using standard ADD COLUMN IF NOT EXISTS
+                pg_queries = [
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100);",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE;",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_otp VARCHAR(10);",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_otp_expires TIMESTAMP;",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(100);",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMP;",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(30) DEFAULT 'local';",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(150);",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255);",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS assigned_department VARCHAR(150);",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS assigned_squad VARCHAR(150);",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS assigned_officer VARCHAR(150);",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS dispatch_timestamp TIMESTAMP;",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS dispatch_eta VARCHAR(100);",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS dispatch_notes TEXT;",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS resolution_image_url VARCHAR(255);",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS rejection_reason TEXT;",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS reopen_reason TEXT;",
+                    "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS reopen_count INTEGER DEFAULT 0;"
+                ]
+                for q in pg_queries:
+                    try:
+                        conn.execute(text(q))
+                    except Exception as qe:
+                        print(f"[UrbanPulse Database] Col migration note: {qe}")
+                conn.commit()
+    except Exception as e:
+        print(f"[UrbanPulse Database] Schema migration note: {e}")
 
 
 

@@ -390,7 +390,7 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
       </div>
 
       {/* Main Grid: Calendar (Left) + Right Date Detail Panel */}
-      <div style={{ display: 'grid', gridTemplateColumns: viewMode === 'month' ? '1fr 340px' : '1fr', gap: '1.25rem', alignItems: 'start' }}>
+      <div className="calendar-main-grid" style={{ display: 'grid', gridTemplateColumns: viewMode === 'month' ? '1fr 340px' : '1fr', gap: '1.25rem', alignItems: 'start' }}>
         
         {/* =================================================================== */}
         {/* CALENDAR MAIN AREA (MONTH / WEEK / LIST VIEWS)                     */}

@@ -475,7 +475,7 @@ export default function ReportsView() {
       </div>
 
       {/* --- SUMMARY CARDS ROW (5 Cards Matching Screenshot) --- */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '1.25rem' }}>
+      <div className="reports-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', marginBottom: '1.25rem' }}>
         
         {/* 1. Total Reports */}
         <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -663,12 +663,12 @@ export default function ReportsView() {
       </div>
 
       {/* --- MAIN LAYOUT: REPORTS TABLE + OPTIONAL RIGHT DETAIL PANEL --- */}
-      <div style={{ display: 'grid', gridTemplateColumns: selectedReportId ? '60% 39%' : '100%', gap: '16px', alignItems: 'start' }}>
+      <div className="reports-main-grid" style={{ display: 'grid', gridTemplateColumns: selectedReportId ? '60% 39%' : '100%', gap: '16px', alignItems: 'start' }}>
         
         {/* === REPORTS TABLE CARD === */}
         <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-          
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
+          <div style={{ width: '100%', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.78rem' }}>
             <thead>
               <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 700, fontSize: '0.74rem' }}>
                 <th style={{ padding: '0.75rem 1rem' }}>Report Name</th>
@@ -780,6 +780,7 @@ export default function ReportsView() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* === RIGHT REPORT DETAIL PANEL (Collapsible Sections) === */}

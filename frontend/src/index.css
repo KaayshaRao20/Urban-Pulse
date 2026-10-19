@@ -6467,5 +6467,598 @@ body {
     }
 }
 
+/* =================================================================== */
+/* GLOBAL MOBILE RESPONSIVENESS & AUTHORITY ICCC ADAPTIVE SHELL       */
+/* =================================================================== */
+
+/* Desktop defaults: hide mobile-only elements */
+.authority-mobile-topbar {
+    display: none !important;
+}
+
+.authority-mobile-bottom-nav {
+    display: none !important;
+}
+
+.sidebar-mobile-close-btn {
+    display: none !important;
+}
+
+.mobile-sidebar-backdrop {
+    display: none;
+}
+
+.sidebar-switch-portal-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    background: #EFF6FF;
+    color: #1D4ED8;
+    border: 1px solid #BFDBFE;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: all 0.15s ease;
+}
+
+.sidebar-switch-portal-btn:hover {
+    background: #DBEAFE;
+    color: #1E40AF;
+}
+
+.sidebar-switch-portal-btn .portal-arrow {
+    margin-left: auto;
+    font-size: 0.9rem;
+    font-weight: 800;
+}
+
+/* ------------------------------------------------------------- */
+/* TABLET & MOBILE BREAKPOINT (<= 900px)                         */
+/* ------------------------------------------------------------- */
+@media (max-width: 900px) {
+    /* 1. App Shell Container */
+    .app-shell {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        overflow: hidden !important;
+        position: relative !important;
+        background: #EFF6FC !important;
+    }
+
+    /* 2. Authority Mobile Top Bar */
+    .authority-mobile-topbar {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        height: 54px !important;
+        padding: 0 12px !important;
+        background: #FFFFFF !important;
+        border-bottom: 1px solid #E2E8F0 !important;
+        z-index: 50 !important;
+        flex-shrink: 0 !important;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05) !important;
+    }
+
+    .authority-mobile-menu-btn {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 10px;
+        color: #0F172A;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        padding: 0;
+    }
+
+    .authority-mobile-menu-btn:active {
+        background: #E2E8F0;
+        transform: scale(0.96);
+    }
+
+    .authority-mobile-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .authority-mobile-logo {
+        width: 26px;
+        height: 26px;
+        object-fit: contain;
+    }
+
+    .authority-mobile-title {
+        font-family: var(--font-display, sans-serif);
+        font-size: 1.05rem;
+        font-weight: 800;
+        letter-spacing: -0.3px;
+        line-height: 1;
+    }
+
+    .authority-mobile-tag {
+        background: #DCFCE7;
+        color: #16A34A;
+        border: 1px solid #BBF7D0;
+        font-size: 0.62rem;
+        font-weight: 800;
+        padding: 2px 6px;
+        border-radius: 6px;
+        letter-spacing: 0.4px;
+    }
+
+    .authority-mobile-citizen-btn {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 10px;
+        background: #EFF6FF;
+        color: #2563EB;
+        border: 1px solid #BFDBFE;
+        border-radius: 8px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .authority-mobile-citizen-btn:active {
+        background: #DBEAFE;
+    }
+
+    /* 3. Mobile Backdrop Overlay */
+    .mobile-sidebar-backdrop {
+        display: block !important;
+        position: fixed !important;
+        inset: 0 !important;
+        background: rgba(15, 23, 42, 0.55) !important;
+        backdrop-filter: blur(4px) !important;
+        -webkit-backdrop-filter: blur(4px) !important;
+        z-index: 998 !important;
+        animation: fadeIn 0.2s ease !important;
+    }
+
+    /* 4. Slide-Out Sidebar Drawer */
+    .app-sidebar.modern-sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        width: 280px !important;
+        max-width: 85vw !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        z-index: 999 !important;
+        background: #FFFFFF !important;
+        border-radius: 0 18px 18px 0 !important;
+        box-shadow: 10px 0 40px rgba(15, 23, 42, 0.25) !important;
+        transform: translateX(-100%) !important;
+        transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding: 16px 14px !important;
+    }
+
+    .app-sidebar.modern-sidebar.mobile-open {
+        transform: translateX(0) !important;
+    }
+
+    .sidebar-mobile-close-btn {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 32px !important;
+        height: 32px !important;
+        border-radius: 8px !important;
+        border: 1px solid #E2E8F0 !important;
+        background: #F8FAFC !important;
+        color: #64748B !important;
+        cursor: pointer !important;
+        flex-shrink: 0 !important;
+    }
+
+    .sidebar-mobile-close-btn:active {
+        background: #E2E8F0 !important;
+        color: #0F172A !important;
+    }
+
+    /* 5. Workspace Area */
+    .workspace-area {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 1 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding: 10px 10px 76px 10px !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    /* 6. Authority Bottom Navigation Bar */
+    .authority-mobile-bottom-nav {
+        display: flex !important;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 60px !important;
+        background: #FFFFFF !important;
+        border-top: 1px solid #E2E8F0 !important;
+        z-index: 60 !important;
+        align-items: center !important;
+        justify-content: space-around !important;
+        padding: 0 4px !important;
+        box-shadow: 0 -4px 18px rgba(15, 23, 42, 0.07) !important;
+    }
+
+    .authority-bottom-nav-item {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 3px !important;
+        background: none !important;
+        border: none !important;
+        font-size: 0.64rem !important;
+        font-weight: 700 !important;
+        color: #64748B !important;
+        flex: 1 !important;
+        height: 100% !important;
+        cursor: pointer !important;
+        transition: color 0.15s ease !important;
+        padding: 4px 0 !important;
+    }
+
+    .authority-bottom-nav-item.active {
+        color: #2563EB !important;
+        font-weight: 800 !important;
+    }
+
+    .authority-bottom-nav-item.active svg {
+        stroke: #2563EB !important;
+    }
+
+    .bottom-nav-badge-wrap {
+        position: relative !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .bottom-nav-badge {
+        position: absolute !important;
+        top: -4px !important;
+        right: -8px !important;
+        background: #EF4444 !important;
+        color: #FFFFFF !important;
+        font-size: 0.58rem !important;
+        font-weight: 800 !important;
+        border-radius: 8px !important;
+        padding: 1px 4px !important;
+        line-height: 1 !important;
+        border: 1.5px solid #FFFFFF !important;
+    }
+
+    /* 7. Dashboard Panoramic Header on Mobile */
+    .dashboard-panoramic-header {
+        padding: 12px 14px !important;
+        border-radius: 14px !important;
+        gap: 12px !important;
+        min-height: auto !important;
+        background-position: center !important;
+    }
+
+    .top-command-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+
+    .command-search-wrap {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .command-top-right {
+        width: 100% !important;
+        justify-content: space-between !important;
+    }
+
+    .hero-banner-content {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+
+    .hero-greeting-title {
+        font-size: 1.3rem !important;
+    }
+
+    .hero-right-widgets {
+        width: 100% !important;
+        justify-content: flex-start !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    .hero-weather-card {
+        padding: 6px 10px !important;
+    }
+
+    .hero-live-stream-pill {
+        padding: 6px 10px !important;
+    }
+
+    /* 8. Dashboard Grids */
+    .grid-metric-cards {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+    }
+
+    .grid-trends-charts {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    .trend-canvas-wrap {
+        height: 190px !important;
+    }
+
+    .grid-op-intel-cards {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    .civic-grievance-banner {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+        padding: 14px !important;
+    }
+
+    .civic-route-graphic {
+        display: none !important;
+    }
+
+    .civic-action-btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    .trends-section-header, .op-intel-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+
+    .trends-filter-pills {
+        overflow-x: auto !important;
+        width: 100% !important;
+        padding-bottom: 4px !important;
+    }
+
+    /* 9. Map Workspace View */
+    .map-workspace-view {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: calc(100vh - 120px) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        position: relative !important;
+    }
+
+    .map-toolbar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        height: auto !important;
+        padding: 8px 10px !important;
+        gap: 8px !important;
+    }
+
+    .map-toolbar > div {
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        width: 100% !important;
+        justify-content: space-between !important;
+    }
+
+    .map-search-box {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .map-tb-right {
+        width: 100% !important;
+        justify-content: space-between !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+
+    .map-content-layout {
+        position: relative !important;
+        width: 100% !important;
+        height: calc(100vh - 180px) !important;
+        overflow: hidden !important;
+    }
+
+    .map-left-panel {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        width: 290px !important;
+        max-width: 86vw !important;
+        z-index: 100 !important;
+        box-shadow: 4px 0 24px rgba(15, 23, 42, 0.22) !important;
+        transform: translateX(0) !important;
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    .map-left-panel.collapsed {
+        transform: translateX(-100%) !important;
+        width: 290px !important;
+        padding: 0 !important;
+    }
+
+    .map-right-drawer {
+        position: absolute !important;
+        top: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 320px !important;
+        max-width: 88vw !important;
+        z-index: 100 !important;
+        box-shadow: -4px 0 24px rgba(15, 23, 42, 0.22) !important;
+        transform: translateX(0) !important;
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    .map-right-drawer.collapsed {
+        transform: translateX(100%) !important;
+        width: 320px !important;
+        padding: 0 !important;
+    }
+
+    /* 10. Grievance Management Responsive */
+    .grievance-main-grid {
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
+    }
+
+    /* 11. Alerts & Incidents Responsive */
+    .alerts-summary-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    .alerts-main-grid {
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
+    }
+
+    /* 12. Reports Responsive */
+    .reports-summary-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    .reports-main-grid {
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
+    }
+
+    /* 13. Settings Responsive */
+    .settings-top-header {
+        height: auto !important;
+        padding: 10px 14px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        position: static !important;
+    }
+
+    .settings-top-header > div {
+        width: 100% !important;
+        max-width: 100% !important;
+        justify-content: space-between !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+
+    .settings-summary-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    .settings-main-grid {
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
+    }
+
+    /* 14. Simulation & Focus Views */
+    .simulation-main-grid {
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
+    }
+
+    .focus-main-grid {
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
+    }
+
+    .calendar-main-grid {
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
+    }
+
+    /* 15. Modals */
+    .officer-modal-card {
+        max-width: 95vw !important;
+        margin: 10px auto !important;
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+        border-radius: 14px !important;
+    }
+
+    .dispatch-modal-card {
+        max-width: 95vw !important;
+        margin: 10px auto !important;
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+        padding: 16px !important;
+        border-radius: 14px !important;
+    }
+}
+
+/* ------------------------------------------------------------- */
+/* SMALL MOBILE PHONE BREAKPOINT (<= 480px)                      */
+/* ------------------------------------------------------------- */
+@media (max-width: 480px) {
+    .grid-metric-cards {
+        grid-template-columns: 1fr !important;
+    }
+
+    .alerts-summary-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .reports-summary-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .settings-summary-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .simulation-form-row-3 {
+        grid-template-columns: 1fr !important;
+    }
+
+    .hero-greeting-title {
+        font-size: 1.15rem !important;
+    }
+
+    .dashboard-panoramic-header {
+        padding: 10px 12px !important;
+    }
+
+    .workspace-area {
+        padding: 8px 8px 76px 8px !important;
+    }
+}
+
 
 

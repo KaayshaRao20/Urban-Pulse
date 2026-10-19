@@ -29,10 +29,10 @@ app = FastAPI(
     version="2.8.0"
 )
 
-# Enable CORS for Frontend Development
+# Enable CORS for Frontend & Vercel Environments
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
