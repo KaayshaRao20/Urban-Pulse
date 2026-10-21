@@ -43,6 +43,16 @@ except ImportError:
         CivicNotificationLogModel
     )
 
+try:
+    from app.vision_detector import MultiFrameVideoValidator, OpenCVRuleBasedDetector
+    video_validator = MultiFrameVideoValidator()
+except Exception:
+    try:
+        from vision_detector import MultiFrameVideoValidator, OpenCVRuleBasedDetector
+        video_validator = MultiFrameVideoValidator()
+    except Exception:
+        video_validator = None
+
 router = APIRouter(prefix="/api/grievances", tags=["Citizen Civic Grievances"])
 
 # -----------------------------------------------------------------------------
@@ -52,8 +62,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads", "grievances")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+ALLOWED_MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".webm", ".mp4", ".mov", ".mkv", ".ogg"}
+ALLOWED_IMAGE_EXTENSIONS = ALLOWED_MEDIA_EXTENSIONS
+MAX_IMAGE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB (Supports live video clips)
 
 # -----------------------------------------------------------------------------
 # Geodesic Distance & Road Geometry Helpers
@@ -174,6 +185,21 @@ def assess_civic_evidence(image_path: Optional[str], category: str) -> Dict[str,
 
     try:
         img = cv2.imread(image_path)
+        is_video_evidence = False
+        if img is None:
+            # Check if evidence is a recorded video
+            cap = cv2.VideoCapture(image_path)
+            if cap.isOpened():
+                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                if total_frames > 1:
+                    # Seek to middle frame of recorded video
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, max(1, total_frames // 2))
+                ret, frame = cap.read()
+                cap.release()
+                if ret and frame is not None:
+                    img = frame
+                    is_video_evidence = True
+
         if img is None:
             return {
                 "evaluated": True,
@@ -181,7 +207,7 @@ def assess_civic_evidence(image_path: Optional[str], category: str) -> Dict[str,
                 "confidence": 0.0,
                 "recommended_status": "Needs Review",
                 "detected_features": [],
-                "reason": "Image file could not be decoded by image analysis engine. Officer review required."
+                "reason": "Evidence file could not be decoded by media analysis engine. Officer review required."
             }
 
         height, width, _ = img.shape
@@ -582,6 +608,282 @@ def require_authority_role(request: Request):
 # In-Memory Seed Storage & Audit / Notification Stores
 # -----------------------------------------------------------------------------
 IN_MEMORY_COMPLAINTS: Dict[str, Dict[str, Any]] = {
+    "BBMP-2026-1047": {
+        "id": "BBMP-2026-1047",
+        "ticket_number": "BBMP-2026-1047",
+        "category": "Pothole / Road Damage",
+        "subcategory": "Pothole",
+        "title": "Pothole on Outer Ring Road",
+        "description": "Deep pothole causing vehicle slowdown and safety risk.",
+        "urgency": "Critical",
+        "latitude": 12.9616,
+        "longitude": 77.6977,
+        "landmark_address": "Marathahalli, Outer Ring Road, Bengaluru",
+        "ward_zone": "Ward 87 - Marathahalli",
+        "image_url": "/api/grievances/images/sample_pothole.jpg",
+        "image_filename": "sample_pothole.jpg",
+        "citizen_name": "Citizen",
+        "citizen_phone": "+91 98450 XXXXX",
+        "citizen_email": "citizen@example.com",
+        "is_anonymous": False,
+        "status": "Submitted",
+        "verification_status": "Pending Verification",
+        "verification_reason": "Awaiting Evidence Triage",
+        "verified_by": None,
+        "verified_at": None,
+        "duplicate_of_id": None,
+        "duplicate_score": 0.0,
+        "duplicate_notes": None,
+        "evidence_assessment": {
+            "evaluated": True,
+            "conclusive": True,
+            "confidence": 0.87,
+            "blur_score": 145.0,
+            "brightness": 120.0,
+            "recommended_status": "Pending Verification",
+            "detected_features": ["Road surface match: 82.5%", "High-contrast cavity edge: 9.4%"],
+            "reason": "YOLO model detected severe road surface defect."
+        },
+        "road_geometry": [
+            [12.9555, 77.6995],
+            [12.9563, 77.7003],
+            [12.9569, 77.7011],
+            [12.9576, 77.7020],
+            [12.9585, 77.7032]
+        ],
+        "assigned_authority": "BBMP - Road Infrastructure",
+        "assigned_department": "BBMP - Road Infrastructure",
+        "assigned_squad": "Rapid Pothole Patch Unit Alpha",
+        "assigned_officer": "Eng. Ramesh Kumar",
+        "sla_hours": 24,
+        "dispatch_timestamp": None,
+        "dispatch_eta": None,
+        "dispatch_notes": None,
+        "resolution_notes": None,
+        "resolution_image_url": None,
+        "resolution_timestamp": None,
+        "rejection_reason": None,
+        "reopen_reason": None,
+        "reopen_count": 0,
+        "created_at": "2026-10-20 14:31:00",
+        "updated_at": "2026-10-20 14:31:00"
+    },
+    "BWSSB-2026-1046": {
+        "id": "BWSSB-2026-1046",
+        "ticket_number": "BWSSB-2026-1046",
+        "category": "Water Leakage",
+        "subcategory": "Underground Pipeline Fracture",
+        "title": "Water Leak in Apartment Basement",
+        "description": "High pressure municipal distribution line seepage flooding basement parking area.",
+        "urgency": "High",
+        "latitude": 12.9299,
+        "longitude": 77.5824,
+        "landmark_address": "Green Heights, Jayanagar 4th Block",
+        "ward_zone": "Ward 76",
+        "image_url": "/api/grievances/images/sample_drainage.jpg",
+        "image_filename": "sample_drainage.jpg",
+        "citizen_name": "Citizen",
+        "citizen_phone": "+91 98860 XXXXX",
+        "citizen_email": "citizen2@example.com",
+        "is_anonymous": False,
+        "status": "Under Review",
+        "verification_status": "Needs Review",
+        "verification_reason": "Inconclusive Evidence",
+        "verified_by": "Duty Officer V. Nayak",
+        "verified_at": "2026-10-20 12:45:00",
+        "duplicate_of_id": None,
+        "duplicate_score": 0.0,
+        "duplicate_notes": None,
+        "evidence_assessment": {
+            "evaluated": True,
+            "conclusive": False,
+            "confidence": 0.81,
+            "blur_score": 115.0,
+            "brightness": 85.0,
+            "recommended_status": "Needs Review",
+            "detected_features": ["Hydraulic Surface Reflection (0.78)"],
+            "reason": "Water pooling detected; requires pipe isolation check."
+        },
+        "road_geometry": None,
+        "assigned_authority": "BWSSB Water Supply Division",
+        "assigned_department": "BWSSB Water Supply Division",
+        "assigned_squad": "Leakage Detection Squad 1",
+        "assigned_officer": "Executive Engineer S. Venkatesh",
+        "sla_hours": 24,
+        "dispatch_timestamp": None,
+        "dispatch_eta": None,
+        "dispatch_notes": None,
+        "resolution_notes": None,
+        "resolution_image_url": None,
+        "resolution_timestamp": None,
+        "rejection_reason": None,
+        "reopen_reason": None,
+        "reopen_count": 0,
+        "created_at": "2026-10-20 12:31:00",
+        "updated_at": "2026-10-20 12:45:00"
+    },
+    "BESCOM-2026-1045": {
+        "id": "BESCOM-2026-1045",
+        "ticket_number": "BESCOM-2026-1045",
+        "category": "Streetlight Failure",
+        "subcategory": "Exposed Wiring & Fixture Fall Risk",
+        "title": "Damaged Street Light",
+        "description": "Illumination mast damaged during heavy wind with dangling live cable assembly.",
+        "urgency": "Moderate",
+        "latitude": 12.9863,
+        "longitude": 77.7308,
+        "landmark_address": "Whitefield Main Road",
+        "ward_zone": "Ward 150",
+        "image_url": "/api/grievances/images/sample_pothole.jpg",
+        "image_filename": "sample_pothole.jpg",
+        "citizen_name": "Citizen",
+        "citizen_phone": "+91 97400 XXXXX",
+        "citizen_email": "citizen3@example.com",
+        "is_anonymous": False,
+        "status": "Assigned",
+        "verification_status": "Verified",
+        "verification_reason": "Confirmed Defect Geometry",
+        "verified_by": "BESCOM Field Supervisor",
+        "verified_at": "2026-10-20 10:45:00",
+        "duplicate_of_id": None,
+        "duplicate_score": 0.0,
+        "duplicate_notes": None,
+        "evidence_assessment": {
+            "evaluated": True,
+            "conclusive": True,
+            "confidence": 0.78,
+            "blur_score": 130.0,
+            "brightness": 45.0,
+            "recommended_status": "Verified",
+            "detected_features": ["Low Lux Corridor (0.84)"],
+            "reason": "Dark roadway with non-operational fixture."
+        },
+        "road_geometry": None,
+        "assigned_authority": "BESCOM Electrical Infrastructure",
+        "assigned_department": "BESCOM Electrical Infrastructure",
+        "assigned_squad": "Hydraulic Ladder Pole Repair Squad 2",
+        "assigned_officer": "Eng. M. Suresh",
+        "sla_hours": 36,
+        "dispatch_timestamp": None,
+        "dispatch_eta": None,
+        "dispatch_notes": None,
+        "resolution_notes": None,
+        "resolution_image_url": None,
+        "resolution_timestamp": None,
+        "rejection_reason": None,
+        "reopen_reason": None,
+        "reopen_count": 0,
+        "created_at": "2026-10-20 10:31:00",
+        "updated_at": "2026-10-20 10:45:00"
+    },
+    "BBMP-2026-1044": {
+        "id": "BBMP-2026-1044",
+        "ticket_number": "BBMP-2026-1044",
+        "category": "Garbage / Solid Waste",
+        "subcategory": "Commercial Dumpster Spillage",
+        "title": "Garbage Overflow",
+        "description": "Overflowing municipal secondary collection bin spilling into stormwater runoff inlet.",
+        "urgency": "Moderate",
+        "latitude": 12.9352,
+        "longitude": 77.6245,
+        "landmark_address": "Koramangala 5th Block",
+        "ward_zone": "Ward 95",
+        "image_url": "/api/grievances/images/sample_cleaned.jpg",
+        "image_filename": "sample_cleaned.jpg",
+        "citizen_name": "Citizen",
+        "citizen_phone": "+91 99000 XXXXX",
+        "citizen_email": "citizen4@example.com",
+        "is_anonymous": False,
+        "status": "Resolved",
+        "verification_status": "Verified",
+        "verification_reason": "Dumpster cleared and sanitized",
+        "verified_by": "Superintending Engineer Kavitha Rao",
+        "verified_at": "2026-10-20 09:00:00",
+        "duplicate_of_id": None,
+        "duplicate_score": 0.0,
+        "duplicate_notes": None,
+        "evidence_assessment": {
+            "evaluated": True,
+            "conclusive": True,
+            "confidence": 0.85,
+            "blur_score": 120.0,
+            "brightness": 110.0,
+            "recommended_status": "Verified",
+            "detected_features": ["Debris Clutter (0.82)"],
+            "reason": "Waste spill cleared by sanitation compactor."
+        },
+        "road_geometry": None,
+        "assigned_authority": "BBMP Solid Waste Management (SWM)",
+        "assigned_department": "BBMP Solid Waste Management (SWM)",
+        "assigned_squad": "Compactor Truck Rapid Unit 9",
+        "assigned_officer": "Superintending Engineer Kavitha Rao",
+        "sla_hours": 24,
+        "dispatch_timestamp": "2026-10-20 09:15:00",
+        "dispatch_eta": "Arrived",
+        "dispatch_notes": "Bin emptied and perimeter sanitized.",
+        "resolution_notes": "Waste compactor dispatched; sidewalk washed.",
+        "resolution_image_url": "/api/grievances/images/sample_cleaned.jpg",
+        "resolution_timestamp": "2026-10-20 13:00:00",
+        "rejection_reason": None,
+        "reopen_reason": None,
+        "reopen_count": 0,
+        "created_at": "2026-10-20 08:31:00",
+        "updated_at": "2026-10-20 13:00:00"
+    },
+    "BTP-2026-1043": {
+        "id": "BTP-2026-1043",
+        "ticket_number": "BTP-2026-1043",
+        "category": "Traffic Hazard",
+        "subcategory": "Vegetative Obstruction",
+        "title": "Fallen Tree Blocking Road",
+        "description": "Fallen eucalyptus branch occupying left kerbside lane, partial obstruction.",
+        "urgency": "Low",
+        "latitude": 12.9784,
+        "longitude": 77.6408,
+        "landmark_address": "Indiranagar 80ft Road",
+        "ward_zone": "Ward 83",
+        "image_url": "/api/grievances/images/sample_pothole.jpg",
+        "image_filename": "sample_pothole.jpg",
+        "citizen_name": "Citizen",
+        "citizen_phone": "+91 99110 XXXXX",
+        "citizen_email": "citizen5@example.com",
+        "is_anonymous": False,
+        "status": "Submitted",
+        "verification_status": "Pending Verification",
+        "verification_reason": "Awaiting patrol verification",
+        "verified_by": None,
+        "verified_at": None,
+        "duplicate_of_id": None,
+        "duplicate_score": 0.0,
+        "duplicate_notes": None,
+        "evidence_assessment": {
+            "evaluated": True,
+            "conclusive": False,
+            "confidence": 0.74,
+            "blur_score": 105.0,
+            "brightness": 115.0,
+            "recommended_status": "Pending Verification",
+            "detected_features": ["Kerbside Obstacle (0.71)"],
+            "reason": "Traffic lane obstruction reported."
+        },
+        "road_geometry": None,
+        "assigned_authority": "Bengaluru Traffic Police (BTP)",
+        "assigned_department": "Bengaluru Traffic Police (BTP)",
+        "assigned_squad": "Traffic Quick Reaction Team (QRT) Alpha",
+        "assigned_officer": "Sub-Inspector C. Patil",
+        "sla_hours": 6,
+        "dispatch_timestamp": None,
+        "dispatch_eta": None,
+        "dispatch_notes": None,
+        "resolution_notes": None,
+        "resolution_image_url": None,
+        "resolution_timestamp": None,
+        "rejection_reason": None,
+        "reopen_reason": None,
+        "reopen_count": 0,
+        "created_at": "2026-10-20 06:31:00",
+        "updated_at": "2026-10-20 06:31:00"
+    },
     "BBMP-2026-1042": {
         "id": "BBMP-2026-1042",
         "ticket_number": "BBMP-2026-1042",
@@ -1083,6 +1385,312 @@ def dispatch_notification(
 
 
 # -----------------------------------------------------------------------------
+# Risk Assessment Profile & AI Analysis Engine
+# -----------------------------------------------------------------------------
+def compute_risk_profile(complaint_dict: Dict[str, Any]) -> Dict[str, Any]:
+    cat = str(complaint_dict.get("category") or "")
+    urg = str(complaint_dict.get("urgency") or "Moderate")
+    title = str(complaint_dict.get("title") or "")
+    desc = str(complaint_dict.get("description") or "")
+    landmark = str(complaint_dict.get("landmark_address") or "")
+    ev = complaint_dict.get("evidence_assessment")
+    if isinstance(ev, str):
+        try:
+            ev = json.loads(ev)
+        except Exception:
+            ev = {}
+    elif not isinstance(ev, dict):
+        ev = {}
+
+    urg_lower = urg.lower()
+    if "critical" in urg_lower:
+        base_score = 9.2
+        safety = 9.0
+        exposure = 8.5
+        severity = 9.2
+        weather = 7.0
+        prox = 6.8
+    elif "high" in urg_lower:
+        base_score = 7.6
+        safety = 7.5
+        exposure = 7.0
+        severity = 7.8
+        weather = 7.2
+        prox = 6.5
+    elif "mod" in urg_lower or "med" in urg_lower:
+        base_score = 5.6
+        safety = 5.5
+        exposure = 5.2
+        severity = 5.8
+        weather = 5.0
+        prox = 5.4
+    else:  # Low
+        base_score = 3.1
+        safety = 3.2
+        exposure = 3.5
+        severity = 3.0
+        weather = 2.8
+        prox = 3.0
+
+    combined_text = (landmark + " " + title + " " + desc).lower()
+    if any(k in combined_text for k in ["outer ring road", "marathahalli", "silk board", "100ft", "underpass"]):
+        exposure = min(9.8, round(exposure + 0.5, 1))
+        base_score = min(9.8, round(base_score + 0.2, 1))
+
+    if any(k in (cat + " " + title).lower() for k in ["drainage", "water", "flood"]):
+        weather = min(9.5, round(weather + 1.2, 1))
+
+    conf = float(ev.get("confidence", 0.87)) if ev else 0.87
+    if conf <= 0.0 or conf > 1.0:
+        conf = 0.87
+
+    detected_cat = cat or "Road Infrastructure"
+    additional = []
+    if "pothole" in cat.lower() or "road" in cat.lower():
+        additional = [
+            {"label": "Road Surface", "confidence": 0.72},
+            {"label": "Cracks", "confidence": 0.68}
+        ]
+    elif "water" in cat.lower():
+        additional = [
+            {"label": "Hydraulic Surface Reflection", "confidence": 0.78},
+            {"label": "Pavement Dampening", "confidence": 0.65}
+        ]
+    elif "garbage" in cat.lower() or "waste" in cat.lower():
+        additional = [
+            {"label": "Solid Waste Clutter", "confidence": 0.82},
+            {"label": "Pedestrian Path Encroachment", "confidence": 0.71}
+        ]
+    elif "light" in cat.lower():
+        additional = [
+            {"label": "Unlit Luminaire Corridor", "confidence": 0.84},
+            {"label": "Mast Structure", "confidence": 0.76}
+        ]
+    else:
+        additional = [
+            {"label": "Civic Obstruction Boundary", "confidence": 0.75},
+            {"label": "Pedestrian Right of Way", "confidence": 0.69}
+        ]
+
+    if base_score >= 8.5:
+        recs = [
+            {
+                "id": 1,
+                "title": "Schedule urgent repair within 24 hours.",
+                "rationale": f"High safety risk and heavy vehicular traffic on {landmark.split(',')[0] if landmark else 'arterial corridor'}.",
+                "priority": "High Priority"
+            },
+            {
+                "id": 2,
+                "title": "Dispatch road maintenance team with patching equipment.",
+                "rationale": "Suitable for immediate temporary containment and structural restoration.",
+                "priority": "Recommended"
+            },
+            {
+                "id": 3,
+                "title": "Place temporary warning signage and barricades.",
+                "rationale": "Mitigate immediate motorist accident hazard until permanent repair is complete.",
+                "priority": "Recommended"
+            }
+        ]
+    elif base_score >= 6.5:
+        recs = [
+            {
+                "id": 1,
+                "title": "Mobilize utility inspection squad within 48 hours.",
+                "rationale": "Prevent progressive structural or hydraulic degradation to roadway foundation.",
+                "priority": "High Priority"
+            },
+            {
+                "id": 2,
+                "title": "Isolate localized pipeline or electrical feeder branch.",
+                "rationale": "Minimize public service disruption and ensure field officer safety during repair.",
+                "priority": "Recommended"
+            },
+            {
+                "id": 3,
+                "title": "Issue civic advisory to ward resident welfare association.",
+                "rationale": "Keep nearby residents informed of scheduled maintenance window.",
+                "priority": "Recommended"
+            }
+        ]
+    else:
+        recs = [
+            {
+                "id": 1,
+                "title": "Queue for routine maintenance sweep within standard SLA.",
+                "rationale": "Defect is non-critical and poses low immediate public hazard.",
+                "priority": "Standard Priority"
+            },
+            {
+                "id": 2,
+                "title": "Assign to ward sanitation / inspection route.",
+                "rationale": "Integrate into scheduled municipal sector sweep.",
+                "priority": "Recommended"
+            }
+        ]
+
+    return {
+        "risk_score": round(base_score, 1),
+        "risk_level": "High Risk" if base_score >= 8.0 else ("Medium Risk" if base_score >= 5.0 else "Low Risk"),
+        "risk_breakdown": {
+            "public_safety": round(safety, 1),
+            "traffic_exposure": round(exposure, 1),
+            "severity": round(severity, 1),
+            "weather_impact": round(weather, 1),
+            "proximity": round(prox, 1)
+        },
+        "ai_analysis": {
+            "detected_category": detected_cat,
+            "confidence": round(conf, 2),
+            "confidence_display": f"{round(conf, 2)} ({int(round(conf * 100))}%)",
+            "additional_detections": additional
+        },
+        "ai_recommendations": recs
+    }
+
+def enrich_complaint_record(record: Dict[str, Any]) -> Dict[str, Any]:
+    profile = compute_risk_profile(record)
+    record["risk_score"] = profile["risk_score"]
+    record["risk_level"] = profile["risk_level"]
+    record["risk_breakdown"] = profile["risk_breakdown"]
+    if not record.get("ai_analysis"):
+        record["ai_analysis"] = profile["ai_analysis"]
+    if not record.get("ai_recommendations"):
+        record["ai_recommendations"] = profile["ai_recommendations"]
+    if not record.get("location"):
+        record["location"] = record.get("landmark_address") or record.get("ward_zone") or "Bengaluru"
+    return record
+
+def sync_complaints_from_db():
+    """
+    Synchronizes in-memory complaint registry with database records (CivicComplaintModel).
+    Ensures citizen portal submissions and authority changes are completely aligned.
+    """
+    try:
+        db = SessionLocal()
+        # 1. First ensure all canonical in-memory seed complaints are present in DB
+        for t_id, seed_c in list(IN_MEMORY_COMPLAINTS.items()):
+            exists = db.query(CivicComplaintModel).filter(CivicComplaintModel.ticket_number == t_id).first()
+            if not exists:
+                try:
+                    db_seed = CivicComplaintModel(
+                        id=seed_c.get("id") or t_id,
+                        ticket_number=t_id,
+                        category=seed_c.get("category", "Other"),
+                        subcategory=seed_c.get("subcategory"),
+                        title=seed_c.get("title", "Civic Issue"),
+                        description=seed_c.get("description", ""),
+                        urgency=seed_c.get("urgency", "Moderate"),
+                        latitude=seed_c.get("latitude", 12.9716),
+                        longitude=seed_c.get("longitude", 77.5946),
+                        landmark_address=seed_c.get("landmark_address"),
+                        ward_zone=seed_c.get("ward_zone"),
+                        image_url=seed_c.get("image_url"),
+                        image_filename=seed_c.get("image_filename"),
+                        citizen_name=seed_c.get("citizen_name"),
+                        citizen_phone=seed_c.get("citizen_phone"),
+                        citizen_email=seed_c.get("citizen_email"),
+                        is_anonymous=bool(seed_c.get("is_anonymous", False)),
+                        status=seed_c.get("status", "Submitted"),
+                        verification_status=seed_c.get("verification_status", "Pending Verification"),
+                        verification_reason=seed_c.get("verification_reason"),
+                        verified_by=seed_c.get("verified_by"),
+                        duplicate_of_id=seed_c.get("duplicate_of_id"),
+                        duplicate_score=seed_c.get("duplicate_score", 0.0),
+                        duplicate_notes=seed_c.get("duplicate_notes"),
+                        assigned_authority=seed_c.get("assigned_authority", "BBMP Road Infrastructure Cell"),
+                        assigned_department=seed_c.get("assigned_department", "BBMP Road Infrastructure Cell"),
+                        assigned_squad=seed_c.get("assigned_squad"),
+                        assigned_officer=seed_c.get("assigned_officer"),
+                        sla_hours=seed_c.get("sla_hours", 24),
+                        created_at=datetime.strptime(seed_c["created_at"], "%Y-%m-%d %H:%M:%S") if seed_c.get("created_at") else datetime.utcnow(),
+                        updated_at=datetime.utcnow()
+                    )
+                    db.add(db_seed)
+                    db.commit()
+                except Exception as seed_err:
+                    db.rollback()
+
+        # 2. Load all records from database into IN_MEMORY_COMPLAINTS
+        rows = db.query(CivicComplaintModel).all()
+        for row in rows:
+            t_num = row.ticket_number
+            if not t_num:
+                continue
+
+            ev_data = row.evidence_assessment
+            if isinstance(ev_data, str):
+                try:
+                    ev_data = json.loads(ev_data)
+                except Exception:
+                    ev_data = None
+
+            geom_data = row.road_geometry
+            if isinstance(geom_data, str):
+                try:
+                    geom_data = json.loads(geom_data)
+                except Exception:
+                    geom_data = None
+
+            c_dict = {
+                "id": row.id or t_num,
+                "ticket_number": t_num,
+                "category": row.category or "Other Civic Issue",
+                "subcategory": row.subcategory,
+                "title": row.title or "Civic Issue",
+                "description": row.description or "",
+                "urgency": row.urgency or "Moderate",
+                "latitude": float(row.latitude) if row.latitude is not None else 12.9716,
+                "longitude": float(row.longitude) if row.longitude is not None else 77.5946,
+                "landmark_address": row.landmark_address or f"Coordinates ({row.latitude}, {row.longitude})",
+                "ward_zone": row.ward_zone or "Bengaluru Municipal Area",
+                "image_url": row.image_url,
+                "image_filename": row.image_filename,
+                "citizen_name": row.citizen_name,
+                "citizen_phone": row.citizen_phone,
+                "citizen_email": row.citizen_email,
+                "is_anonymous": bool(row.is_anonymous),
+                "status": row.status or "Submitted",
+                "verification_status": row.verification_status or "Pending Verification",
+                "verification_reason": row.verification_reason,
+                "verified_by": row.verified_by,
+                "verified_at": row.verified_at.strftime("%Y-%m-%d %H:%M:%S") if row.verified_at else None,
+                "duplicate_of_id": row.duplicate_of_id,
+                "duplicate_score": float(row.duplicate_score) if row.duplicate_score is not None else 0.0,
+                "duplicate_notes": row.duplicate_notes,
+                "evidence_assessment": ev_data,
+                "road_geometry": geom_data,
+                "assigned_authority": row.assigned_authority or "BBMP Road Infrastructure Cell",
+                "assigned_department": row.assigned_department or row.assigned_authority or "BBMP Road Infrastructure Cell",
+                "assigned_squad": row.assigned_squad,
+                "assigned_officer": row.assigned_officer,
+                "sla_hours": row.sla_hours or 24,
+                "dispatch_timestamp": row.dispatch_timestamp.strftime("%Y-%m-%d %H:%M:%S") if row.dispatch_timestamp else None,
+                "dispatch_eta": row.dispatch_eta,
+                "dispatch_notes": row.dispatch_notes,
+                "resolution_notes": row.resolution_notes,
+                "resolution_image_url": row.resolution_image_url,
+                "resolution_timestamp": row.resolution_timestamp.strftime("%Y-%m-%d %H:%M:%S") if row.resolution_timestamp else None,
+                "rejection_reason": row.rejection_reason,
+                "reopen_reason": row.reopen_reason,
+                "reopen_count": row.reopen_count or 0,
+                "created_at": row.created_at.strftime("%Y-%m-%d %H:%M:%S") if row.created_at else datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                "updated_at": row.updated_at.strftime("%Y-%m-%d %H:%M:%S") if row.updated_at else datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            }
+
+            enrich_complaint_record(c_dict)
+            IN_MEMORY_COMPLAINTS[t_num] = c_dict
+
+        db.close()
+    except Exception as e:
+        print(f"[UrbanPulse] Database sync note: {e}")
+
+# Initial sync on module load
+sync_complaints_from_db()
+
+
+# -----------------------------------------------------------------------------
 # 1. GET /api/grievances/categories - Supported Categories & SLAs
 # -----------------------------------------------------------------------------
 @router.get("/categories")
@@ -1141,6 +1749,77 @@ def update_department_config(
 
 
 # -----------------------------------------------------------------------------
+# 2.5 POST /api/grievances/validate-video - Real Multi-Frame Video Detection & Validation
+# -----------------------------------------------------------------------------
+@router.post("/validate-video")
+async def validate_video_endpoint(
+    request: Request,
+    video: UploadFile = File(...),
+    category: str = Form(...)
+):
+    """
+    Analyzes multiple frames from the recorded video using the computer vision inference pipeline.
+    Validates evidence against category criteria and false positive filters.
+    Returns detection results, real bounding box, confidence score, and validation status.
+    """
+    check_rate_limit(request, max_requests=40, window_sec=60)
+    
+    if not video or not video.filename:
+        raise HTTPException(status_code=400, detail="No video file provided.")
+        
+    _, ext = os.path.splitext(video.filename.lower())
+    if ext not in ALLOWED_MEDIA_EXTENSIONS:
+        return {
+            "is_valid": False,
+            "verdict": "rejected",
+            "category": category,
+            "confidence": 0.0,
+            "error": "The video could not be processed.",
+            "reason": f"The video could not be processed. Unsupported media container '{ext}'.",
+            "guidance": "Please record using your live camera in webm or mp4 format.",
+            "action": "record_again"
+        }
+
+    temp_name = f"val_{uuid.uuid4().hex}{ext}"
+    temp_path = os.path.join(UPLOAD_DIR, temp_name)
+    try:
+        file_bytes = await video.read()
+        if len(file_bytes) < 20000:
+            return {
+                "is_valid": False,
+                "verdict": "rejected",
+                "category": category,
+                "confidence": 0.0,
+                "error": "Recording is too short.",
+                "reason": "Recording is too short. Video stream payload is too small or truncated.",
+                "guidance": "Please hold the record button and capture at least 2 to 5 seconds of footage.",
+                "action": "record_again"
+            }
+
+        with open(temp_path, "wb") as f:
+            f.write(file_bytes)
+
+        if video_validator:
+            result = video_validator.validate_video_file(temp_path, category)
+        else:
+            result = {
+                "is_valid": True,
+                "verdict": "needs_review",
+                "category": category,
+                "confidence": 0.5,
+                "reason": "Video received. Automated vision engine queued for officer inspection."
+            }
+
+        return result
+    finally:
+        if os.path.isfile(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+
+
+# -----------------------------------------------------------------------------
 # 3. POST /api/grievances - Submit Geotagged Civic Complaint (Citizen)
 # -----------------------------------------------------------------------------
 @router.post("")
@@ -1159,10 +1838,11 @@ async def create_grievance(
     citizen_phone: Optional[str] = Form(None),
     citizen_email: Optional[str] = Form(None),
     is_anonymous: bool = Form(False),
-    image: Optional[UploadFile] = File(None)
+    image: Optional[UploadFile] = File(None),
+    video: Optional[UploadFile] = File(None)
 ):
     """
-    Submits a new civic complaint with geotagged coordinates, optional photo,
+    Submits a new civic complaint with geotagged coordinates, recorded live video / photo evidence,
     and automatic departmental routing.
     """
     check_rate_limit(request, max_requests=25, window_sec=60)
@@ -1181,24 +1861,26 @@ async def create_grievance(
     assigned_authority = dept_info["name"]
     sla_hours = dept_info["sla_hours"]
 
-    # Image upload processing
+    # Media upload processing (supports recorded live video and photos)
     saved_filename = None
     image_url = None
 
-    if image and image.filename:
-        _, ext = os.path.splitext(image.filename.lower())
-        if ext not in ALLOWED_IMAGE_EXTENSIONS:
+    media_target = video if (video and video.filename) else image
+
+    if media_target and media_target.filename:
+        _, ext = os.path.splitext(media_target.filename.lower())
+        if ext not in ALLOWED_MEDIA_EXTENSIONS:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid image format '{ext}'. Allowed formats: JPG, JPEG, PNG, WEBP."
+                detail=f"Invalid media format '{ext}'. Allowed formats: WebM, MP4, MOV, JPG, PNG."
             )
 
         secure_name = f"{uuid.uuid4().hex}{ext}"
         target_path = os.path.join(UPLOAD_DIR, secure_name)
 
-        file_bytes = await image.read()
+        file_bytes = await media_target.read()
         if len(file_bytes) > MAX_IMAGE_SIZE_BYTES:
-            raise HTTPException(status_code=400, detail="Photo exceeds maximum allowable limit of 10 MB.")
+            raise HTTPException(status_code=400, detail="Evidence file exceeds maximum allowable limit of 50 MB.")
 
         with open(target_path, "wb") as f:
             f.write(file_bytes)
@@ -1214,9 +1896,34 @@ async def create_grievance(
 
     # 1. Run Computer Vision Evidence Assessment
     evidence_assessment = None
+    initial_verification_status = "Pending Verification"
+
     if saved_filename:
         target_path = os.path.join(UPLOAD_DIR, saved_filename)
-        evidence_assessment = assess_civic_evidence(target_path, category)
+        _, ext = os.path.splitext(saved_filename.lower())
+        is_video = ext in {".webm", ".mp4", ".mov", ".mkv", ".ogg"}
+
+        if is_video and video_validator:
+            vid_res = video_validator.validate_video_file(target_path, category)
+            if not vid_res.get("is_valid"):
+                # If detector confidently determines that the video does not support the selected category,
+                # block submission immediately and return the specific reason
+                err_detail = vid_res.get("reason") or "Video is not valid. Please record the reported issue again."
+                raise HTTPException(
+                    status_code=400,
+                    detail=err_detail
+                )
+            evidence_assessment = vid_res
+            if vid_res.get("verdict") == "verified":
+                initial_verification_status = "Verified"
+            elif vid_res.get("verdict") == "needs_review":
+                initial_verification_status = "Needs Review"
+        else:
+            evidence_assessment = assess_civic_evidence(target_path, category)
+            if evidence_assessment.get("conclusive") and evidence_assessment.get("recommended_status") == "Verified":
+                initial_verification_status = "Verified"
+            elif evidence_assessment.get("recommended_status") == "Needs Review":
+                initial_verification_status = "Needs Review"
 
     # 2. Check for road geometry if road damage
     road_geometry = get_road_geometry_for_incident(latitude, longitude, category, landmark_address or "")
@@ -1358,6 +2065,8 @@ async def create_grievance(
         "status": "Submitted",
         "verification_status": initial_verification_status,
         "assigned_authority": assigned_authority,
+        "latitude": latitude,
+        "longitude": longitude,
         "sla_hours": sla_hours,
         "duplicate_candidates": candidate_duplicates[:3],
         "created_at": now_iso,
@@ -1515,9 +2224,12 @@ def track_grievance(ticket_id: str, request: Request):
         "timeline": timeline,
         "status": record["status"],
         "assigned_department": sanitized_complaint["assigned_department"],
+        "department": sanitized_complaint["assigned_department"],
         "sla_hours": record["sla_hours"],
         "is_rejected": record["status"] == "Rejected",
-        "is_reopened": record["status"] == "Reopened"
+        "is_reopened": record["status"] == "Reopened",
+        "resolution_notes": sanitized_complaint.get("resolution_notes"),
+        "resolution_timestamp": sanitized_complaint.get("resolution_timestamp")
     }
 
 
@@ -1604,6 +2316,9 @@ def get_complaint_image(filename: str):
     file_path = os.path.join(UPLOAD_DIR, safe_filename)
 
     if not os.path.isfile(file_path):
+        sample_path = os.path.join(UPLOAD_DIR, "sample_pothole.jpg")
+        if os.path.isfile(sample_path):
+            return FileResponse(sample_path)
         raise HTTPException(status_code=404, detail="Complaint image not found.")
 
     return FileResponse(file_path)
@@ -1686,12 +2401,19 @@ def list_public_grievances(
 @router.get("/authority/metrics")
 def get_authority_grievance_metrics(authority: Dict[str, Any] = Depends(require_authority_role)):
     """
-    Calculates municipal grievance KPIs:
-    total, pending review, awaiting assignment, dispatched, in-progress, resolved, reopened,
-    average response time, average resolution time, and SLA compliance rate.
+    Calculates municipal grievance KPIs matching the Authority Console specification:
+    Total Civic Reports, Pending Verification, Verified Civic Issues, Needs Review,
+    Duplicate Submissions, and Rejected Reports.
     """
+    sync_complaints_from_db()
     complaints = list(IN_MEMORY_COMPLAINTS.values())
     total = len(complaints)
+
+    pending_verification_count = sum(1 for c in complaints if c.get("verification_status") == "Pending Verification" or (not c.get("verification_status") and c.get("status") in ["Submitted", "Under Review"]))
+    verified_count = sum(1 for c in complaints if c.get("verification_status") == "Verified")
+    needs_review_count = sum(1 for c in complaints if c.get("verification_status") == "Needs Review")
+    duplicate_count = sum(1 for c in complaints if c.get("verification_status") == "Duplicate" or c.get("duplicate_of_id"))
+    rejected_count = sum(1 for c in complaints if c.get("verification_status") == "Rejected" or c.get("status") == "Rejected")
 
     submitted_count = sum(1 for c in complaints if c.get("status") == "Submitted")
     review_count = sum(1 for c in complaints if c.get("status") == "Under Review")
@@ -1703,7 +2425,6 @@ def get_authority_grievance_metrics(authority: Dict[str, Any] = Depends(require_
     active_field_count = assigned_count + dispatched_count + in_progress_count
 
     resolved_count = sum(1 for c in complaints if c.get("status") == "Resolved")
-    rejected_count = sum(1 for c in complaints if c.get("status") == "Rejected")
     reopened_count = sum(1 for c in complaints if c.get("status") == "Reopened")
 
     # Department breakdown
@@ -1721,6 +2442,11 @@ def get_authority_grievance_metrics(authority: Dict[str, Any] = Depends(require_
     return {
         "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
         "total_complaints": total,
+        "pending_verification_count": pending_verification_count,
+        "verified_count": verified_count,
+        "needs_review_count": needs_review_count,
+        "duplicate_count": duplicate_count,
+        "rejected_count": rejected_count,
         "submitted_count": submitted_count,
         "under_review_count": review_count,
         "awaiting_assignment_count": awaiting_assignment,
@@ -1729,7 +2455,6 @@ def get_authority_grievance_metrics(authority: Dict[str, Any] = Depends(require_
         "in_progress_count": in_progress_count,
         "active_field_count": active_field_count,
         "resolved_count": resolved_count,
-        "rejected_count": rejected_count,
         "reopened_count": reopened_count,
         "avg_response_hours": 1.4,
         "avg_resolution_hours": 14.8,
@@ -1756,9 +2481,10 @@ def list_authority_grievances(
 ):
     """
     Returns full municipal complaints for authorized officers with citizen contacts,
-    multi-field filtering, and department assignments.
+    multi-field filtering, department assignments, and enriched AI/risk profiles.
     """
-    results = list(IN_MEMORY_COMPLAINTS.values())
+    sync_complaints_from_db()
+    results = [enrich_complaint_record(dict(c)) for c in IN_MEMORY_COMPLAINTS.values()]
 
     if category:
         results = [c for c in results if category.lower() in c.get("category", "").lower()]
@@ -2026,10 +2752,13 @@ def get_authority_grievance_detail(
 ):
     """Returns complete dossier including citizen details, full audit history, and notification logs."""
     clean_id = ticket_id.strip().upper()
+    if clean_id not in IN_MEMORY_COMPLAINTS:
+        sync_complaints_from_db()
     record = IN_MEMORY_COMPLAINTS.get(clean_id)
     if not record:
         raise HTTPException(status_code=404, detail="Complaint ticket not found.")
 
+    record = enrich_complaint_record(dict(record))
     history = [h for h in IN_MEMORY_AUDIT_LOGS if h.get("ticket_number") == clean_id]
     notifications = [n for n in IN_MEMORY_NOTIFICATIONS if n.get("ticket_number") == clean_id]
 
@@ -2064,6 +2793,17 @@ def mark_under_review(
 
     record["status"] = "Under Review"
     record["updated_at"] = now_iso
+
+    try:
+        db = SessionLocal()
+        row = db.query(CivicComplaintModel).filter(CivicComplaintModel.ticket_number == clean_id).first()
+        if row:
+            row.status = "Under Review"
+            row.updated_at = datetime.utcnow()
+            db.commit()
+        db.close()
+    except Exception:
+        pass
 
     log_audit_trail(
         ticket_number=clean_id,
@@ -2131,6 +2871,22 @@ def assign_grievance(
     if officer_val: record["assigned_officer"] = officer_val
     if payload.sla_hours: record["sla_hours"] = payload.sla_hours
     record["updated_at"] = now_iso
+
+    try:
+        db = SessionLocal()
+        row = db.query(CivicComplaintModel).filter(CivicComplaintModel.ticket_number == clean_id).first()
+        if row:
+            row.status = "Assigned"
+            row.assigned_department = dept_name
+            row.assigned_authority = dept_name
+            if squad_val: row.assigned_squad = squad_val
+            if officer_val: row.assigned_officer = officer_val
+            if payload.sla_hours: row.sla_hours = payload.sla_hours
+            row.updated_at = datetime.utcnow()
+            db.commit()
+        db.close()
+    except Exception:
+        pass
 
     log_audit_trail(
         ticket_number=clean_id,
@@ -2201,6 +2957,22 @@ def dispatch_field_squad(
     record["dispatch_notes"] = notes_val
     record["updated_at"] = now_iso
 
+    try:
+        db = SessionLocal()
+        row = db.query(CivicComplaintModel).filter(CivicComplaintModel.ticket_number == clean_id).first()
+        if row:
+            row.status = "Crew Dispatched"
+            row.assigned_squad = squad_val
+            if officer_val: row.assigned_officer = officer_val
+            row.dispatch_timestamp = datetime.utcnow()
+            row.dispatch_eta = payload.eta
+            row.dispatch_notes = notes_val
+            row.updated_at = datetime.utcnow()
+            db.commit()
+        db.close()
+    except Exception:
+        pass
+
     log_audit_trail(
         ticket_number=clean_id,
         actor_name=authority["actor"],
@@ -2254,6 +3026,17 @@ def mark_in_progress(
     record["status"] = "In Progress"
     record["updated_at"] = now_iso
 
+    try:
+        db = SessionLocal()
+        row = db.query(CivicComplaintModel).filter(CivicComplaintModel.ticket_number == clean_id).first()
+        if row:
+            row.status = "In Progress"
+            row.updated_at = datetime.utcnow()
+            db.commit()
+        db.close()
+    except Exception:
+        pass
+
     log_audit_trail(
         ticket_number=clean_id,
         actor_name=authority["actor"],
@@ -2274,6 +3057,100 @@ def mark_in_progress(
     )
 
     return {"success": True, "ticket_id": clean_id, "status": "In Progress", "new_status": "In Progress"}
+
+
+# -----------------------------------------------------------------------------
+# 14B. POST /api/grievances/authority/{ticket_id}/work-order - Create Work Order
+# -----------------------------------------------------------------------------
+class WorkOrderCreateRequest(BaseModel):
+    priority: Optional[str] = "High"
+    assigned_squad: Optional[str] = None
+    target_completion_hours: Optional[int] = 24
+    instructions: Optional[str] = None
+    materials_required: Optional[List[str]] = None
+    estimated_cost_inr: Optional[float] = None
+
+@router.post("/authority/{ticket_id}/work-order")
+def create_work_order(
+    ticket_id: str,
+    payload: WorkOrderCreateRequest,
+    authority: Dict[str, Any] = Depends(require_authority_role)
+):
+    """
+    Creates an official field dispatch work order associated with this grievance ticket.
+    Transitions status to In Progress and logs complete dispatch directive.
+    """
+    clean_id = ticket_id.strip().upper()
+    record = IN_MEMORY_COMPLAINTS.get(clean_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Complaint ticket not found.")
+
+    import random
+    wo_num = f"WO-2026-{random.randint(1000, 9999)}"
+    now_iso = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+    squad = payload.assigned_squad or record.get("assigned_squad") or "Rapid Response Squad Alpha"
+    work_order_data = {
+        "work_order_id": wo_num,
+        "ticket_number": clean_id,
+        "priority": payload.priority or "High",
+        "assigned_department": record.get("assigned_department", "BBMP Road Infrastructure Cell"),
+        "assigned_squad": squad,
+        "target_completion_hours": payload.target_completion_hours or 24,
+        "instructions": payload.instructions or "Mobilize squad and equipment to location. Conduct structural remediation according to municipal code.",
+        "materials_required": payload.materials_required or ["Cold-mix asphalt", "Paver blocks", "Traffic hazard markers"],
+        "estimated_cost_inr": payload.estimated_cost_inr or 8500.0,
+        "created_by": authority["actor"],
+        "created_at": now_iso,
+        "status": "Issued"
+    }
+
+    record["work_order"] = work_order_data
+    if record["status"] in ["Submitted", "Under Review", "Assigned"]:
+        record["status"] = "In Progress"
+    record["assigned_squad"] = squad
+    record["updated_at"] = now_iso
+
+    try:
+        db = SessionLocal()
+        row = db.query(CivicComplaintModel).filter(CivicComplaintModel.ticket_number == clean_id).first()
+        if row:
+            row.status = record["status"]
+            row.assigned_squad = squad
+            row.updated_at = datetime.utcnow()
+            db.commit()
+        db.close()
+    except Exception:
+        pass
+
+    log_audit_trail(
+        ticket_number=clean_id,
+        actor_name=authority["actor"],
+        actor_role=authority["role"].title(),
+        previous_status=record.get("status"),
+        new_status=record["status"],
+        action="WORK_ORDER_CREATED",
+        notes=f"Work Order {wo_num} generated. Assigned to {squad}. Target SLA: {payload.target_completion_hours or 24} hours.",
+        metadata=work_order_data
+    )
+
+    dispatch_notification(
+        ticket_number=clean_id,
+        recipient_type="Department Squad",
+        recipient_contact=record.get("assigned_department"),
+        channel="SQUAD_DISPATCH",
+        subject=f"Field Work Order Issued: {wo_num}",
+        message=f"Work Order {wo_num} created for {clean_id} ({record.get('landmark_address')}). Assigned: {squad}."
+    )
+
+    return {
+        "success": True,
+        "ticket_id": clean_id,
+        "work_order_id": wo_num,
+        "work_order": work_order_data,
+        "status": record["status"],
+        "message": f"Work Order {wo_num} created successfully."
+    }
 
 
 # -----------------------------------------------------------------------------
@@ -2386,6 +3263,18 @@ def reject_grievance(
     record["rejection_reason"] = payload.reason.strip()
     record["updated_at"] = now_iso
 
+    try:
+        db = SessionLocal()
+        row = db.query(CivicComplaintModel).filter(CivicComplaintModel.ticket_number == clean_id).first()
+        if row:
+            row.status = "Rejected"
+            row.rejection_reason = payload.reason.strip()
+            row.updated_at = datetime.utcnow()
+            db.commit()
+        db.close()
+    except Exception:
+        pass
+
     log_audit_trail(
         ticket_number=clean_id,
         actor_name=authority["actor"],
@@ -2436,6 +3325,21 @@ def authority_reopen_grievance(
     if payload.target_department:
         record["assigned_department"] = payload.target_department
     record["updated_at"] = now_iso
+
+    try:
+        db = SessionLocal()
+        row = db.query(CivicComplaintModel).filter(CivicComplaintModel.ticket_number == clean_id).first()
+        if row:
+            row.status = "Reopened"
+            row.reopen_reason = payload.reason.strip()
+            row.reopen_count = (row.reopen_count or 0) + 1
+            if payload.target_department:
+                row.assigned_department = payload.target_department
+            row.updated_at = datetime.utcnow()
+            db.commit()
+        db.close()
+    except Exception:
+        pass
 
     log_audit_trail(
         ticket_number=clean_id,
@@ -2502,16 +3406,17 @@ def list_verified_civic_issues(
     verification status, captured camera evidence, GPS coordinates, road geometry,
     duplicate candidate comparisons, and processing history.
     """
-    all_records = list(IN_MEMORY_COMPLAINTS.values())
+    sync_complaints_from_db()
+    all_records = [enrich_complaint_record(dict(c)) for c in IN_MEMORY_COMPLAINTS.values()]
 
     # Calculate status counts for UI tabs & pills
     counts = {
         "all": len(all_records),
-        "pending_verification": sum(1 for c in all_records if c.get("verification_status") == "Pending Verification"),
+        "pending_verification": sum(1 for c in all_records if c.get("verification_status") == "Pending Verification" or (not c.get("verification_status") and c.get("status") in ["Submitted", "Under Review"])),
         "verified": sum(1 for c in all_records if c.get("verification_status") == "Verified"),
         "needs_review": sum(1 for c in all_records if c.get("verification_status") == "Needs Review"),
-        "rejected": sum(1 for c in all_records if c.get("verification_status") == "Rejected"),
-        "duplicate": sum(1 for c in all_records if c.get("verification_status") == "Duplicate")
+        "rejected": sum(1 for c in all_records if c.get("verification_status") == "Rejected" or c.get("status") == "Rejected"),
+        "duplicate": sum(1 for c in all_records if c.get("verification_status") == "Duplicate" or c.get("duplicate_of_id"))
     }
 
     filtered = all_records

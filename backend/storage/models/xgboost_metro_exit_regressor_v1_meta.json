@@ -1,0 +1,119 @@
+{
+  "model_id": "mod-xgb-crowd-exit-03",
+  "name": "XGBoost Next-Hour Exit Ridership Regressor",
+  "version": "v1.0.0",
+  "algorithm": "XGBRegressor",
+  "target": "target_next_hour_exit",
+  "target_type": "regression",
+  "units": "passengers exiting / hour",
+  "horizon_minutes": 60,
+  "features": [
+    "station_idx",
+    "hour_start",
+    "day_of_week",
+    "is_weekend",
+    "month",
+    "day_of_month",
+    "hour_sin",
+    "hour_cos",
+    "dow_sin",
+    "dow_cos",
+    "is_morning_peak",
+    "is_evening_peak",
+    "exit_lag_1",
+    "exit_lag_2",
+    "exit_lag_24",
+    "exit_rolling_mean_3",
+    "exit_rolling_mean_24",
+    "entry_lag_1",
+    "total_lag_1"
+  ],
+  "metrics": {
+    "held_out_test_mae": 46.25,
+    "held_out_test_rmse": 102.02,
+    "held_out_test_r2": 0.9635,
+    "baseline_lag1_mae": 129.24
+  },
+  "feature_importance": [
+    {
+      "feature": "exit_lag_1",
+      "importance": 0.4381
+    },
+    {
+      "feature": "exit_lag_24",
+      "importance": 0.3302
+    },
+    {
+      "feature": "is_weekend",
+      "importance": 0.0427
+    },
+    {
+      "feature": "hour_start",
+      "importance": 0.0352
+    },
+    {
+      "feature": "dow_sin",
+      "importance": 0.0235
+    },
+    {
+      "feature": "total_lag_1",
+      "importance": 0.0164
+    },
+    {
+      "feature": "day_of_week",
+      "importance": 0.0163
+    },
+    {
+      "feature": "hour_cos",
+      "importance": 0.0158
+    },
+    {
+      "feature": "dow_cos",
+      "importance": 0.0111
+    },
+    {
+      "feature": "exit_rolling_mean_24",
+      "importance": 0.0109
+    },
+    {
+      "feature": "hour_sin",
+      "importance": 0.0107
+    },
+    {
+      "feature": "exit_lag_2",
+      "importance": 0.0101
+    },
+    {
+      "feature": "exit_rolling_mean_3",
+      "importance": 0.0086
+    },
+    {
+      "feature": "entry_lag_1",
+      "importance": 0.0081
+    },
+    {
+      "feature": "day_of_month",
+      "importance": 0.008
+    },
+    {
+      "feature": "station_idx",
+      "importance": 0.006
+    },
+    {
+      "feature": "is_morning_peak",
+      "importance": 0.0052
+    },
+    {
+      "feature": "is_evening_peak",
+      "importance": 0.0031
+    },
+    {
+      "feature": "month",
+      "importance": 0.0
+    }
+  ],
+  "artifact_file": "xgboost_metro_exit_regressor_v1.json",
+  "training_duration": "0.45s",
+  "trained_at": "2026-10-20 19:22:17",
+  "status": "Active / Deployed"
+}

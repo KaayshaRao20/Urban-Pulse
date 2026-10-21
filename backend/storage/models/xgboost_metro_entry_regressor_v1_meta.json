@@ -1,0 +1,124 @@
+{
+  "model_id": "mod-xgb-crowd-entry-02",
+  "name": "XGBoost Next-Hour Entry Ridership Regressor",
+  "version": "v1.0.0",
+  "algorithm": "XGBRegressor",
+  "target": "target_next_hour_entry",
+  "target_type": "regression",
+  "units": "passengers entering / hour",
+  "horizon_minutes": 60,
+  "features": [
+    "station_idx",
+    "hour_start",
+    "day_of_week",
+    "is_weekend",
+    "month",
+    "day_of_month",
+    "hour_sin",
+    "hour_cos",
+    "dow_sin",
+    "dow_cos",
+    "is_morning_peak",
+    "is_evening_peak",
+    "entry_lag_1",
+    "entry_lag_2",
+    "entry_lag_24",
+    "entry_rolling_mean_3",
+    "entry_rolling_mean_24",
+    "exit_lag_1",
+    "total_lag_1",
+    "entry_missing_flag"
+  ],
+  "metrics": {
+    "held_out_test_mae": 47.74,
+    "held_out_test_rmse": 92.37,
+    "held_out_test_r2": 0.9648,
+    "baseline_lag1_mae": 126.49
+  },
+  "feature_importance": [
+    {
+      "feature": "entry_lag_1",
+      "importance": 0.435
+    },
+    {
+      "feature": "entry_lag_24",
+      "importance": 0.3199
+    },
+    {
+      "feature": "hour_start",
+      "importance": 0.0325
+    },
+    {
+      "feature": "hour_cos",
+      "importance": 0.0294
+    },
+    {
+      "feature": "dow_sin",
+      "importance": 0.029
+    },
+    {
+      "feature": "is_morning_peak",
+      "importance": 0.0251
+    },
+    {
+      "feature": "total_lag_1",
+      "importance": 0.0246
+    },
+    {
+      "feature": "dow_cos",
+      "importance": 0.0179
+    },
+    {
+      "feature": "day_of_week",
+      "importance": 0.0153
+    },
+    {
+      "feature": "is_weekend",
+      "importance": 0.0119
+    },
+    {
+      "feature": "hour_sin",
+      "importance": 0.0117
+    },
+    {
+      "feature": "entry_lag_2",
+      "importance": 0.009
+    },
+    {
+      "feature": "entry_rolling_mean_3",
+      "importance": 0.0084
+    },
+    {
+      "feature": "exit_lag_1",
+      "importance": 0.0081
+    },
+    {
+      "feature": "is_evening_peak",
+      "importance": 0.0064
+    },
+    {
+      "feature": "entry_rolling_mean_24",
+      "importance": 0.0061
+    },
+    {
+      "feature": "day_of_month",
+      "importance": 0.005
+    },
+    {
+      "feature": "station_idx",
+      "importance": 0.0047
+    },
+    {
+      "feature": "month",
+      "importance": 0.0
+    },
+    {
+      "feature": "entry_missing_flag",
+      "importance": 0.0
+    }
+  ],
+  "artifact_file": "xgboost_metro_entry_regressor_v1.json",
+  "training_duration": "0.29s",
+  "trained_at": "2026-10-20 19:22:16",
+  "status": "Active / Deployed"
+}

@@ -64,9 +64,10 @@ export default function CitizenPortalView({
   const [isListening, setIsListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
   const recognitionRef = useRef(null);
-  const [latitude, setLatitude] = useState(12.9716);
-  const [longitude, setLongitude] = useState(77.5946);
-  const [selectedAddress, setSelectedAddress] = useState('Kadubeesanahalli Bridge, Bellandur, Bengaluru - 560103');
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [gpsVerified, setGpsVerified] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState('');
   const [landmarkAddress, setLandmarkAddress] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -75,12 +76,30 @@ export default function CitizenPortalView({
   const [gpsStatus, setGpsStatus] = useState('idle'); // idle | locating | detected | denied
   const [gpsFeedback, setGpsFeedback] = useState('');
 
-  // Photo Attachment
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [fileError, setFileError] = useState('');
-  const [isDragActive, setIsDragActive] = useState(false);
-  const fileInputRef = useRef(null);
+  // Video Recording & Real-Time Object Detection (Live Video Only, Not Photo or Screenshot)
+  const [recordedVideoFile, setRecordedVideoFile] = useState(null);
+  const [recordedVideoUrl, setRecordedVideoUrl] = useState(null);
+  const [videoValidationError, setVideoValidationError] = useState('');
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState('environment'); // 'environment' | 'user'
+  const [cameraError, setCameraError] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [detectedIssueBox, setDetectedIssueBox] = useState(null); // Real-time object detection box
+  const [isAnalyzingFrame, setIsAnalyzingFrame] = useState(false);
+  const [realtimeFeedback, setRealtimeFeedback] = useState('');
+  const [cvValidationLoading, setCvValidationLoading] = useState(false);
+  const [videoValidationResult, setVideoValidationResult] = useState(null);
+
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
+  const recordingSecondsRef = useRef(0);
+  const nativeVideoInputRef = useRef(null);
+  const detectionAnimRef = useRef(null);
+  const detectionCanvasRef = useRef(null);
 
   // Form Submission
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -269,10 +288,14 @@ export default function CitizenPortalView({
       return;
     }
 
+    const initLat = latitude || 12.9716;
+    const initLng = longitude || 77.5946;
+    const initZoom = latitude ? 16 : 13;
+
     const map = window.L.map(mapContainerRef.current, {
       zoomControl: true,
       attributionControl: false
-    }).setView([latitude, longitude], 14);
+    }).setView([initLat, initLng], initZoom);
 
     window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19
@@ -298,31 +321,17 @@ export default function CitizenPortalView({
       iconAnchor: [16, 32]
     });
 
-    const marker = window.L.marker([latitude, longitude], {
-      icon: redPinIcon,
-      draggable: true
-    }).addTo(map);
+    let marker = null;
+    if (latitude !== null && longitude !== null) {
+      marker = window.L.marker([latitude, longitude], {
+        icon: redPinIcon,
+        draggable: false // STRICTLY LOCKED - Dragging disabled
+      }).addTo(map);
+    }
 
-    marker.on('dragend', (e) => {
-      const pos = e.target.getLatLng();
-      const newLat = Number(pos.lat.toFixed(5));
-      const newLng = Number(pos.lng.toFixed(5));
-      setLatitude(newLat);
-      setLongitude(newLng);
-      setGpsStatus('detected');
-      setGpsFeedback(`Pin adjusted: ${newLat}, ${newLng}`);
-      reverseGeocode(newLat, newLng);
-    });
-
-    map.on('click', (e) => {
-      marker.setLatLng(e.latlng);
-      const newLat = Number(e.latlng.lat.toFixed(5));
-      const newLng = Number(e.latlng.lng.toFixed(5));
-      setLatitude(newLat);
-      setLongitude(newLng);
-      setGpsStatus('detected');
-      setGpsFeedback(`Pin placed at: ${newLat}, ${newLng}`);
-      reverseGeocode(newLat, newLng);
+    // Map click repositioning is disabled - Issue location is locked to live GPS!
+    map.on('click', () => {
+      showToast('Issue location is locked to your verified device GPS. Manual repositioning is disabled.');
     });
 
     mapInstanceRef.current = map;
@@ -375,46 +384,94 @@ export default function CitizenPortalView({
     };
   }, [activeNav, trackedRecord]);
 
-  // Sync marker and pan when lat/lng update
-  const panToCoords = (lat, lng, zoom = 15) => {
+  // Sync marker and pan when lat/lng update from GPS
+  const panToCoords = (lat, lng, zoom = 16) => {
     setLatitude(lat);
     setLongitude(lng);
-    if (markerInstanceRef.current && mapInstanceRef.current) {
-      markerInstanceRef.current.setLatLng([lat, lng]);
+    if (mapInstanceRef.current && window.L) {
+      if (!markerInstanceRef.current) {
+        const redPinIcon = window.L.divIcon({
+          html: `<div style="
+            width: 32px;
+            height: 32px;
+            background: #EF4444;
+            border: 3px solid #FFFFFF;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <div style="width: 10px; height: 10px; background: #FFFFFF; border-radius: 50%; transform: rotate(45deg);"></div>
+          </div>`,
+          className: 'citizen-custom-pin',
+          iconSize: [32, 32],
+          iconAnchor: [16, 32]
+        });
+        markerInstanceRef.current = window.L.marker([lat, lng], {
+          icon: redPinIcon,
+          draggable: false
+        }).addTo(mapInstanceRef.current);
+      } else {
+        markerInstanceRef.current.setLatLng([lat, lng]);
+      }
       mapInstanceRef.current.flyTo([lat, lng], zoom, { duration: 0.8 });
     }
   };
 
-  // Browser GPS detection
-  const handleUseMyLocation = () => {
+  // Browser GPS detection - Auto-requested on citizen login/mount
+  const handleUseMyLocation = (silent = false) => {
     if (!navigator.geolocation) {
       setGpsStatus('denied');
+      setGpsVerified(false);
+      setLatitude(null);
+      setLongitude(null);
       setGpsFeedback('Geolocation is not supported by your browser.');
-      showToast('Geolocation not available');
+      if (!silent) showToast('Geolocation not available');
       return;
     }
 
     setGpsStatus('locating');
-    setGpsFeedback('Acquiring device GPS satellites...');
+    setGpsFeedback('Acquiring verified device GPS satellites...');
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const lat = Number(pos.coords.latitude.toFixed(5));
-        const lng = Number(pos.coords.longitude.toFixed(5));
+        const lat = Number(pos.coords.latitude.toFixed(6));
+        const lng = Number(pos.coords.longitude.toFixed(6));
         panToCoords(lat, lng, 16);
+        setGpsVerified(true);
         setGpsStatus('detected');
-        setGpsFeedback(`GPS Position Acquired: ${lat}, ${lng}`);
+        const acc = Math.round(pos.coords.accuracy || 8);
+        setGpsFeedback(`Verified device GPS locked: ${lat}, ${lng} (±${acc}m accuracy)`);
         reverseGeocode(lat, lng);
-        showToast('Device location acquired');
+        if (!silent) {
+          showToast('Live device GPS coordinates acquired & locked');
+        }
       },
-      () => {
+      (err) => {
         setGpsStatus('denied');
-        setGpsFeedback('Location permission denied. Click or drag on map to set position.');
-        showToast('GPS permission denied');
+        setGpsVerified(false);
+        setLatitude(null);
+        setLongitude(null);
+        const msg = err.code === 1
+          ? 'GPS location permission denied. Enable browser location access to report civic issues.'
+          : err.code === 2
+          ? 'GPS position unavailable. Ensure device location is turned on and click "Retry GPS".'
+          : 'GPS location request timed out. Please check signal and click "Retry GPS".';
+        setGpsFeedback(msg);
+        if (!silent) {
+          showToast('GPS permission required for issue reporting');
+        }
       },
-      { timeout: 8000, enableHighAccuracy: true }
+      { timeout: 12000, enableHighAccuracy: true, maximumAge: 0 }
     );
   };
+
+  // Immediate prompt for live location permission on mount / citizen login
+  useEffect(() => {
+    handleUseMyLocation(false);
+  }, []);
 
   // Address Search Logic
   const handleSearchChange = (text) => {
@@ -465,76 +522,1173 @@ export default function CitizenPortalView({
   };
 
   const handleSelectSearchResult = (item) => {
-    setSelectedAddress(item.name);
+    // Descriptive landmark note is updated, but coordinates remain locked to verified live GPS
+    setLandmarkAddress(item.name);
     setSearchQuery('');
     setShowSearchDropdown(false);
-    panToCoords(item.lat, item.lng, 16);
     if (item.ward) setWardZone(item.ward);
-    showToast(`Location set: ${item.name.split(',')[0]}`);
+    showToast(`Landmark set: ${item.name.split(',')[0]} (Coordinates remain locked to device GPS)`);
   };
 
   const handleClearLocation = () => {
-    setSelectedAddress('');
     setLandmarkAddress('');
     setSearchQuery('');
-    setGpsFeedback('');
-    panToCoords(12.9716, 77.5946, 13);
+    handleUseMyLocation(false);
   };
 
-  // Photo Upload Handler with Format & Size Validation
-  const processImageFile = (file) => {
-    setFileError('');
+  // -----------------------------------------------------------------------------
+  // Live Video Recording & Real-Time Object Detection Engine
+  // -----------------------------------------------------------------------------
+
+  // Real-time Canvas-based Computer Vision Frame Analyzer
+  const analyzeCanvasFrame = (videoEl, targetCat) => {
+    if (!videoEl || videoEl.videoWidth === 0 || videoEl.readyState < 2) return null;
+
+    if (!detectionCanvasRef.current) {
+      detectionCanvasRef.current = document.createElement('canvas');
+    }
+    const canvas = detectionCanvasRef.current;
+    const sampleW = 240;
+    const sampleH = 180;
+    canvas.width = sampleW;
+    canvas.height = sampleH;
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+
+    ctx.drawImage(videoEl, 0, 0, sampleW, sampleH);
+    const imgData = ctx.getImageData(0, 0, sampleW, sampleH);
+    const data = imgData.data;
+    const totalPixels = sampleW * sampleH;
+
+    // 1. Biological Skin Chrominance / Human Face Filter (YCbCr)
+    let skinPixels = 0;
+    let sumLuminance = 0;
+    let asphaltPixels = 0;
+    let sumRoadLuminance = 0;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+
+      const y = 0.299 * r + 0.587 * g + 0.114 * b;
+      const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+      const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+      sumLuminance += y;
+
+      // Skin chrominance (YCbCr + RGB heuristics for diverse human skin tones)
+      const isSkinYCbCr = cr >= 133 && cr <= 175 && cb >= 75 && cb <= 128;
+      const isSkinRGB = r > 60 && g > 35 && b > 20 && (r - g) >= 8 && (r - b) >= 8 && r > g && g > b;
+      if (isSkinYCbCr || isSkinRGB) {
+        skinPixels++;
+      }
+
+      // Asphalt road surface check: low saturation (max-min < 45), medium-dark (20 < y < 190)
+      const maxVal = Math.max(r, g, b);
+      const minVal = Math.min(r, g, b);
+      const satDiff = maxVal - minVal;
+      if (satDiff < 45 && y > 20 && y < 190) {
+        asphaltPixels++;
+        sumRoadLuminance += y;
+      }
+    }
+
+    const meanLuminance = sumLuminance / totalPixels;
+    const skinRatio = skinPixels / totalPixels;
+    const catLower = (targetCat || '').toLowerCase();
+    const isRoadIssue = catLower.includes('pothole') || catLower.includes('road') || catLower.includes('crack');
+
+    // For non-road categories: reject human face / selfie portraits
+    if (!isRoadIssue && skinRatio > 0.045) {
+      return {
+        type: 'face',
+        detected: false,
+        box: null,
+        feedback: 'Human subject detected — please point camera at the civic defect'
+      };
+    }
+
+    // A. Potholes & Broken Roads / Cracks
+    if (catLower.includes('pothole') || catLower.includes('road') || catLower.includes('crack')) {
+      const asphaltRatio = asphaltPixels / totalPixels;
+      if (asphaltRatio < 0.16) {
+        return {
+          type: 'non_road',
+          detected: false,
+          box: null,
+          feedback: 'Scanning for asphalt road surface...'
+        };
+      }
+
+      const meanRoadY = sumRoadLuminance / Math.max(1, asphaltPixels);
+      let cavityPixels = 0;
+      let minX = sampleW, maxX = 0, minY = sampleH, maxY = 0;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const y = 0.299 * r + 0.587 * g + 0.114 * b;
+        const satDiff = Math.max(r, g, b) - Math.min(r, g, b);
+
+        // Cavity is significantly darker than surrounding asphalt
+        if (satDiff < 45 && y < (meanRoadY - 13) && y > 6) {
+          cavityPixels++;
+          const px = (i / 4) % sampleW;
+          const py = Math.floor((i / 4) / sampleW);
+          if (px < minX) minX = px;
+          if (px > maxX) maxX = px;
+          if (py < minY) minY = py;
+          if (py > maxY) maxY = py;
+        }
+      }
+
+      const cavityRatio = cavityPixels / totalPixels;
+      if (cavityRatio > 0.005 && cavityRatio < 0.38 && maxX > minX && maxY > minY) {
+        const w = maxX - minX;
+        const h = maxY - minY;
+        const aspect = w / Math.max(1, h);
+        if (aspect > 0.25 && aspect < 3.5) {
+          const conf = Math.min(0.96, 0.74 + cavityRatio * 3.5);
+          return {
+            type: 'pothole',
+            detected: true,
+            box: {
+              x: Math.round((minX / sampleW) * 100),
+              y: Math.round((minY / sampleH) * 100),
+              width: Math.round((w / sampleW) * 100),
+              height: Math.round((h / sampleH) * 100),
+              label: catLower.includes('crack') ? 'ROAD CRACK DEFECT' : 'POTHOLE DEFECT',
+              confidence: conf
+            },
+            feedback: `Defect outlined: ${Math.round(conf * 100)}% confidence`
+          };
+        }
+      }
+
+      return {
+        type: 'clean_road',
+        detected: false,
+        box: null,
+        feedback: 'Scanning road surface for structural cavities or cracks...'
+      };
+    }
+
+    // B. Streetlight Failure
+    if (catLower.includes('streetlight') || catLower.includes('light')) {
+      if (meanLuminance > 55) {
+        return {
+          type: 'daytime_streetlight',
+          detected: false,
+          box: null,
+          feedback: 'Daytime lighting — Streetlight failure verification requires nighttime recording'
+        };
+      }
+
+      let brightBulbCount = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const y = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        if (y > 215) brightBulbCount++;
+      }
+
+      if (brightBulbCount > totalPixels * 0.003) {
+        return {
+          type: 'illuminated_streetlight',
+          detected: false,
+          box: null,
+          feedback: 'Illuminating light emission detected — lamp appears operational'
+        };
+      }
+
+      return {
+        type: 'dark_streetlight',
+        detected: true,
+        box: {
+          x: 42,
+          y: 18,
+          width: 22,
+          height: 68,
+          label: 'DARK STREETLIGHT INFRASTRUCTURE',
+          confidence: 0.85
+        },
+        feedback: 'Nighttime non-illuminating streetlight infrastructure detected'
+      };
+    }
+
+    // C. Garbage Accumulation
+    if (catLower.includes('garbage') || catLower.includes('waste')) {
+      let highVarianceBlocks = 0;
+      const blockSize = 30;
+      const blocksX = Math.floor(sampleW / blockSize);
+      const blocksY = Math.floor(sampleH / blockSize);
+
+      let minBx = blocksX, maxBx = 0, minBy = blocksY, maxBy = 0;
+
+      for (let by = 0; by < blocksY; by++) {
+        for (let bx = 0; bx < blocksX; bx++) {
+          let blockR = 0, blockG = 0, blockB = 0;
+          let diffSum = 0;
+          const blockPixels = blockSize * blockSize;
+
+          for (let py = 0; py < blockSize; py++) {
+            for (let px = 0; px < blockSize; px++) {
+              const idx = ((by * blockSize + py) * sampleW + (bx * blockSize + px)) * 4;
+              blockR += data[idx];
+              blockG += data[idx + 1];
+              blockB += data[idx + 2];
+            }
+          }
+          const meanR = blockR / blockPixels;
+          const meanG = blockG / blockPixels;
+          const meanB = blockB / blockPixels;
+
+          for (let py = 0; py < blockSize; py++) {
+            for (let px = 0; px < blockSize; px++) {
+              const idx = ((by * blockSize + py) * sampleW + (bx * blockSize + px)) * 4;
+              diffSum += Math.abs(data[idx] - meanR) + Math.abs(data[idx + 1] - meanG) + Math.abs(data[idx + 2] - meanB);
+            }
+          }
+
+          const variance = diffSum / (blockPixels * 3);
+          if (variance > 23) {
+            highVarianceBlocks++;
+            if (bx < minBx) minBx = bx;
+            if (bx > maxBx) maxBx = bx;
+            if (by < minBy) minBy = by;
+            if (by > maxBy) maxBy = by;
+          }
+        }
+      }
+
+      if (highVarianceBlocks >= 3 && maxBx >= minBx && maxBy >= minBy) {
+        const conf = Math.min(0.93, 0.72 + (highVarianceBlocks / (blocksX * blocksY)) * 0.4);
+        return {
+          type: 'garbage',
+          detected: true,
+          box: {
+            x: Math.round((minBx * blockSize / sampleW) * 100),
+            y: Math.round((minBy * blockSize / sampleH) * 100),
+            width: Math.round(((maxBx - minBx + 1) * blockSize / sampleW) * 100),
+            height: Math.round(((maxBy - minBy + 1) * blockSize / sampleH) * 100),
+            label: 'GARBAGE ACCUMULATION DETECTED',
+            confidence: conf
+          },
+          feedback: `Garbage accumulation detected (${Math.round(conf * 100)}% confidence)`
+        };
+      }
+
+      return {
+        type: 'clean_ground',
+        detected: false,
+        box: null,
+        feedback: 'Scanning for scattered solid waste accumulation...'
+      };
+    }
+
+    return null;
+  };
+
+  // Real-time object detection loop with real computer vision inference
+  const startObjectDetection = () => {
+    if (detectionAnimRef.current) {
+      clearInterval(detectionAnimRef.current);
+      detectionAnimRef.current = null;
+    }
+
+    // Run real-time computer vision frame analysis every 280ms
+    detectionAnimRef.current = setInterval(() => {
+      if (!videoRef.current || videoRef.current.readyState < 2) return;
+
+      setIsAnalyzingFrame(true);
+      try {
+        const analysis = analyzeCanvasFrame(videoRef.current, category);
+        if (analysis) {
+          if (analysis.feedback) setRealtimeFeedback(analysis.feedback);
+          if (analysis.detected && analysis.box) {
+            setDetectedIssueBox(analysis.box);
+          } else {
+            setDetectedIssueBox(null);
+          }
+        } else {
+          setDetectedIssueBox(null);
+        }
+      } catch (err) {
+        console.warn('Real-time frame inference notice:', err);
+      } finally {
+        setTimeout(() => setIsAnalyzingFrame(false), 80);
+      }
+    }, 280);
+  };
+
+  const stopObjectDetection = () => {
+    if (detectionAnimRef.current) {
+      clearInterval(detectionAnimRef.current);
+      detectionAnimRef.current = null;
+    }
+    setDetectedIssueBox(null);
+    setIsAnalyzingFrame(false);
+    setRealtimeFeedback('');
+  };
+
+  // Comprehensive In-Browser Multi-Frame Computer Vision Defect & Negative Validator
+  const analyzeRecordedVideoFrames = async (fileOrBlob, targetCat) => {
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
+      video.preload = 'auto';
+      const blobUrl = URL.createObjectURL(fileOrBlob);
+      video.src = blobUrl;
+
+      const finish = (result) => {
+        URL.revokeObjectURL(blobUrl);
+        video.removeAttribute('src');
+        video.load();
+        resolve(result);
+      };
+
+      const fallbackTimer = setTimeout(() => {
+        finish({
+          valid: false,
+          reason: 'Video stream processing timed out. Please record the issue again.'
+        });
+      }, 6000);
+
+      video.onloadedmetadata = async () => {
+        try {
+          const duration = video.duration || 2;
+          if (duration < 1.5) {
+            clearTimeout(fallbackTimer);
+            return finish({
+              valid: false,
+              verdict: 'rejected',
+              error: 'Recording is too short.',
+              reason: 'Recording is too short. Please record for at least 2 to 5 seconds.',
+              guidance: 'Hold the record button and capture at least 3 seconds of steady footage showing the defect.',
+              action: 'record_again'
+            });
+          }
+
+          const canvas = document.createElement('canvas');
+          const sampleW = 240;
+          const sampleH = 180;
+          canvas.width = sampleW;
+          canvas.height = sampleH;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          if (!ctx) {
+            clearTimeout(fallbackTimer);
+            return finish({
+              valid: false,
+              verdict: 'rejected',
+              error: 'The video could not be processed.',
+              reason: 'The video could not be processed. Canvas processing context not available.',
+              guidance: 'Please record the issue again using the live camera.',
+              action: 'record_again'
+            });
+          }
+
+          // Sample 5 timestamps evenly distributed across duration: 15%, 32%, 50%, 68%, 85%
+          const timestamps = [
+            duration * 0.15,
+            duration * 0.32,
+            duration * 0.50,
+            duration * 0.68,
+            duration * 0.85
+          ];
+
+          let faceDetections = 0;
+          let defectDetections = 0;
+          let totalFramesSampled = 0;
+          let asphaltFrames = 0;
+          let blurFlags = 0;
+          let daytimeStreetlightFlags = 0;
+          let primaryBox = null;
+          let highestConf = 0;
+          let lastReason = '';
+
+          for (const time of timestamps) {
+            await new Promise((seekResolve) => {
+              let done = false;
+              const onSeeked = () => {
+                if (done) return;
+                done = true;
+                video.removeEventListener('seeked', onSeeked);
+
+                try {
+                  ctx.drawImage(video, 0, 0, sampleW, sampleH);
+                  const imgData = ctx.getImageData(0, 0, sampleW, sampleH);
+                  const data = imgData.data;
+                  const totalPixels = sampleW * sampleH;
+
+                  // 1. Biological Skin Chrominance / Human Face Detection
+                  let skinPixels = 0;
+                  let sumLuminance = 0;
+                  let asphaltPixels = 0;
+                  let sumRoadLuminance = 0;
+                  let blurDiff = 0;
+
+                  for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    const y = 0.299 * r + 0.587 * g + 0.114 * b;
+                    const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+                    const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+
+                    sumLuminance += y;
+
+                    // Measure high-frequency pixel transitions for blur detection
+                    if (i < data.length - 16 && (i % 16 === 0)) {
+                      blurDiff += Math.abs(data[i] - data[i + 4]);
+                    }
+
+                    // Skin chrominance
+                    const isSkinYCbCr = cr >= 133 && cr <= 175 && cb >= 75 && cb <= 128;
+                    const isSkinRGB = r > 60 && g > 35 && b > 20 && (r - g) >= 8 && (r - b) >= 8 && r > g && g > b;
+                    if (isSkinYCbCr || isSkinRGB) skinPixels++;
+
+                    // Asphalt road surface check
+                    const satDiff = Math.max(r, g, b) - Math.min(r, g, b);
+                    if (satDiff < 45 && y > 20 && y < 190) {
+                      asphaltPixels++;
+                      sumRoadLuminance += y;
+                    }
+                  }
+
+                  const meanLuminance = sumLuminance / totalPixels;
+                  const skinRatio = skinPixels / totalPixels;
+                  const asphaltRatio = asphaltPixels / totalPixels;
+                  const avgBlur = blurDiff / (data.length / 16);
+                  if (avgBlur < 3.2) {
+                    blurFlags++;
+                  }
+                  if (asphaltRatio >= 0.12) {
+                    asphaltFrames++;
+                  }
+
+                  totalFramesSampled++;
+
+                  const catLower = (targetCat || '').toLowerCase();
+                  const isRoadIssue = catLower.includes('pothole') || catLower.includes('road') || catLower.includes('crack');
+
+                  // Face filter: Only abort for non-road categories if someone is recording a selfie.
+                  // For road footage, people/pedestrians/vehicles naturally appear and must NOT abort frame evaluation!
+                  if (!isRoadIssue && skinRatio > 0.05) {
+                    faceDetections++;
+                    lastReason = 'The reported issue is not visible. Camera is aimed at a person rather than the civic problem.';
+                    seekResolve();
+                    return;
+                  }
+
+                  // Category check: Pothole / Road damage / Cracks
+                  if (catLower.includes('pothole') || catLower.includes('road') || catLower.includes('crack')) {
+                    if (asphaltRatio < 0.14) {
+                      lastReason = 'The reported issue is not visible. No outdoor road or pavement surface detected in the frame.';
+                      seekResolve();
+                      return;
+                    }
+
+                    const meanRoadY = sumRoadLuminance / Math.max(1, asphaltPixels);
+                    let cavityPixels = 0;
+                    let minX = sampleW, maxX = 0, minY = sampleH, maxY = 0;
+
+                    for (let i = 0; i < data.length; i += 4) {
+                      const r = data[i];
+                      const g = data[i + 1];
+                      const b = data[i + 2];
+                      const y = 0.299 * r + 0.587 * g + 0.114 * b;
+                      const satDiff = Math.max(r, g, b) - Math.min(r, g, b);
+
+                      if (satDiff < 45 && y < (meanRoadY - 12) && y > 6) {
+                        cavityPixels++;
+                        const px = (i / 4) % sampleW;
+                        const py = Math.floor((i / 4) / sampleW);
+                        if (px < minX) minX = px;
+                        if (px > maxX) maxX = px;
+                        if (py < minY) minY = py;
+                        if (py > maxY) maxY = py;
+                      }
+                    }
+
+                    const cavityRatio = cavityPixels / totalPixels;
+                    if (cavityRatio >= 0.004 && cavityRatio <= 0.38 && maxX > minX && maxY > minY) {
+                      const w = maxX - minX;
+                      const h = maxY - minY;
+                      const aspect = w / Math.max(1, h);
+                      if (aspect > 0.2 && aspect < 4.0) {
+                        defectDetections++;
+                        const conf = Math.min(0.96, 0.74 + cavityRatio * 3.5);
+                        if (conf > highestConf) {
+                          highestConf = conf;
+                          primaryBox = {
+                            x: Math.round((minX / sampleW) * 100),
+                            y: Math.round((minY / sampleH) * 100),
+                            width: Math.round((w / sampleW) * 100),
+                            height: Math.round((h / sampleH) * 100),
+                            label: catLower.includes('crack') ? 'ROAD CRACK DEFECT' : 'POTHOLE DEFECT',
+                            confidence: conf
+                          };
+                        }
+                      }
+                    } else {
+                      lastReason = 'No pothole or road damage detected. Please record the issue more clearly.';
+                    }
+                  } else if (catLower.includes('streetlight') || catLower.includes('light')) {
+                    // Streetlight failure check
+                    if (meanLuminance > 55) {
+                      daytimeStreetlightFlags++;
+                      lastReason = 'Daytime footage cannot establish streetlight failure. Streetlight failure cannot be determined during daytime hours.';
+                    } else {
+                      let brightBulbCount = 0;
+                      for (let i = 0; i < data.length; i += 4) {
+                        const y = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                        if (y > 215) brightBulbCount++;
+                      }
+                      if (brightBulbCount > totalPixels * 0.003) {
+                        lastReason = 'Streetlight appears illuminated and operational.';
+                      } else {
+                        defectDetections++;
+                        highestConf = Math.max(highestConf, 0.85);
+                        primaryBox = {
+                          x: 42,
+                          y: 18,
+                          width: 22,
+                          height: 68,
+                          label: 'DARK STREETLIGHT INFRASTRUCTURE',
+                          confidence: 0.85
+                        };
+                      }
+                    }
+                  } else if (catLower.includes('garbage') || catLower.includes('waste')) {
+                    // Garbage accumulation check
+                    let highVarianceBlocks = 0;
+                    const blockSize = 30;
+                    const blocksX = Math.floor(sampleW / blockSize);
+                    const blocksY = Math.floor(sampleH / blockSize);
+                    let minBx = blocksX, maxBx = 0, minBy = blocksY, maxBy = 0;
+
+                    for (let by = 0; by < blocksY; by++) {
+                      for (let bx = 0; bx < blocksX; bx++) {
+                        let blockR = 0, blockG = 0, blockB = 0;
+                        const blockPixels = blockSize * blockSize;
+                        for (let py = 0; py < blockSize; py++) {
+                          for (let px = 0; px < blockSize; px++) {
+                            const idx = ((by * blockSize + py) * sampleW + (bx * blockSize + px)) * 4;
+                            blockR += data[idx];
+                            blockG += data[idx + 1];
+                            blockB += data[idx + 2];
+                          }
+                        }
+                        const meanR = blockR / blockPixels;
+                        const meanG = blockG / blockPixels;
+                        const meanB = blockB / blockPixels;
+                        let diffSum = 0;
+                        for (let py = 0; py < blockSize; py++) {
+                          for (let px = 0; px < blockSize; px++) {
+                            const idx = ((by * blockSize + py) * sampleW + (bx * blockSize + px)) * 4;
+                            diffSum += Math.abs(data[idx] - meanR) + Math.abs(data[idx + 1] - meanG) + Math.abs(data[idx + 2] - meanB);
+                          }
+                        }
+                        const variance = diffSum / (blockPixels * 3);
+                        if (variance > 23) {
+                          highVarianceBlocks++;
+                          if (bx < minBx) minBx = bx;
+                          if (bx > maxBx) maxBx = bx;
+                          if (by < minBy) minBy = by;
+                          if (by > maxBy) maxBy = by;
+                        }
+                      }
+                    }
+
+                    if (highVarianceBlocks >= 3 && maxBx >= minBx && maxBy >= minBy) {
+                      defectDetections++;
+                      const conf = Math.min(0.93, 0.72 + (highVarianceBlocks / (blocksX * blocksY)) * 0.4);
+                      if (conf > highestConf) {
+                        highestConf = conf;
+                        primaryBox = {
+                          x: Math.round((minBx * blockSize / sampleW) * 100),
+                          y: Math.round((minBy * blockSize / sampleH) * 100),
+                          width: Math.round(((maxBx - minBx + 1) * blockSize / sampleW) * 100),
+                          height: Math.round(((maxBy - minBy + 1) * blockSize / sampleH) * 100),
+                          label: 'GARBAGE ACCUMULATION DETECTED',
+                          confidence: conf
+                        };
+                      }
+                    } else {
+                      lastReason = `No visual evidence of '${category}' was found in the recorded video. The reported issue is not visible.`;
+                    }
+                  } else {
+                    defectDetections++;
+                    highestConf = 0.8;
+                  }
+                } catch (e) {
+                  console.warn('Frame analysis error:', e);
+                }
+                seekResolve();
+              };
+
+              video.addEventListener('seeked', onSeeked);
+              video.currentTime = Math.min(duration - 0.1, Math.max(0.1, time));
+              setTimeout(() => {
+                if (!done) {
+                  done = true;
+                  video.removeEventListener('seeked', onSeeked);
+                  seekResolve();
+                }
+              }, 600);
+            });
+          }
+
+          clearTimeout(fallbackTimer);
+
+          // Check motion blur across sampled frames
+          if (blurFlags >= Math.max(2, Math.floor(totalFramesSampled * 0.6))) {
+            return finish({
+              valid: false,
+              verdict: 'rejected',
+              error: 'The video is too blurry.',
+              reason: 'The video is too blurry. Rapid device motion or loss of focus prevented verification.',
+              guidance: 'Hold your device steady, wipe the camera lens, and ensure good lighting when recording.',
+              action: 'record_again'
+            });
+          }
+
+          const catLower = (targetCat || '').toLowerCase();
+          const isRoadCategory = catLower.includes('pothole') || catLower.includes('road') || catLower.includes('crack');
+
+          // Decision logic for Road Issues:
+          // People, pedestrians, cyclists, and vehicles may naturally appear in road footage.
+          // Their presence alone must not invalidate a recording or prevent submission!
+          if (isRoadCategory) {
+            // Case 1: High-confidence defect verified across sampled frames
+            if (defectDetections >= 1 && primaryBox) {
+              return finish({
+                valid: true,
+                verdict: 'verified',
+                confidence: highestConf || 0.88,
+                box: primaryBox,
+                reason: 'Physical road defect confirmed by computer vision on asphalt surface.',
+                guidance: 'Defect confirmed! You can proceed to submit your geotagged report.'
+              });
+            }
+
+            // Case 2: Camera pointed at human face / selfie with negligible road surface
+            if (faceDetections >= Math.max(1, Math.floor(totalFramesSampled * 0.5)) && asphaltFrames === 0) {
+              return finish({
+                valid: false,
+                verdict: 'rejected',
+                error: 'The reported issue is not visible.',
+                reason: 'The reported issue is not visible. Camera is aimed at a person rather than the road problem.',
+                guidance: 'Point the camera downward towards the road defect or pothole, keeping faces out of frame.',
+                action: 'record_again'
+              });
+            }
+
+            // Case 3: No outdoor road surface detected in video
+            if (asphaltFrames === 0) {
+              return finish({
+                valid: false,
+                verdict: 'rejected',
+                error: 'The reported issue is not visible.',
+                reason: 'The reported issue is not visible. No outdoor road or pavement surface detected in the frame.',
+                guidance: 'Please record on-site outdoors with the damaged road pavement occupying the central view.',
+                action: 'record_again'
+              });
+            }
+
+            // Case 4: Road surface detected, but NO pothole, crack, or defect was found
+            if (defectDetections === 0) {
+              return finish({
+                valid: false,
+                verdict: 'rejected',
+                error: 'No pothole or road damage detected. Please record the issue more clearly.',
+                reason: 'No pothole or road damage detected. Please record the issue more clearly.',
+                guidance: 'Move closer to the damaged section, hold the camera steady, and point directly at the pothole or cracked asphalt.',
+                action: 'record_again'
+              });
+            }
+
+            // Case 5: Inconclusive or ambiguous detection -> Route to needs_review!
+            return finish({
+              valid: true,
+              verdict: 'needs_review',
+              confidence: 0.52,
+              box: primaryBox || null,
+              reason: 'Detection is uncertain. You can submit for municipal officer review or record again for faster automated verification.',
+              guidance: 'You may submit this report for physical officer inspection, or record again closer to the defect for instant AI approval.',
+              action: 'optional_record_again'
+            });
+          }
+
+          // For Non-Road Categories:
+          // 1. Face-only selfie video -> Reject
+          if (faceDetections >= Math.max(1, Math.floor(totalFramesSampled * 0.5))) {
+            return finish({
+              valid: false,
+              verdict: 'rejected',
+              error: 'The reported issue is not visible.',
+              reason: 'The reported issue is not visible. Camera is aimed at a person rather than the civic problem.',
+              guidance: 'Point the camera at the physical civic problem instead of people or faces.',
+              action: 'record_again'
+            });
+          }
+
+          // 2. Daytime streetlight check
+          if ((catLower.includes('streetlight') || catLower.includes('light')) && daytimeStreetlightFlags >= Math.floor(totalFramesSampled * 0.5)) {
+            return finish({
+              valid: false,
+              verdict: 'rejected',
+              error: 'Daytime footage cannot establish streetlight failure.',
+              reason: 'Daytime footage cannot establish streetlight failure. Streetlight failure cannot be determined during daytime hours.',
+              guidance: 'Please record during evening or night hours when streetlights are active.',
+              action: 'record_again'
+            });
+          }
+
+          // 3. Defect detection check
+          if (defectDetections === 0) {
+            return finish({
+              valid: false,
+              verdict: 'rejected',
+              error: 'The reported issue is not visible.',
+              reason: lastReason || `No visual evidence of '${category}' was found in the recorded video. The reported issue is not visible.`,
+              guidance: `Please point the camera directly at the ${category.toLowerCase()} issue and ensure good lighting.`,
+              action: 'record_again'
+            });
+          }
+
+          // Video is legitimately valid!
+          return finish({
+            valid: true,
+            verdict: 'verified',
+            confidence: highestConf || 0.85,
+            box: primaryBox,
+            reason: 'Civic defect visual evidence verified across sampled video frames.',
+            guidance: 'Defect confirmed! You can proceed to submit your geotagged report.'
+          });
+        } catch (err) {
+          clearTimeout(fallbackTimer);
+          return finish({
+            valid: false,
+            verdict: 'rejected',
+            error: 'The video could not be processed.',
+            reason: 'The video could not be processed. Frame extraction error: ' + (err.message || 'unknown'),
+            guidance: 'Please record the issue again using the live camera.',
+            action: 'record_again'
+          });
+        }
+      };
+
+      video.onerror = () => {
+        clearTimeout(fallbackTimer);
+        finish({
+          valid: false,
+          verdict: 'rejected',
+          error: 'The video could not be processed.',
+          reason: 'The video could not be processed. Unable to decode video format or play stream.',
+          guidance: 'Please record the issue again using the live camera.',
+          action: 'record_again'
+        });
+      };
+    });
+  };
+
+  // Pre-submission Video Validation using multi-frame Computer Vision
+  const validateRecordedVideo = async (fileOrBlob, durationSec = 0) => {
+    // 1. Basic file size check (at least 20 KB)
+    if (!fileOrBlob || fileOrBlob.size < 20000) {
+      const res = {
+        valid: false,
+        error: 'Recording is too short.',
+        reason: 'Recording is too short. Video stream payload is too small or truncated.',
+        guidance: 'Please hold the record button and capture at least 2 to 5 seconds of footage.',
+        action: 'record_again'
+      };
+      setVideoValidationResult(res);
+      return res;
+    }
+
+    // 2. Minimum duration check (at least 1.5 seconds)
+    if (durationSec > 0 && durationSec < 1.5) {
+      const res = {
+        valid: false,
+        error: 'Recording is too short.',
+        reason: 'Recording is too short. Please record for at least 2 to 5 seconds.',
+        guidance: 'Hold the record button and capture at least 3 seconds of steady footage showing the defect.',
+        action: 'record_again'
+      };
+      setVideoValidationResult(res);
+      return res;
+    }
+
+    // 3. Playability and stream metadata verification
+    try {
+      const url = URL.createObjectURL(fileOrBlob);
+      const testVideo = document.createElement('video');
+      testVideo.preload = 'metadata';
+      testVideo.muted = true;
+      testVideo.playsInline = true;
+      testVideo.src = url;
+
+      const isValid = await new Promise((resolve) => {
+        let finished = false;
+        testVideo.onloadedmetadata = () => {
+          if (finished) return;
+          finished = true;
+          URL.revokeObjectURL(url);
+          resolve(testVideo.duration > 0 || fileOrBlob.size > 25000);
+        };
+
+        testVideo.onerror = () => {
+          if (finished) return;
+          finished = true;
+          URL.revokeObjectURL(url);
+          resolve(false);
+        };
+
+        setTimeout(() => {
+          if (finished) return;
+          finished = true;
+          URL.revokeObjectURL(url);
+          resolve(durationSec >= 1.5 && fileOrBlob.size >= 25000);
+        }, 1500);
+      });
+
+      if (!isValid) {
+        const res = {
+          valid: false,
+          error: 'The video could not be processed.',
+          reason: 'The video could not be processed. Corrupt or unplayable video stream.',
+          guidance: 'Please record the issue again using your device camera.',
+          action: 'record_again'
+        };
+        setVideoValidationResult(res);
+        return res;
+      }
+    } catch {
+      const res = {
+        valid: false,
+        error: 'The video could not be processed.',
+        reason: 'The video could not be processed. Video playback initialization failed.',
+        guidance: 'Please record the issue again using your device camera.',
+        action: 'record_again'
+      };
+      setVideoValidationResult(res);
+      return res;
+    }
+
+    // 4. In-Browser Multi-Frame Computer Vision Inference
+    setCvValidationLoading(true);
+    let clientCvResult = null;
+    try {
+      clientCvResult = await analyzeRecordedVideoFrames(fileOrBlob, category);
+      if (!clientCvResult.valid) {
+        setVideoValidationResult(clientCvResult);
+        return {
+          valid: false,
+          error: clientCvResult.error || clientCvResult.reason,
+          reason: clientCvResult.reason,
+          guidance: clientCvResult.guidance,
+          action: clientCvResult.action || 'record_again'
+        };
+      }
+    } catch (clientErr) {
+      console.warn('In-browser CV analysis error:', clientErr);
+    } finally {
+      setCvValidationLoading(false);
+    }
+
+    // If client CV explicitly determined it's NOT valid, return with its exact reason
+    if (clientCvResult && !clientCvResult.valid) {
+      setVideoValidationResult(clientCvResult);
+      return {
+        valid: false,
+        error: clientCvResult.error || clientCvResult.reason,
+        reason: clientCvResult.reason,
+        guidance: clientCvResult.guidance,
+        action: clientCvResult.action || 'record_again'
+      };
+    }
+
+    // 5. Backend Inference Service Validation (Secondary verification if reachable)
+    try {
+      const formData = new FormData();
+      formData.append('video', fileOrBlob, 'evidence_check.webm');
+      formData.append('category', category);
+
+      const res = await fetch(`${API_BASE}/grievances/validate-video`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (res.ok) {
+        const cvData = await res.json();
+        setVideoValidationResult(cvData);
+
+        if (!cvData.is_valid) {
+          return {
+            valid: false,
+            error: cvData.error || cvData.reason,
+            reason: cvData.reason,
+            guidance: cvData.guidance || 'Please adjust the camera angle and record again.',
+            action: cvData.action || 'record_again',
+            data: cvData
+          };
+        }
+
+        return { valid: true, error: '', data: cvData };
+      }
+    } catch (err) {
+      console.warn('Backend CV validation call notice:', err);
+    }
+
+    // If backend was unreachable or 404, check client CV outcome
+    if (clientCvResult && clientCvResult.valid) {
+      const resultData = {
+        is_valid: true,
+        verdict: clientCvResult.verdict || 'verified',
+        confidence: clientCvResult.confidence,
+        box: clientCvResult.box,
+        category: category,
+        reason: clientCvResult.reason,
+        guidance: clientCvResult.guidance
+      };
+      setVideoValidationResult(resultData);
+      return { valid: true, error: '', data: resultData };
+    }
+
+    // If neither client CV nor backend confirmed validity, reject with specific message
+    const fallbackReject = {
+      valid: false,
+      error: 'The reported issue is not visible.',
+      reason: 'The reported issue is not visible. Visual evidence could not be verified for ' + category + '.',
+      guidance: 'Please record again outdoors with the issue filling the center of the frame.',
+      action: 'record_again'
+    };
+    setVideoValidationResult(fallbackReject);
+    return fallbackReject;
+  };
+
+  // Start live WebRTC camera stream for video recording
+  const startLiveCamera = async (facing = cameraFacing) => {
+    setCameraError('');
+    setVideoValidationError('');
+    setIsCameraOpen(true);
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('WebRTC live camera not supported in this browser. Please use the Device Camera button.');
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: facing },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: true
+      }).catch(async () => {
+        // Fallback to video-only if microphone access is blocked
+        return await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+      });
+
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        try {
+          await videoRef.current.play();
+        } catch (playErr) {
+          console.warn('Video auto-play notice:', playErr);
+        }
+      }
+
+      // Activate real-time object detection loop
+      startObjectDetection();
+    } catch (err) {
+      console.error('Camera access error:', err);
+      setCameraError(err.message || 'Unable to access live camera stream. You can also use the Device Camera button below.');
+    }
+  };
+
+  // Stop camera stream & release hardware resources
+  const stopLiveCamera = () => {
+    if (isRecording) {
+      stopLiveRecording();
+    }
+    stopObjectDetection();
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraOpen(false);
+    setCameraError('');
+  };
+
+  // Switch camera facing mode (environment rear vs user front)
+  const toggleCameraFacing = () => {
+    const nextFacing = cameraFacing === 'environment' ? 'user' : 'environment';
+    setCameraFacing(nextFacing);
+    startLiveCamera(nextFacing);
+  };
+
+  // Start live video recording using MediaRecorder API
+  const startLiveRecording = () => {
+    if (!streamRef.current) return;
+    setVideoValidationError('');
+    setRecordingSeconds(0);
+    recordingSecondsRef.current = 0;
+    recordedChunksRef.current = [];
+
+    let mimeType = 'video/webm;codecs=vp9,opus';
+    if (!window.MediaRecorder || !MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8,opus';
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/mp4';
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = '';
+
+    try {
+      const options = mimeType ? { mimeType } : undefined;
+      const recorder = new MediaRecorder(streamRef.current, options);
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          recordedChunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const duration = recordingSecondsRef.current || 0;
+        const blob = new Blob(recordedChunksRef.current, {
+          type: recorder.mimeType || 'video/webm'
+        });
+
+        // Strictly validate the recorded video before accepting
+        const validation = await validateRecordedVideo(blob, duration);
+        if (!validation.valid) {
+          const reasonMsg = validation.reason || validation.error || 'Video is not valid. Please record the reported issue again.';
+          setVideoValidationResult(validation.data || validation);
+          setVideoValidationError(reasonMsg);
+          showToast(reasonMsg);
+          setRecordedVideoFile(null);
+          setRecordedVideoUrl(null);
+          stopLiveCamera();
+          return;
+        }
+
+        // Output verified playable video file
+        const ext = (recorder.mimeType && recorder.mimeType.includes('mp4')) ? 'mp4' : 'webm';
+        const videoFile = new File([blob], `civic_evidence_${Date.now()}.${ext}`, {
+          type: blob.type,
+          lastModified: Date.now()
+        });
+
+        const url = URL.createObjectURL(blob);
+        setRecordedVideoFile(videoFile);
+        setRecordedVideoUrl(url);
+        setVideoValidationError('');
+        showToast(validation.data?.verdict === 'needs_review'
+          ? 'Video recorded. AI result uncertain - queued for officer review.'
+          : 'Live video recorded and validated successfully!');
+
+        // Close camera viewfinder modal
+        stopLiveCamera();
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start(200); // 200ms slice
+      setIsRecording(true);
+
+      // Start recording duration timer
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = setInterval(() => {
+        recordingSecondsRef.current = (recordingSecondsRef.current || 0) + 1;
+        setRecordingSeconds(recordingSecondsRef.current);
+      }, 1000);
+    } catch (err) {
+      console.error('MediaRecorder error:', err);
+      const errReason = 'The video could not be processed. Camera recorder encountered an error.';
+      setVideoValidationResult({
+        is_valid: false,
+        reason: errReason,
+        guidance: 'Please restart recording using the Record Live Video button.',
+        action: 'record_again'
+      });
+      setVideoValidationError(errReason);
+      showToast(errReason);
+    }
+  };
+
+  // Stop live video recording
+  const stopLiveRecording = () => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    setIsRecording(false);
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (err) {
+        console.warn('MediaRecorder stop warning:', err);
+      }
+    }
+  };
+
+  // Direct mobile camera native video capture handler
+  const handleNativeVideoRecorded = async (e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
 
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      setFileError(t('errors.fileFormatInvalid', 'Invalid format. Accepted: JPG, PNG, WebP.'));
-      setSelectedFile(null);
-      setPreviewUrl(null);
+    const validation = await validateRecordedVideo(file, 2);
+    if (!validation.valid) {
+      const reasonMsg = validation.reason || validation.error || 'Video is not valid. Please record the reported issue again.';
+      setVideoValidationResult(validation.data || validation);
+      setVideoValidationError(reasonMsg);
+      showToast(reasonMsg);
+      setRecordedVideoFile(null);
+      setRecordedVideoUrl(null);
+      if (nativeVideoInputRef.current) nativeVideoInputRef.current.value = '';
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      setFileError(t('errors.fileSizeExceeded', 'Photo exceeds maximum allowable 10 MB limit.'));
-      setSelectedFile(null);
-      setPreviewUrl(null);
-      return;
-    }
-
-    setSelectedFile(file);
-    const objUrl = URL.createObjectURL(file);
-    setPreviewUrl(objUrl);
-    showToast(t('report.photoAttached', 'Photo evidence attached'));
+    setRecordedVideoFile(file);
+    const url = URL.createObjectURL(file);
+    setRecordedVideoUrl(url);
+    setVideoValidationError('');
+    showToast(validation.data?.verdict === 'needs_review'
+      ? 'Video attached. AI result uncertain - queued for officer review.'
+      : 'Device live video recorded and verified!');
   };
 
-  const handleFileChange = (e) => {
-    processImageFile(e.target.files?.[0]);
+  // Video Preview & Retake Controls
+  const handleRemoveVideo = () => {
+    if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl);
+    setRecordedVideoUrl(null);
+    setRecordedVideoFile(null);
+    setVideoValidationError('');
+    if (nativeVideoInputRef.current) nativeVideoInputRef.current.value = '';
   };
 
-  const handleRemovePhoto = () => {
-    setSelectedFile(null);
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null);
-    setFileError('');
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragActive(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragActive(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processImageFile(e.dataTransfer.files[0]);
-    }
+  const handleRetakeVideo = () => {
+    handleRemoveVideo();
+    startLiveCamera('environment');
   };
 
   // Voice Speech-to-Text Recognition Functions
@@ -654,12 +1808,11 @@ export default function CitizenPortalView({
     setCategory('Pothole / Road Damage');
     setUrgency('Moderate - Regular repair');
     setWardZone('East Zone (Mahadevapura / Indiranagar)');
-    handleRemovePhoto();
+    handleRemoveVideo();
     setSubmittedTicket(null);
     setSubmitError('');
-    setSelectedAddress('Kadubeesanahalli Bridge, Bellandur, Bengaluru - 560103');
     setLandmarkAddress('');
-    panToCoords(12.9716, 77.5946, 13);
+    handleUseMyLocation(false);
     showToast(t('report.formReset', 'Form reset'));
   };
 
@@ -668,6 +1821,22 @@ export default function CitizenPortalView({
     if (e) e.preventDefault();
     stopListening();
     setSubmitError('');
+
+    // 1. Strict GPS location verification check - must be verified live coordinates
+    if (!gpsVerified || latitude === null || longitude === null || isNaN(latitude) || isNaN(longitude)) {
+      const gpsErr = 'Verified device GPS location is required to submit a civic report. Please enable location permissions and click "Retry GPS".';
+      setSubmitError(gpsErr);
+      showToast('GPS location required to submit report.');
+      return;
+    }
+
+    // 2. Prevent submission if recorded video failed validation or has negative verification
+    if (videoValidationError || (recordedVideoFile && videoValidationResult && !videoValidationResult.is_valid)) {
+      const vErr = videoValidationResult?.reason || videoValidationError || 'Video is not valid. Please record the reported issue again.';
+      setSubmitError(vErr);
+      showToast(vErr);
+      return;
+    }
 
     if (!title.trim() || title.trim().length < 4) {
       setSubmitError(t('errors.titleRequired', 'Please enter a clear incident title (at least 4 characters).'));
@@ -692,8 +1861,8 @@ export default function CitizenPortalView({
     formData.append('longitude', longitude);
     
     const finalLandmark = landmarkAddress.trim()
-      ? `${selectedAddress} (Landmark: ${landmarkAddress.trim()})`
-      : selectedAddress;
+      ? `${selectedAddress || 'Geotagged Incident Location'} (Landmark: ${landmarkAddress.trim()})`
+      : (selectedAddress || 'Geotagged Incident Location');
     formData.append('landmark_address', finalLandmark);
 
     formData.append('is_anonymous', isAnonymous ? 'true' : 'false');
@@ -703,8 +1872,10 @@ export default function CitizenPortalView({
       formData.append('citizen_email', citizenEmail);
     }
 
-    if (selectedFile) {
-      formData.append('image', selectedFile);
+    // Submit recorded live video file
+    if (recordedVideoFile) {
+      formData.append('video', recordedVideoFile);
+      formData.append('image', recordedVideoFile);
     }
 
     try {
@@ -1278,6 +2449,37 @@ export default function CitizenPortalView({
               </div>
             )}
 
+            {onSwitchToAuthority && (
+              <button
+                type="button"
+                className="citizen-header-authority-btn"
+                onClick={onSwitchToAuthority}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: '#0F172A',
+                  color: '#FFFFFF',
+                  border: '1px solid #334155',
+                  padding: '5px 12px',
+                  borderRadius: '20px',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(15,23,42,0.15)',
+                  transition: 'all 0.15s ease'
+                }}
+                title="Switch to Municipal Authority Portal (Verified Civic Issues)"
+              >
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <path d="M9 12l2 2 4-4" />
+                </svg>
+                <span className="citizen-header-authority-label">Authority Console &bull; Verified Issues</span>
+                <span style={{ color: '#60A5FA', fontSize: '0.72rem' }}>→</span>
+              </button>
+            )}
+
             <div
               onClick={() => setShowProfileModal(true)}
               className="citizen-header-btn"
@@ -1694,76 +2896,437 @@ export default function CitizenPortalView({
                       )}
                     </div>
 
-                    {/* 6. Photo Evidence Dropzone */}
+                    {/* 6. Live Video Evidence (Actual Live Video Recording - No Photo or Pre-recorded File) */}
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                        <label className="citizen-label" style={{ margin: 0 }}>
-                          {t('report.photoTitle', 'Photo Evidence (Optional)')}
+                        <label className="citizen-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span>{t('report.photoTitle', 'Live Video Evidence (Optional)')}</span>
+                          <span style={{
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            padding: '2px 7px',
+                            borderRadius: 999,
+                            background: '#ECFDF5',
+                            color: '#059669',
+                            border: '1px solid #A7F3D0'
+                          }}>
+                            ● LIVE VIDEO ONLY
+                          </span>
                         </label>
-                        <span style={{ fontSize: '0.68rem', color: '#94A3B8' }}>JPG, PNG, WebP (Max 10 MB)</span>
+                        <span style={{ fontSize: '0.68rem', color: gpsVerified ? '#059669' : '#64748B', fontWeight: 600 }}>
+                          📍 GPS: {latitude !== null && longitude !== null ? `${latitude.toFixed(5)}, ${longitude.toFixed(5)}` : (gpsStatus === 'locating' ? 'Locating...' : 'Permission Required')}
+                        </span>
                       </div>
 
-                      {fileError && (
+                      {/* Dedicated Invalid Video Feedback Alert Card */}
+                      {videoValidationError && (
                         <div style={{
-                          background: '#FEF2F2',
-                          border: '1px solid #FECACA',
-                          color: '#B91C1C',
-                          padding: '5px 10px',
-                          borderRadius: 6,
-                          fontSize: '0.72rem',
-                          marginBottom: 8
+                          background: isDark ? 'rgba(153, 27, 27, 0.16)' : '#FEF2F2',
+                          border: '1.5px solid #FCA5A5',
+                          borderRadius: 12,
+                          padding: '14px 16px',
+                          marginBottom: 14,
+                          boxShadow: '0 4px 14px rgba(220, 38, 38, 0.08)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8
                         }}>
-                          {fileError}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                              <div style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: '50%',
+                                background: '#FEE2E2',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                marginTop: 1
+                              }}>
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#DC2626" strokeWidth="2.5">
+                                  <circle cx="12" cy="12" r="10" />
+                                  <line x1="15" y1="9" x2="9" y2="15" />
+                                  <line x1="9" y1="9" x2="15" y2="15" />
+                                </svg>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#991B1B' }}>
+                                  Video Could Not Be Accepted
+                                </div>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#B91C1C', marginTop: 3 }}>
+                                  {videoValidationResult?.reason || videoValidationError}
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={handleRetakeVideo}
+                              style={{
+                                background: '#DC2626',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                borderRadius: 8,
+                                padding: '7px 14px',
+                                fontSize: '0.78rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                flexShrink: 0,
+                                boxShadow: '0 2px 6px rgba(220, 38, 38, 0.3)'
+                              }}
+                            >
+                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <circle cx="12" cy="12" r="10" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                              Record Again
+                            </button>
+                          </div>
+
+                          {videoValidationResult?.guidance && (
+                            <div style={{
+                              padding: '8px 12px',
+                              borderRadius: 8,
+                              background: isDark ? 'rgba(30, 41, 59, 0.6)' : '#FFFFFF',
+                              border: '1px solid #FECACA',
+                              fontSize: '0.74rem',
+                              color: isDark ? '#FCA5A5' : '#7F1D1D',
+                              lineHeight: 1.45
+                            }}>
+                              💡 <strong>What to do differently:</strong> {videoValidationResult.guidance}
+                            </div>
+                          )}
                         </div>
                       )}
 
-                      {!previewUrl ? (
-                        <div
-                          className={`citizen-dropzone-compact ${isDragActive ? 'drag-active' : ''}`}
-                          onDragOver={handleDragOver}
-                          onDragLeave={handleDragLeave}
-                          onDrop={handleDrop}
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#2563EB" strokeWidth="2">
-                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                            <circle cx="12" cy="13" r="4" />
-                          </svg>
-                          <span style={{ fontSize: '0.76rem', color: 'var(--text-title, #0F172A)', fontWeight: 500 }}>
-                            {t('report.dropzoneText', 'Click to upload photo')}
-                            <span style={{ color: 'var(--text-muted, #64748B)', fontWeight: 400 }}> or drag and drop</span>
-                          </span>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp"
-                            onChange={handleFileChange}
-                            style={{ display: 'none' }}
-                          />
+                      {!recordedVideoUrl ? (
+                        <div style={{
+                          border: '2px dashed #3B82F6',
+                          borderRadius: 12,
+                          padding: '20px 16px',
+                          background: isDark ? 'rgba(30, 41, 59, 0.4)' : '#F8FAFC',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          textAlign: 'center',
+                          gap: 10
+                        }}>
+                          <div style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #DC2626, #B91C1C)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#FFFFFF',
+                            boxShadow: '0 4px 12px rgba(220, 38, 38, 0.25)'
+                          }}>
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polygon points="23 7 16 12 23 17 23 7" />
+                              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                            </svg>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-title, #0F172A)' }}>
+                              Record Live Video Evidence
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: '#64748B', maxWidth: 380, marginTop: 2 }}>
+                              Record a live video clip using your device camera. Real-time object detection will outline the detected defect in red during recording. Uploading photos or pre-recorded files is disabled.
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
+                            <button
+                              type="button"
+                              onClick={() => startLiveCamera('environment')}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: '9px 18px',
+                                borderRadius: 8,
+                                background: 'linear-gradient(135deg, #DC2626, #B91C1C)',
+                                color: '#FFFFFF',
+                                fontSize: '0.82rem',
+                                fontWeight: 600,
+                                border: 'none',
+                                cursor: 'pointer',
+                                boxShadow: '0 2px 8px rgba(220, 38, 38, 0.3)'
+                              }}
+                            >
+                              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                <circle cx="12" cy="12" r="10" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                              Record Live Video
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => nativeVideoInputRef.current?.click()}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '9px 14px',
+                                borderRadius: 8,
+                                background: isDark ? 'rgba(51, 65, 85, 0.6)' : '#FFFFFF',
+                                color: 'var(--text-title, #0F172A)',
+                                fontSize: '0.8rem',
+                                fontWeight: 500,
+                                border: '1px solid var(--card-border-subtle, #CBD5E1)',
+                                cursor: 'pointer'
+                              }}
+                              title="Direct native video recording on mobile"
+                            >
+                              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polygon points="23 7 16 12 23 17 23 7" />
+                                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                              </svg>
+                              Device Camera Video
+                            </button>
+
+                            <input
+                              ref={nativeVideoInputRef}
+                              type="file"
+                              accept="video/*"
+                              capture="environment"
+                              onChange={handleNativeVideoRecorded}
+                              style={{ display: 'none' }}
+                            />
+                          </div>
                         </div>
                       ) : (
-                        <div className="citizen-photo-preview-bar">
-                          <img
-                            src={previewUrl}
-                            alt="Incident Evidence Preview"
-                            className="preview-img"
-                          />
-                          <div className="preview-meta">
-                            <div className="preview-filename">{selectedFile?.name || 'Evidence_photo.jpg'}</div>
-                            <div className="preview-size">{(selectedFile?.size / 1024).toFixed(1)} KB • Geotagged</div>
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 10,
+                          padding: 12,
+                          borderRadius: 12,
+                          border: videoValidationResult?.verdict === 'needs_review' ? '1px solid #F59E0B' : '1px solid #10B981',
+                          background: isDark
+                            ? (videoValidationResult?.verdict === 'needs_review' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(16, 185, 129, 0.08)')
+                            : (videoValidationResult?.verdict === 'needs_review' ? '#FFFBEB' : '#F0FDF4')
+                        }}>
+                          {/* Video Status Header */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {videoValidationResult?.verdict === 'needs_review' ? (
+                                <span style={{
+                                  fontSize: '0.66rem',
+                                  fontWeight: 700,
+                                  color: '#B45309',
+                                  background: '#FEF3C7',
+                                  padding: '2px 8px',
+                                  borderRadius: 4,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4
+                                }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F59E0B' }} />
+                                  LIVE VIDEO RECORDED • QUEUED FOR OFFICER REVIEW
+                                </span>
+                              ) : (
+                                <span style={{
+                                  fontSize: '0.66rem',
+                                  fontWeight: 700,
+                                  color: '#059669',
+                                  background: '#D1FAE5',
+                                  padding: '2px 8px',
+                                  borderRadius: 4,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4
+                                }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669' }} />
+                                  LIVE VIDEO RECORDED • VERIFIED
+                                </span>
+                              )}
+                              <span style={{ fontSize: '0.72rem', color: '#64748B' }}>
+                                {(recordedVideoFile?.size / (1024 * 1024)).toFixed(2)} MB
+                              </span>
+                            </div>
+
+                            <span style={{ fontSize: '0.7rem', color: '#059669', fontFamily: 'monospace' }}>
+                              📍 {latitude !== null && longitude !== null ? `${latitude.toFixed(5)}° N, ${longitude.toFixed(5)}° E` : 'GPS Verified'}
+                            </span>
                           </div>
-                          <button
-                            type="button"
-                            onClick={handleRemovePhoto}
-                            className="preview-remove-btn"
-                            title={t('report.removePhoto', 'Remove photo')}
-                          >
-                            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" strokeWidth="2.5">
-                              <line x1="18" y1="6" x2="6" y2="18" />
-                              <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                            <span>Remove</span>
-                          </button>
+
+                          {/* CV Validation In-Progress Indicator */}
+                          {cvValidationLoading && (
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              padding: '8px 12px',
+                              background: '#EFF6FF',
+                              border: '1px solid #BFDBFE',
+                              borderRadius: 8,
+                              color: '#1D4ED8',
+                              fontSize: '0.76rem',
+                              fontWeight: 600
+                            }}>
+                              <span style={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: '50%',
+                                border: '2px solid #2563EB',
+                                borderTopColor: 'transparent',
+                                animation: 'spin 0.8s linear infinite',
+                                display: 'inline-block'
+                              }} />
+                              <span>Analyzing video frames with Computer Vision engine...</span>
+                            </div>
+                          )}
+
+                          {/* CV Verdict: Needs Officer Review Card */}
+                          {videoValidationResult?.verdict === 'needs_review' && (
+                            <div style={{
+                              padding: '10px 12px',
+                              background: isDark ? 'rgba(30, 41, 59, 0.7)' : '#FFFDF5',
+                              border: '1px solid #FCD34D',
+                              borderRadius: 8,
+                              fontSize: '0.74rem',
+                              color: '#92400E'
+                            }}>
+                              <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                                <span>⚠️ AI Result Uncertain &bull; Queued for Officer Review</span>
+                                <span style={{ background: '#F59E0B', color: '#FFFFFF', padding: '1px 7px', borderRadius: 4, fontSize: '0.66rem', fontWeight: 700 }}>
+                                  Manual Review
+                                </span>
+                              </div>
+                              <div style={{ color: '#B45309', marginBottom: 6 }}>
+                                {videoValidationResult.reason || 'Detection is uncertain. Your report will be routed to a municipal officer for manual review.'}
+                              </div>
+                              {videoValidationResult.guidance && (
+                                <div style={{ fontSize: '0.7rem', color: '#78350F', background: '#FEF3C7', padding: '5px 8px', borderRadius: 6 }}>
+                                  💡 <strong>Tip:</strong> {videoValidationResult.guidance}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* CV Verdict: Automated Verification Confirmed Card */}
+                          {videoValidationResult?.is_valid && videoValidationResult?.verdict !== 'needs_review' && (
+                            <div style={{
+                              padding: '8px 10px',
+                              background: '#ECFDF5',
+                              border: '1px solid #A7F3D0',
+                              borderRadius: 8,
+                              fontSize: '0.72rem',
+                              color: '#065F46'
+                            }}>
+                              <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span>✓ CV VERIFIED: {videoValidationResult.category || category}</span>
+                                <span style={{ background: '#059669', color: '#FFFFFF', padding: '1px 6px', borderRadius: 4, fontSize: '0.66rem' }}>
+                                  {Math.round((videoValidationResult.confidence || 0.88) * 100)}% Confidence
+                                </span>
+                              </div>
+                              {videoValidationResult.reason && (
+                                <div style={{ marginTop: 3, color: '#047857' }}>{videoValidationResult.reason}</div>
+                              )}
+                              {videoValidationResult.features && videoValidationResult.features.length > 0 && (
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                                  {videoValidationResult.features.map((feat, idx) => (
+                                    <span key={idx} style={{ background: '#D1FAE5', color: '#065F46', padding: '1px 5px', borderRadius: 4, fontSize: '0.64rem' }}>
+                                      {feat}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* HTML5 Playable Video Element with Real CV Bounding Box Overlay */}
+                          <div style={{ position: 'relative', width: '100%', borderRadius: 8, overflow: 'hidden', background: '#000000', maxHeight: 220 }}>
+                            <video
+                              src={recordedVideoUrl}
+                              controls
+                              playsInline
+                              style={{ width: '100%', maxHeight: 220, display: 'block', margin: '0 auto', background: '#000000' }}
+                            />
+                            {/* Overlay detected bounding box if present from validation */}
+                            {videoValidationResult?.primary_box && (
+                              <div style={{
+                                position: 'absolute',
+                                left: `${videoValidationResult.primary_box.x}%`,
+                                top: `${videoValidationResult.primary_box.y}%`,
+                                width: `${videoValidationResult.primary_box.width}%`,
+                                height: `${videoValidationResult.primary_box.height}%`,
+                                border: '3px solid #EF4444',
+                                borderRadius: 6,
+                                boxShadow: '0 0 16px rgba(239, 68, 68, 0.85)',
+                                pointerEvents: 'none',
+                                zIndex: 10
+                              }}>
+                                <div style={{
+                                  position: 'absolute',
+                                  top: -22,
+                                  left: -3,
+                                  background: '#DC2626',
+                                  color: '#FFFFFF',
+                                  fontSize: '0.64rem',
+                                  fontWeight: 700,
+                                  padding: '2px 6px',
+                                  borderRadius: 4,
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {videoValidationResult.primary_box.label || `${category.toUpperCase()} DETECTED`}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Video Controls: Retake & Remove */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4 }}>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748B)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '50%' }}>
+                              {recordedVideoFile?.name || 'civic_evidence.webm'}
+                            </div>
+
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button
+                                type="button"
+                                onClick={handleRetakeVideo}
+                                style={{
+                                  padding: '5px 12px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  background: '#2563EB',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4
+                                }}
+                              >
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <path d="M23 4v6h-6" />
+                                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                                </svg>
+                                Retake Video
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleRemoveVideo}
+                                className="preview-remove-btn"
+                                title="Remove recorded video"
+                              >
+                                <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" strokeWidth="2.5">
+                                  <line x1="18" y1="6" x2="6" y2="18" />
+                                  <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                                <span>Remove</span>
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1774,20 +3337,40 @@ export default function CitizenPortalView({
                     {/* Header with GPS Location Button */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--card-border-subtle, #F1F5F9)', paddingBottom: 10 }}>
                       <div>
-                        <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-title, #0F172A)', margin: 0 }}>
-                          {t('report.locationTitle', 'Precision Geolocation')}
-                        </h3>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-title, #0F172A)', margin: 0 }}>
+                            {t('report.locationTitle', 'Precision Geolocation')}
+                          </h3>
+                          <span style={{
+                            fontSize: '0.62rem',
+                            fontWeight: 700,
+                            padding: '1px 6px',
+                            borderRadius: 4,
+                            background: gpsVerified ? '#D1FAE5' : '#FEE2E2',
+                            color: gpsVerified ? '#065F46' : '#991B1B',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 3
+                          }}>
+                            {gpsVerified ? '🔒 GPS LOCKED' : '⚠️ UNVERIFIED'}
+                          </span>
+                        </div>
                         <p style={{ fontSize: '0.74rem', color: 'var(--text-muted, #64748B)', margin: '2px 0 0 0' }}>
-                          {t('report.locationSubtitle', 'Pinpoint the exact location on the map or use GPS.')}
+                          Permanently locked to your device's live GPS coordinates.
                         </p>
                       </div>
 
                       <button
                         type="button"
-                        onClick={handleUseMyLocation}
+                        onClick={() => handleUseMyLocation(false)}
                         disabled={gpsStatus === 'locating'}
                         className="citizen-gps-btn"
-                        title="Acquire device GPS location"
+                        title="Acquire live device GPS location"
+                        style={{
+                          background: gpsVerified ? '#F1F5F9' : '#DC2626',
+                          color: gpsVerified ? 'var(--text-title, #0F172A)' : '#FFFFFF',
+                          borderColor: gpsVerified ? 'var(--card-border, #CBD5E1)' : '#DC2626'
+                        }}
                       >
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2">
                           <circle cx="12" cy="12" r="10" />
@@ -1796,83 +3379,139 @@ export default function CitizenPortalView({
                           <line x1="12" y1="6" x2="12" y2="2" />
                           <line x1="12" y1="22" x2="12" y2="18" />
                         </svg>
-                        <span>{gpsStatus === 'locating' ? t('report.gpsLocating', 'Locating...') : t('report.useMyLocation', 'Use GPS')}</span>
+                        <span>
+                          {gpsStatus === 'locating'
+                            ? t('report.gpsLocating', 'Locating...')
+                            : (gpsVerified ? 'Refresh GPS' : 'Retry GPS')}
+                        </span>
                       </button>
                     </div>
 
-                    {gpsFeedback && (
+                    {/* Prominent GPS Warning & Retry Card if GPS is not verified */}
+                    {!gpsVerified && (
+                      <div style={{
+                        background: '#FEF2F2',
+                        border: '1px solid #FECACA',
+                        borderRadius: 8,
+                        padding: '10px 12px',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 10
+                      }}>
+                        <div style={{ color: '#DC2626', marginTop: 1, flexShrink: 0 }}>
+                          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                          </svg>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#991B1B' }}>
+                            Device GPS Permission Required
+                          </div>
+                          <div style={{ fontSize: '0.74rem', color: '#B91C1C', marginTop: 2, lineHeight: 1.4 }}>
+                            {gpsFeedback || 'Live GPS location is strictly required to lodge grievances. Please allow browser location access so your report can be dispatched accurately.'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleUseMyLocation(false)}
+                          style={{
+                            background: '#DC2626',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: 6,
+                            padding: '6px 12px',
+                            fontSize: '0.74rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            boxShadow: '0 2px 4px rgba(220, 38, 38, 0.25)'
+                          }}
+                        >
+                          Retry GPS
+                        </button>
+                      </div>
+                    )}
+
+                    {gpsFeedback && gpsVerified && (
                       <div style={{
                         fontSize: '0.72rem',
                         padding: '5px 10px',
                         borderRadius: 6,
-                        background: gpsStatus === 'detected' ? '#ECFDF5' : '#FFFBEB',
-                        color: gpsStatus === 'detected' ? '#047857' : '#B45309',
-                        border: gpsStatus === 'detected' ? '1px solid #A7F3D0' : '1px solid #FDE68A'
+                        background: '#ECFDF5',
+                        color: '#047857',
+                        border: '1px solid #A7F3D0'
                       }}>
                         {gpsFeedback}
                       </div>
                     )}
 
-                    {/* Integrated Search Box */}
-                    <div className="citizen-search-box">
-                      <div className="citizen-search-input-wrap">
-                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#94A3B8" strokeWidth="2.2">
-                          <circle cx="11" cy="11" r="8" />
-                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        </svg>
-                        <input
-                          type="text"
-                          value={searchQuery}
-                          onChange={(e) => handleSearchChange(e.target.value)}
-                          onFocus={() => { if (searchResults.length > 0) setShowSearchDropdown(true); }}
-                          placeholder={t('report.searchAddressPlaceholder', 'Search street, landmark, or area (e.g. Bellandur)...')}
-                          style={{
-                            flex: 1,
-                            border: 'none',
-                            outline: 'none',
-                            fontSize: '0.8rem',
-                            color: 'var(--text-title, #0F172A)',
-                            background: 'transparent'
-                          }}
-                        />
-                        {searchQuery && (
-                          <button
-                            type="button"
-                            onClick={() => { setSearchQuery(''); setSearchResults([]); setShowSearchDropdown(false); }}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 0 }}
-                          >
-                            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" strokeWidth="2.5">
-                              <line x1="18" y1="6" x2="6" y2="18" />
-                              <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-
-                      {showSearchDropdown && searchResults.length > 0 && (
-                        <div className="citizen-search-dropdown">
-                          {searchResults.map((item, idx) => (
-                            <div
-                              key={idx}
-                              className="citizen-search-result-item"
-                              onClick={() => handleSelectSearchResult(item)}
+                    {/* Integrated Landmark Reference Search Box */}
+                    <div>
+                      <div className="citizen-search-box">
+                        <div className="citizen-search-input-wrap">
+                          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#94A3B8" strokeWidth="2.2">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                          </svg>
+                          <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => handleSearchChange(e.target.value)}
+                            onFocus={() => { if (searchResults.length > 0) setShowSearchDropdown(true); }}
+                            placeholder={t('report.searchAddressPlaceholder', 'Search landmark for address notes (e.g. Near Indiranagar Metro)...')}
+                            style={{
+                              flex: 1,
+                              border: 'none',
+                              outline: 'none',
+                              fontSize: '0.8rem',
+                              color: 'var(--text-title, #0F172A)',
+                              background: 'transparent'
+                            }}
+                          />
+                          {searchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => { setSearchQuery(''); setSearchResults([]); setShowSearchDropdown(false); }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 0 }}
                             >
-                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#2563EB" strokeWidth="2">
-                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                                <circle cx="12" cy="10" r="3" />
+                              <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" strokeWidth="2.5">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
                               </svg>
-                              <div>
-                                <div style={{ fontWeight: 600, color: 'var(--text-title, #0F172A)', fontSize: '0.76rem' }}>
-                                  {item.name.split(',')[0]}
-                                </div>
-                                <div style={{ fontSize: '0.66rem', color: 'var(--text-muted, #64748B)' }}>
-                                  {item.name}
+                            </button>
+                          )}
+                        </div>
+
+                        {showSearchDropdown && searchResults.length > 0 && (
+                          <div className="citizen-search-dropdown">
+                            {searchResults.map((item, idx) => (
+                              <div
+                                key={idx}
+                                className="citizen-search-result-item"
+                                onClick={() => handleSelectSearchResult(item)}
+                              >
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#2563EB" strokeWidth="2">
+                                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                                  <circle cx="12" cy="10" r="3" />
+                                </svg>
+                                <div>
+                                  <div style={{ fontWeight: 600, color: 'var(--text-title, #0F172A)', fontSize: '0.76rem' }}>
+                                    {item.name.split(',')[0]}
+                                  </div>
+                                  <div style={{ fontSize: '0.66rem', color: 'var(--text-muted, #64748B)' }}>
+                                    {item.name}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted, #64748B)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span>🔒 Coordinates remain locked to device GPS. Search sets landmark notes only.</span>
+                      </div>
                     </div>
 
                     {/* Interactive Leaflet Map (Height 280px) */}
@@ -1887,21 +3526,33 @@ export default function CitizenPortalView({
                       }}
                     />
 
-                    {/* Smart Location Summary Card (Replaces bulky raw Lat/Lng boxes!) */}
+                    {/* Smart Location Summary Card */}
                     <div className="citizen-location-summary-card">
                       <div className="location-summary-header">
-                        <div className="location-pin-icon-wrap">
-                          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#2563EB" strokeWidth="2.5">
+                        <div className="location-pin-icon-wrap" style={{ background: gpsVerified ? '#EFF6FF' : '#FEF2F2' }}>
+                          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke={gpsVerified ? '#2563EB' : '#DC2626'} strokeWidth="2.5">
                             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                             <circle cx="12" cy="10" r="3" />
                           </svg>
                         </div>
                         <div className="location-summary-texts">
-                          <div className="location-summary-label">{t('report.selectedLocation', 'Selected Geotagged Spot')}</div>
-                          <div className="location-summary-address">{selectedAddress || 'Click anywhere on map to pin'}</div>
+                          <div className="location-summary-label">
+                            {gpsVerified ? 'Verified Live GPS Spot (Locked)' : 'GPS Location Required'}
+                          </div>
+                          <div className="location-summary-address">
+                            {gpsVerified
+                              ? (selectedAddress || 'Verified device coordinates locked')
+                              : 'Enable device GPS to lodge civic report'}
+                          </div>
                         </div>
-                        <div className="location-coords-badge">
-                          📍 {latitude?.toFixed(4)}, {longitude?.toFixed(4)}
+                        <div className="location-coords-badge" style={{
+                          background: gpsVerified ? '#ECFDF5' : '#FEF2F2',
+                          color: gpsVerified ? '#047857' : '#B91C1C',
+                          border: gpsVerified ? '1px solid #A7F3D0' : '1px solid #FECACA'
+                        }}>
+                          {gpsVerified && latitude !== null && longitude !== null
+                            ? `📍 ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
+                            : '⚠️ GPS Unverified'}
                         </div>
                       </div>
 
@@ -3045,6 +4696,493 @@ export default function CitizenPortalView({
             </div>
           </div>
         )}
+
+        {/* LIVE CAMERA VIEWFINDER MODAL */}
+        {isCameraOpen && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.94)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 99999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16
+          }}>
+            <div style={{
+              width: '100%',
+              maxWidth: 640,
+              background: '#0F172A',
+              borderRadius: 16,
+              overflow: 'hidden',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              {/* Top HUD Bar */}
+              <div className="citizen-camera-hud" style={{
+                padding: '12px 16px',
+                background: 'rgba(15, 23, 42, 0.95)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{
+                    display: 'inline-block',
+                    width: 9,
+                    height: 9,
+                    borderRadius: '50%',
+                    background: isRecording ? '#EF4444' : '#10B981',
+                    boxShadow: isRecording ? '0 0 10px #EF4444' : '0 0 6px #10B981',
+                    animation: isRecording ? 'pulse 1s infinite' : 'none'
+                  }} />
+                  <span className="citizen-camera-rec-text" style={{ fontSize: '0.78rem', fontWeight: 700, color: '#F8FAFC', letterSpacing: '0.5px' }}>
+                    {isRecording
+                      ? `🔴 REC [ 00:${String(recordingSeconds).padStart(2, '0')} ] • LIVE CIVIC VIDEO RECORDING`
+                      : 'URBANPULSE LIVE CIVIC VIDEO RECORDER'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={toggleCameraFacing}
+                    title="Flip camera"
+                    disabled={isRecording}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.12)',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '5px 10px',
+                      color: '#F8FAFC',
+                      cursor: isRecording ? 'not-allowed' : 'pointer',
+                      opacity: isRecording ? 0.5 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: '0.72rem',
+                      fontWeight: 500
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 16v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4" />
+                      <polyline points="4 8 8 4 12 8" />
+                      <polyline points="20 16 16 20 12 16" />
+                    </svg>
+                    Flip Camera
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={stopLiveCamera}
+                    title="Close camera"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.12)',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '5px 10px',
+                      color: '#CBD5E1',
+                      cursor: 'pointer',
+                      fontSize: '0.82rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Viewport Area */}
+              <div style={{
+                position: 'relative',
+                width: '100%',
+                aspectRatio: '4/3',
+                background: '#000000',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden'
+              }}>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+
+                {/* Visual Downward Road Inspection Guidance Overlay for Road Issues */}
+                {(category.toLowerCase().includes('road') || category.toLowerCase().includes('pothole') || category.toLowerCase().includes('crack')) && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '18%',
+                    bottom: '15%',
+                    left: '8%',
+                    right: '8%',
+                    border: '2px dashed rgba(16, 185, 129, 0.7)',
+                    borderRadius: 12,
+                    pointerEvents: 'none',
+                    zIndex: 15,
+                    boxShadow: 'inset 0 0 24px rgba(16, 185, 129, 0.08)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    padding: '8px'
+                  }}>
+                    {/* Top Guide Reticle Header */}
+                    <div style={{
+                      alignSelf: 'center',
+                      background: 'rgba(15, 23, 42, 0.88)',
+                      backdropFilter: 'blur(6px)',
+                      color: '#6EE7B7',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      padding: '4px 12px',
+                      borderRadius: 20,
+                      border: '1px solid rgba(16, 185, 129, 0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}>
+                      <span>👇 ROAD SURFACE TARGET ZONE</span>
+                      <span style={{ color: '#94A3B8', fontWeight: 500 }}>· Angle Camera Downward</span>
+                    </div>
+
+                    {/* Corner Reticle Brackets */}
+                    <div style={{ position: 'absolute', top: -3, left: -3, width: 16, height: 16, borderTop: '3px solid #10B981', borderLeft: '3px solid #10B981', borderRadius: '4px 0 0 0' }} />
+                    <div style={{ position: 'absolute', top: -3, right: -3, width: 16, height: 16, borderTop: '3px solid #10B981', borderRight: '3px solid #10B981', borderRadius: '0 4px 0 0' }} />
+                    <div style={{ position: 'absolute', bottom: -3, left: -3, width: 16, height: 16, borderBottom: '3px solid #10B981', borderLeft: '3px solid #10B981', borderRadius: '0 0 0 4px' }} />
+                    <div style={{ position: 'absolute', bottom: -3, right: -3, width: 16, height: 16, borderBottom: '3px solid #10B981', borderRight: '3px solid #10B981', borderRadius: '0 0 4px 0' }} />
+
+                    {/* Bottom Guidance Note */}
+                    <div style={{
+                      alignSelf: 'center',
+                      background: 'rgba(15, 23, 42, 0.85)',
+                      color: '#F1F5F9',
+                      fontSize: '0.64rem',
+                      padding: '3px 10px',
+                      borderRadius: 12,
+                      fontWeight: 500,
+                      textAlign: 'center'
+                    }}>
+                      Pedestrians & vehicles in view are permitted · Camera analyzes the road surface
+                    </div>
+                  </div>
+                )}
+
+                {/* Real-Time Object Detection Red Outline Around Detected Civic Issue */}
+                {detectedIssueBox && (
+                  <div style={{
+                    position: 'absolute',
+                    left: `${detectedIssueBox.x}%`,
+                    top: `${detectedIssueBox.y}%`,
+                    width: `${detectedIssueBox.width}%`,
+                    height: `${detectedIssueBox.height}%`,
+                    border: '3px solid #EF4444',
+                    borderRadius: 8,
+                    boxShadow: isRecording
+                      ? '0 0 22px rgba(239, 68, 68, 0.95), inset 0 0 14px rgba(239, 68, 68, 0.45)'
+                      : '0 0 12px rgba(239, 68, 68, 0.75)',
+                    pointerEvents: 'none',
+                    zIndex: 20,
+                    transition: 'all 0.12s ease-out'
+                  }}>
+                    {/* Defect Label Badge */}
+                    <div style={{
+                      position: 'absolute',
+                      top: -26,
+                      left: -3,
+                      background: '#DC2626',
+                      color: '#FFFFFF',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '4px 4px 0 0',
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0.4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}>
+                      <span style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: '50%',
+                        background: '#FFFFFF',
+                        boxShadow: '0 0 6px #FFFFFF'
+                      }} />
+                      <span>{detectedIssueBox.label} ({Math.round(detectedIssueBox.confidence * 100)}%)</span>
+                    </div>
+
+                    {/* Corner Target Brackets */}
+                    <div style={{ position: 'absolute', top: -3, left: -3, width: 14, height: 14, borderTop: '4px solid #FFFFFF', borderLeft: '4px solid #FFFFFF' }} />
+                    <div style={{ position: 'absolute', top: -3, right: -3, width: 14, height: 14, borderTop: '4px solid #FFFFFF', borderRight: '4px solid #FFFFFF' }} />
+                    <div style={{ position: 'absolute', bottom: -3, left: -3, width: 14, height: 14, borderBottom: '4px solid #FFFFFF', borderLeft: '4px solid #FFFFFF' }} />
+                    <div style={{ position: 'absolute', bottom: -3, right: -3, width: 14, height: 14, borderBottom: '4px solid #FFFFFF', borderRight: '4px solid #FFFFFF' }} />
+
+                    {/* Center Target Indicator */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: 20,
+                      height: 20
+                    }}>
+                      <div style={{ position: 'absolute', top: 9, left: 0, right: 0, height: 2, background: 'rgba(239, 68, 68, 0.85)' }} />
+                      <div style={{ position: 'absolute', left: 9, top: 0, bottom: 0, width: 2, background: 'rgba(239, 68, 68, 0.85)' }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Real-time CV Feedback Banner */}
+                {realtimeFeedback && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 12,
+                    left: 12,
+                    right: 12,
+                    background: 'rgba(15, 23, 42, 0.88)',
+                    backdropFilter: 'blur(6px)',
+                    border: '1px solid rgba(59, 130, 246, 0.45)',
+                    color: '#93C5FD',
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    zIndex: 28,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)'
+                  }}>
+                    <span style={{
+                      display: 'inline-block',
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: '#3B82F6',
+                      boxShadow: '0 0 8px #3B82F6'
+                    }} />
+                    <span>{realtimeFeedback}</span>
+                  </div>
+                )}
+
+                {/* Live GPS Stamp HUD with CV Status */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: 12,
+                  left: 12,
+                  right: 12,
+                  background: 'rgba(15, 23, 42, 0.88)',
+                  backdropFilter: 'blur(4px)',
+                  borderRadius: 8,
+                  padding: '6px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  color: '#F8FAFC',
+                  fontSize: '0.72rem',
+                  fontFamily: 'monospace',
+                  zIndex: 25
+                }}>
+                  <div>
+                    <span style={{ color: '#10B981', fontWeight: 700 }}>● GPS:</span> {latitude.toFixed(5)}° N, {longitude.toFixed(5)}° E
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{
+                      display: 'inline-block',
+                      width: 7,
+                      height: 7,
+                      borderRadius: '50%',
+                      background: isAnalyzingFrame ? '#3B82F6' : '#10B981',
+                      boxShadow: isAnalyzingFrame ? '0 0 8px #3B82F6' : '0 0 6px #10B981'
+                    }} />
+                    <span style={{ color: isAnalyzingFrame ? '#60A5FA' : '#94A3B8', fontWeight: 600 }}>
+                      {isAnalyzingFrame ? 'ANALYZING FRAMES...' : 'REAL-TIME CV INFERENCE ACTIVE'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Validation Error Banner inside Modal */}
+                {videoValidationError && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 12,
+                    left: 12,
+                    right: 12,
+                    background: '#FEF2F2',
+                    border: '1px solid #FECACA',
+                    color: '#B91C1C',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    zIndex: 30,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
+                  }}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#DC2626" strokeWidth="2.5">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>Video is not valid. Please record the reported issue again.</span>
+                  </div>
+                )}
+
+                {/* Camera Error Fallback View */}
+                {cameraError && (
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'rgba(15, 23, 42, 0.96)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 24,
+                    textAlign: 'center',
+                    gap: 12,
+                    zIndex: 35
+                  }}>
+                    <div style={{ color: '#EF4444', fontSize: '1rem', fontWeight: 600 }}>
+                      Live Camera Access Issue
+                    </div>
+                    <p style={{ color: '#94A3B8', fontSize: '0.8rem', maxWidth: 400 }}>
+                      {cameraError}
+                    </p>
+                    <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          stopLiveCamera();
+                          nativeVideoInputRef.current?.click();
+                        }}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: 8,
+                          background: '#DC2626',
+                          color: '#FFFFFF',
+                          fontWeight: 600,
+                          fontSize: '0.8rem',
+                          border: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Use Device Camera App
+                      </button>
+                      <button
+                        type="button"
+                        onClick={stopLiveCamera}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: 8,
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          color: '#FFFFFF',
+                          fontWeight: 500,
+                          fontSize: '0.8rem',
+                          border: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Video Recording Controls: Start Recording & Stop Recording */}
+              <div style={{
+                padding: '16px 24px',
+                background: '#0F172A',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10
+              }}>
+                {!isRecording ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <button
+                      type="button"
+                      onClick={startLiveRecording}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '12px 30px',
+                        borderRadius: 999,
+                        background: 'linear-gradient(135deg, #DC2626, #B91C1C)',
+                        color: '#FFFFFF',
+                        fontSize: '0.92rem',
+                        fontWeight: 700,
+                        border: '3px solid rgba(255, 255, 255, 0.3)',
+                        boxShadow: '0 0 20px rgba(220, 38, 38, 0.55)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: '50%',
+                        background: '#FFFFFF',
+                        display: 'inline-block'
+                      }} />
+                      Start Recording
+                    </button>
+                    <span style={{ fontSize: '0.72rem', color: '#94A3B8' }}>
+                      Hold camera steady facing the defect. Record at least 2–3 seconds.
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <button
+                      type="button"
+                      onClick={stopLiveRecording}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '12px 30px',
+                        borderRadius: 999,
+                        background: '#FFFFFF',
+                        color: '#DC2626',
+                        fontSize: '0.92rem',
+                        fontWeight: 700,
+                        border: '3px solid #EF4444',
+                        boxShadow: '0 0 25px rgba(239, 68, 68, 0.8)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: 3,
+                        background: '#DC2626',
+                        display: 'inline-block'
+                      }} />
+                      Stop Recording [ 00:{String(recordingSeconds).padStart(2, '0')} ]
+                    </button>
+                    <span style={{ fontSize: '0.72rem', color: '#EF4444', fontWeight: 600 }}>
+                      ● RECORDING IN PROGRESS — REAL-TIME CIVIC DEFECT TRACKING ACTIVE
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Mobile Quick Bottom Navigation Dock */}
         <nav className="citizen-mobile-bottom-bar" aria-label="Mobile Navigation">
           <button

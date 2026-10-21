@@ -106,9 +106,20 @@ INITIAL_ALERTS: List[Dict[str, Any]] = [
         "is_escalated": False,
         "impact_data": [
             {"category": "Mobility", "level": "High", "pct": 85, "color": "#EF4444"},
-            {"category": "Traffic Flow", "level": "High", "pct": 82, "color": "#EF4444"},
-            {"category": "Crowd Movement", "level": "Moderate", "pct": 48, "color": "#F97316"},
-            {"category": "Public Transport", "level": "Moderate", "pct": 45, "color": "#F97316"}
+            {"category": "Public Transport", "level": "Medium", "pct": 55, "color": "#F97316"},
+            {"category": "Emergency Response", "level": "High", "pct": 80, "color": "#EF4444"},
+            {"category": "Economic Impact", "level": "Medium", "pct": 50, "color": "#F97316"}
+        ],
+        "affected_areas": [
+            "Marathahalli Junction",
+            "Outer Ring Road (Both Directions)",
+            "Bellandur Flyover",
+            "KTPO Junction"
+        ],
+        "timeline": [
+            {"time": "14:31", "title": "Alert detected", "desc": "Severe traffic congestion reported on Outer Ring Road.", "color": "#EF4444"},
+            {"time": "14:35", "title": "Field teams notified", "desc": "Traffic management team has been dispatched.", "color": "#F97316"},
+            {"time": "14:40", "title": "Ongoing monitoring", "desc": "Situation under observation.", "color": "#475569"}
         ],
         "related_info": {
             "approx_delay": "20 – 40 minutes",
@@ -118,9 +129,13 @@ INITIAL_ALERTS: List[Dict[str, Any]] = [
         },
         "telemetry_metrics": {
             "speed": "14 km/h",
+            "speed_trend": "↓ 72%",
             "traffic_volume": "4,820 veh/h",
+            "volume_trend": "↑ 65%",
             "congestion_level": "88%",
-            "affected_road": "Outer Ring Road (Both Directions)"
+            "congestion_trend": "↑ 38%",
+            "affected_road": "Outer Ring Road",
+            "affected_road_sub": "Both Directions"
         },
         "live_updates": [
             {"time": "14:31", "text": "Alert raised by traffic monitoring system.", "dot": "red"},
@@ -2124,10 +2139,11 @@ def sync_alerts_from_db():
                     "assigned_to_id": row.assigned_to_id,
                     "recipient_email": row.recipient_email,
                     "assignment_status": row.assignment_status,
-                    "assigned_at": row.assigned_at,
-                    "impact_data": row.impact_data or init_match.get("impact_data", []),
-                    "related_info": row.related_info or init_match.get("related_info", {}),
-                    "telemetry_metrics": row.telemetry_metrics or init_match.get("telemetry_metrics", {}),
+                    "impact_data": init_match.get("impact_data") or row.impact_data or [],
+                    "affected_areas": init_match.get("affected_areas") or [],
+                    "timeline": init_match.get("timeline") or [],
+                    "related_info": {**(row.related_info or {}), **(init_match.get("related_info") or {})},
+                    "telemetry_metrics": {**(row.telemetry_metrics or {}), **(init_match.get("telemetry_metrics") or {})},
                     "is_escalated": row.is_escalated,
                     "live_updates": updates_by_alert.get(row.id, init_match.get("live_updates", [])),
                     "comments": comments_by_alert.get(row.id, init_match.get("comments", []))

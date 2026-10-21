@@ -1,0 +1,167 @@
+{
+  "model_id": "mod-xgb-crowd-congestion-04",
+  "name": "XGBoost Station Crowd Congestion Level Classifier",
+  "version": "v1.0.0",
+  "algorithm": "XGBClassifier",
+  "target": "target_congestion_level",
+  "target_type": "classification",
+  "classes": {
+    "0": "Low",
+    "1": "Normal",
+    "2": "High",
+    "3": "Severe Peak"
+  },
+  "horizon_minutes": 60,
+  "features": [
+    "station_idx",
+    "hour_start",
+    "day_of_week",
+    "is_weekend",
+    "month",
+    "day_of_month",
+    "hour_sin",
+    "hour_cos",
+    "dow_sin",
+    "dow_cos",
+    "is_morning_peak",
+    "is_evening_peak",
+    "total_lag_1",
+    "total_lag_2",
+    "total_lag_24",
+    "total_rolling_mean_3",
+    "total_rolling_mean_24",
+    "total_rolling_std_24",
+    "entry_lag_1",
+    "exit_lag_1",
+    "entry_missing_flag",
+    "total_missing_flag"
+  ],
+  "metrics": {
+    "held_out_test_accuracy": 0.8577,
+    "held_out_test_precision_weighted": 0.8543,
+    "held_out_test_recall_weighted": 0.8577,
+    "held_out_test_f1_weighted": 0.8553,
+    "baseline_majority_accuracy": 0.4876,
+    "baseline_majority_f1": 0.3196,
+    "confusion_matrix": [
+      [
+        13956,
+        763,
+        0,
+        0
+      ],
+      [
+        716,
+        26916,
+        1360,
+        105
+      ],
+      [
+        0,
+        2600,
+        5248,
+        1024
+      ],
+      [
+        0,
+        286,
+        1640,
+        5063
+      ]
+    ]
+  },
+  "feature_importance": [
+    {
+      "feature": "hour_cos",
+      "importance": 0.2277
+    },
+    {
+      "feature": "entry_lag_1",
+      "importance": 0.1764
+    },
+    {
+      "feature": "hour_sin",
+      "importance": 0.0982
+    },
+    {
+      "feature": "hour_start",
+      "importance": 0.0899
+    },
+    {
+      "feature": "total_lag_24",
+      "importance": 0.069
+    },
+    {
+      "feature": "day_of_week",
+      "importance": 0.0524
+    },
+    {
+      "feature": "is_weekend",
+      "importance": 0.0482
+    },
+    {
+      "feature": "total_lag_1",
+      "importance": 0.0368
+    },
+    {
+      "feature": "dow_sin",
+      "importance": 0.03
+    },
+    {
+      "feature": "exit_lag_1",
+      "importance": 0.0244
+    },
+    {
+      "feature": "total_rolling_mean_3",
+      "importance": 0.0193
+    },
+    {
+      "feature": "is_evening_peak",
+      "importance": 0.0191
+    },
+    {
+      "feature": "day_of_month",
+      "importance": 0.0191
+    },
+    {
+      "feature": "total_lag_2",
+      "importance": 0.0171
+    },
+    {
+      "feature": "total_rolling_mean_24",
+      "importance": 0.0169
+    },
+    {
+      "feature": "is_morning_peak",
+      "importance": 0.0169
+    },
+    {
+      "feature": "total_rolling_std_24",
+      "importance": 0.0131
+    },
+    {
+      "feature": "station_idx",
+      "importance": 0.0131
+    },
+    {
+      "feature": "dow_cos",
+      "importance": 0.0124
+    },
+    {
+      "feature": "month",
+      "importance": 0.0
+    },
+    {
+      "feature": "entry_missing_flag",
+      "importance": 0.0
+    },
+    {
+      "feature": "total_missing_flag",
+      "importance": 0.0
+    }
+  ],
+  "artifact_file": "xgboost_station_congestion_classifier_v1.json",
+  "training_duration": "1.65s",
+  "trained_at": "2026-10-20 19:22:19",
+  "status": "Active / Deployed"
+}

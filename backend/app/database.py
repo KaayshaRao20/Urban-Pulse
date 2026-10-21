@@ -397,10 +397,11 @@ class UserModel(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 # Database Engine Setup (Supports SQLite local dev & Supabase / Render PostgreSQL)
-RAW_DB_URL = os.getenv("DATABASE_URL", "sqlite:///./urbanpulse_dev.db")
-
-# Automatically route to postgresql+psycopg2:// if no driver specified
-if RAW_DB_URL.startswith("postgres://"):
+_backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_default_sqlite_path = os.path.join(_backend_dir, "urbanpulse_dev.db").replace(os.sep, "/")
+RAW_DB_URL = os.getenv("DATABASE_URL") or f"sqlite:///{_default_sqlite_path}"
+if RAW_DB_URL == "sqlite:///./urbanpulse_dev.db":
+    RAW_DB_URL = f"sqlite:///{_default_sqlite_path}"
     DB_URL = RAW_DB_URL.replace("postgres://", "postgresql+psycopg2://", 1)
 elif RAW_DB_URL.startswith("postgresql://") and not RAW_DB_URL.startswith("postgresql+"):
     DB_URL = RAW_DB_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
@@ -441,7 +442,9 @@ except Exception as e:
             continue
     if not fallback_success:
         print("[UrbanPulse Database] Engaging resilient SQLite fallback.")
-        DB_URL = "sqlite:///./urbanpulse_dev.db"
+        _backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        _db_path = os.path.join(_backend_dir, "urbanpulse_dev.db")
+        DB_URL = f"sqlite:///{_db_path.replace(os.sep, '/')}"
         engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

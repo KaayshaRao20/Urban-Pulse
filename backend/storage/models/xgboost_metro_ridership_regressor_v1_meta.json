@@ -1,0 +1,148 @@
+{
+  "model_id": "mod-xgb-crowd-total-01",
+  "name": "XGBoost Next-Hour Total Ridership Regressor",
+  "version": "v1.0.0",
+  "algorithm": "XGBRegressor",
+  "task": "Next-Hour Station Total Ridership Forecasting (Crowd Proxy)",
+  "target": "target_next_hour_total",
+  "target_type": "regression",
+  "units": "passengers / hour",
+  "horizon_minutes": 60,
+  "feature_count": 22,
+  "features": [
+    "station_idx",
+    "hour_start",
+    "day_of_week",
+    "is_weekend",
+    "month",
+    "day_of_month",
+    "hour_sin",
+    "hour_cos",
+    "dow_sin",
+    "dow_cos",
+    "is_morning_peak",
+    "is_evening_peak",
+    "total_lag_1",
+    "total_lag_2",
+    "total_lag_24",
+    "total_rolling_mean_3",
+    "total_rolling_mean_24",
+    "total_rolling_std_24",
+    "entry_lag_1",
+    "exit_lag_1",
+    "entry_missing_flag",
+    "total_missing_flag"
+  ],
+  "training_period": "2025-08-01 to 2025-08-14 (14 days)",
+  "validation_period": "2025-08-15 to 2025-08-18 (4 days)",
+  "held_out_test_period": "2025-09-01 to 2025-09-30 (30 days)",
+  "sample_counts": {
+    "train": 24567,
+    "validation": 7968,
+    "held_out_test": 59677
+  },
+  "metrics": {
+    "held_out_test_mae": 72.83,
+    "held_out_test_rmse": 155.68,
+    "held_out_test_r2": 0.9707,
+    "pct_within_50_pax": 60.39,
+    "pct_within_20_pct": 70.91,
+    "baseline_lag1_mae": 236.83,
+    "baseline_seasonal_mae": 146.07
+  },
+  "feature_importance": [
+    {
+      "feature": "total_lag_24",
+      "importance": 0.4511
+    },
+    {
+      "feature": "total_lag_1",
+      "importance": 0.2267
+    },
+    {
+      "feature": "exit_lag_1",
+      "importance": 0.0701
+    },
+    {
+      "feature": "hour_cos",
+      "importance": 0.041
+    },
+    {
+      "feature": "entry_lag_1",
+      "importance": 0.0405
+    },
+    {
+      "feature": "hour_start",
+      "importance": 0.0289
+    },
+    {
+      "feature": "total_rolling_std_24",
+      "importance": 0.0274
+    },
+    {
+      "feature": "dow_sin",
+      "importance": 0.0252
+    },
+    {
+      "feature": "day_of_week",
+      "importance": 0.0166
+    },
+    {
+      "feature": "is_weekend",
+      "importance": 0.0126
+    },
+    {
+      "feature": "hour_sin",
+      "importance": 0.0103
+    },
+    {
+      "feature": "total_rolling_mean_24",
+      "importance": 0.01
+    },
+    {
+      "feature": "is_morning_peak",
+      "importance": 0.0078
+    },
+    {
+      "feature": "total_lag_2",
+      "importance": 0.0076
+    },
+    {
+      "feature": "total_rolling_mean_3",
+      "importance": 0.0066
+    },
+    {
+      "feature": "dow_cos",
+      "importance": 0.0065
+    },
+    {
+      "feature": "day_of_month",
+      "importance": 0.0063
+    },
+    {
+      "feature": "station_idx",
+      "importance": 0.0031
+    },
+    {
+      "feature": "is_evening_peak",
+      "importance": 0.0019
+    },
+    {
+      "feature": "month",
+      "importance": 0.0
+    },
+    {
+      "feature": "entry_missing_flag",
+      "importance": 0.0
+    },
+    {
+      "feature": "total_missing_flag",
+      "importance": 0.0
+    }
+  ],
+  "artifact_file": "xgboost_metro_ridership_regressor_v1.json",
+  "joblib_file": "xgboost_metro_ridership_regressor_v1.joblib",
+  "training_duration": "1.03s",
+  "trained_at": "2026-10-20 19:22:16",
+  "status": "Active / Deployed"
+}

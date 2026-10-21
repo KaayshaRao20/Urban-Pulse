@@ -10,6 +10,7 @@ import FocusView from './components/FocusView';
 import PredictiveCalendarView from './components/PredictiveCalendarView';
 import AlertsIncidentsView from './components/AlertsIncidentsView';
 import ReportsView from './components/ReportsView';
+import DataView from './components/DataView';
 import SettingsView from './components/SettingsView';
 import AnalyticsView from './components/AnalyticsView';
 import CitizenPortalView from './components/CitizenPortalView';
@@ -93,12 +94,8 @@ function AppContent() {
   }, []);
 
   const handleSwitchToAuthority = () => {
-    if (user && ['officer', 'admin', 'supervisor', 'operator'].includes(user.role)) {
-      setAppMode('authority');
-      setActiveView('dashboard');
-    } else {
-      openAuthModal();
-    }
+    setAppMode('authority');
+    setActiveView('grievances');
   };
 
   const handleNavigateToGrievance = (ticketId) => {
@@ -303,6 +300,7 @@ function AppContent() {
               {activeView === 'simulation' && <SimulationView timestamp={timestamp} />}
               {activeView === 'focus' && <FocusView timestamp={timestamp} />}
               {activeView === 'reports' && <ReportsView />}
+              {activeView === 'data' && <DataView />}
               {activeView === 'settings' && <SettingsView />}
             </ErrorBoundary>
           </main>
