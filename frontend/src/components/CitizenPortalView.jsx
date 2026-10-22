@@ -600,13 +600,17 @@ export default function CitizenPortalView({
     const catLower = (targetCat || '').toLowerCase();
     const isRoadIssue = catLower.includes('pothole') || catLower.includes('road') || catLower.includes('crack');
 
-    // For non-road categories: reject human face / selfie portraits
-    if (!isRoadIssue && skinRatio > 0.045) {
+    const asphaltRatio = asphaltPixels / totalPixels;
+
+    // Check for human face / selfie portrait in the camera view across all categories
+    // Triggers if skin ratio is prominent and road context is minimal, or if someone takes a direct selfie
+    if ((skinRatio > 0.045 && asphaltRatio < 0.14) || skinRatio > 0.075) {
       return {
         type: 'face',
         detected: false,
+        is_face: true,
         box: null,
-        feedback: 'Human subject detected — please point camera at the civic defect'
+        feedback: '⚠️ Human face detected — Please point camera at the civic defect to record proper video'
       };
     }
 
@@ -833,7 +837,7 @@ export default function CitizenPortalView({
   };
 
   // Comprehensive In-Browser Multi-Frame Computer Vision Defect & Negative Validator
-  const analyzeRecordedVideoFrames = async (fileOrBlob, targetCat) => {
+  const analyzeRecordedVideoFrames = async (fileOrBlob, targetCat, knownDurationSec = 0) => {
     return new Promise((resolve) => {
       const video = document.createElement('video');
       video.muted = true;
@@ -858,8 +862,17 @@ export default function CitizenPortalView({
 
       video.onloadedmetadata = async () => {
         try {
-          const duration = video.duration || 2;
-          if (duration < 1.5) {
+          // Robust duration calculation: WebM recorded blobs report Infinity in Chromium!
+          const rawDur = video.duration;
+          let safeDuration = 3.0;
+          if (typeof rawDur === 'number' && Number.isFinite(rawDur) && rawDur > 0) {
+            safeDuration = rawDur;
+          } else if (typeof knownDurationSec === 'number' && Number.isFinite(knownDurationSec) && knownDurationSec > 0) {
+            safeDuration = knownDurationSec;
+          }
+          safeDuration = Math.max(1.5, Math.min(60.0, safeDuration));
+
+          if (safeDuration < 1.5) {
             clearTimeout(fallbackTimer);
             return finish({
               valid: false,
@@ -891,11 +904,11 @@ export default function CitizenPortalView({
 
           // Sample 5 timestamps evenly distributed across duration: 15%, 32%, 50%, 68%, 85%
           const timestamps = [
-            duration * 0.15,
-            duration * 0.32,
-            duration * 0.50,
-            duration * 0.68,
-            duration * 0.85
+            safeDuration * 0.15,
+            safeDuration * 0.32,
+            safeDuration * 0.50,
+            safeDuration * 0.68,
+            safeDuration * 0.85
           ];
 
           let faceDetections = 0;
@@ -973,13 +986,11 @@ export default function CitizenPortalView({
                   const catLower = (targetCat || '').toLowerCase();
                   const isRoadIssue = catLower.includes('pothole') || catLower.includes('road') || catLower.includes('crack');
 
-                  // Face filter: Only abort for non-road categories if someone is recording a selfie.
-                  // For road footage, people/pedestrians/vehicles naturally appear and must NOT abort frame evaluation!
-                  if (!isRoadIssue && skinRatio > 0.05) {
+                  // Face filter across all categories:
+                  // Detects if someone is recording a personal face / selfie portrait (high skin ratio and road context is minimal, or face close-up)
+                  if ((skinRatio > 0.045 && asphaltRatio < 0.14) || skinRatio > 0.075) {
                     faceDetections++;
-                    lastReason = 'The reported issue is not visible. Camera is aimed at a person rather than the civic problem.';
-                    seekResolve();
-                    return;
+                    lastReason = 'Human face detected in the recording. Personal faces or selfies cannot be accepted as civic grievance evidence. Please record a proper video of the civic issue instead of people or faces.';
                   }
 
                   // Category check: Pothole / Road damage / Cracks
@@ -1130,7 +1141,17 @@ export default function CitizenPortalView({
               };
 
               video.addEventListener('seeked', onSeeked);
-              video.currentTime = Math.min(duration - 0.1, Math.max(0.1, time));
+              const targetTime = Number.isFinite(time) ? Math.min(Math.max(0.1, time), Math.max(0.2, safeDuration - 0.05)) : 0.5;
+              try {
+                if (Number.isFinite(targetTime)) {
+                  video.currentTime = targetTime;
+                } else {
+                  video.currentTime = 0.5;
+                }
+              } catch (seekErr) {
+                console.warn('Seek error:', seekErr);
+                onSeeked();
+              }
               setTimeout(() => {
                 if (!done) {
                   done = true;
@@ -1142,6 +1163,21 @@ export default function CitizenPortalView({
           }
 
           clearTimeout(fallbackTimer);
+
+          // Priority 1: Check if human face / selfie was recorded across frames!
+          if (faceDetections >= Math.max(1, Math.floor(totalFramesSampled * 0.4))) {
+            return finish({
+              valid: false,
+              verdict: 'rejected',
+              is_face_detected: true,
+              error: 'Human Face Detected — Please Record Proper Video',
+              title: 'Human Face Detected — Please Record Proper Video',
+              reason: 'Human face detected in the recording. Personal faces or selfies cannot be accepted as civic grievance evidence. Please record a proper video clearly showing the civic issue (such as the road damage, pothole, garbage, or streetlight) instead of people or faces.',
+              guidance: 'Point your camera directly at the physical road defect or civic problem and record a proper video. Please keep personal faces and selfies out of the camera view.',
+              disclaimer: '⚠️ Disclaimer: Selfies, personal portraits, and videos containing human faces cannot be accepted as civic grievance evidence. UrbanPulse requires clear, focused footage of the actual municipal defect.',
+              action: 'record_again'
+            });
+          }
 
           // Check motion blur across sampled frames
           if (blurFlags >= Math.max(2, Math.floor(totalFramesSampled * 0.6))) {
@@ -1175,13 +1211,16 @@ export default function CitizenPortalView({
             }
 
             // Case 2: Camera pointed at human face / selfie with negligible road surface
-            if (faceDetections >= Math.max(1, Math.floor(totalFramesSampled * 0.5)) && asphaltFrames === 0) {
+            if (faceDetections >= Math.max(1, Math.floor(totalFramesSampled * 0.4)) && asphaltFrames === 0) {
               return finish({
                 valid: false,
                 verdict: 'rejected',
-                error: 'The reported issue is not visible.',
-                reason: 'The reported issue is not visible. Camera is aimed at a person rather than the road problem.',
-                guidance: 'Point the camera downward towards the road defect or pothole, keeping faces out of frame.',
+                is_face_detected: true,
+                error: 'Human Face Detected — Please Record Proper Video',
+                title: 'Human Face Detected — Please Record Proper Video',
+                reason: 'Human face detected in the recording. Personal faces or selfies cannot be accepted as civic grievance evidence. Please record a proper video clearly showing the road defect or pothole.',
+                guidance: 'Point the camera downward towards the road defect or pothole and record a proper video, keeping faces out of the frame.',
+                disclaimer: '⚠️ Disclaimer: Selfies, personal portraits, and videos containing human faces cannot be accepted as civic grievance evidence. UrbanPulse requires clear, focused footage of the actual municipal defect.',
                 action: 'record_again'
               });
             }
@@ -1224,13 +1263,16 @@ export default function CitizenPortalView({
 
           // For Non-Road Categories:
           // 1. Face-only selfie video -> Reject
-          if (faceDetections >= Math.max(1, Math.floor(totalFramesSampled * 0.5))) {
+          if (faceDetections >= Math.max(1, Math.floor(totalFramesSampled * 0.4))) {
             return finish({
               valid: false,
               verdict: 'rejected',
-              error: 'The reported issue is not visible.',
-              reason: 'The reported issue is not visible. Camera is aimed at a person rather than the civic problem.',
-              guidance: 'Point the camera at the physical civic problem instead of people or faces.',
+              is_face_detected: true,
+              error: 'Human Face Detected — Please Record Proper Video',
+              title: 'Human Face Detected — Please Record Proper Video',
+              reason: 'Human face detected in the recording. Personal faces or selfies cannot be accepted as civic grievance evidence. Please record a proper video clearly showing the civic problem.',
+              guidance: 'Point the camera directly at the physical civic problem and record a proper video, keeping faces out of the frame.',
+              disclaimer: '⚠️ Disclaimer: Selfies, personal portraits, and videos containing human faces cannot be accepted as civic grievance evidence. UrbanPulse requires clear, focused footage of the actual municipal defect.',
               action: 'record_again'
             });
           }
@@ -1270,11 +1312,12 @@ export default function CitizenPortalView({
           });
         } catch (err) {
           clearTimeout(fallbackTimer);
+          console.warn('Frame analysis error:', err);
           return finish({
             valid: false,
             verdict: 'rejected',
             error: 'The video could not be processed.',
-            reason: 'The video could not be processed. Frame extraction error: ' + (err.message || 'unknown'),
+            reason: 'The video could not be processed. Please record the issue again holding the camera steady.',
             guidance: 'Please record the issue again using the live camera.',
             action: 'record_again'
           });
@@ -1383,7 +1426,7 @@ export default function CitizenPortalView({
     setCvValidationLoading(true);
     let clientCvResult = null;
     try {
-      clientCvResult = await analyzeRecordedVideoFrames(fileOrBlob, category);
+      clientCvResult = await analyzeRecordedVideoFrames(fileOrBlob, category, durationSec);
       if (!clientCvResult.valid) {
         setVideoValidationResult(clientCvResult);
         return {
@@ -2921,40 +2964,62 @@ export default function CitizenPortalView({
                       {/* Dedicated Invalid Video Feedback Alert Card */}
                       {videoValidationError && (
                         <div style={{
-                          background: isDark ? 'rgba(153, 27, 27, 0.16)' : '#FEF2F2',
-                          border: '1.5px solid #FCA5A5',
+                          background: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
+                            ? (isDark ? 'rgba(180, 83, 9, 0.18)' : '#FFFBEB')
+                            : (isDark ? 'rgba(153, 27, 27, 0.16)' : '#FEF2F2'),
+                          border: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
+                            ? '1.5px solid #FCD34D'
+                            : '1.5px solid #FCA5A5',
                           borderRadius: 12,
-                          padding: '14px 16px',
+                          padding: '16px 18px',
                           marginBottom: 14,
-                          boxShadow: '0 4px 14px rgba(220, 38, 38, 0.08)',
+                          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
                           display: 'flex',
                           flexDirection: 'column',
-                          gap: 8
+                          gap: 10
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
                             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                               <div style={{
-                                width: 28,
-                                height: 28,
+                                width: 32,
+                                height: 32,
                                 borderRadius: '50%',
-                                background: '#FEE2E2',
+                                background: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? '#FEF3C7' : '#FEE2E2',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 flexShrink: 0,
                                 marginTop: 1
                               }}>
-                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#DC2626" strokeWidth="2.5">
-                                  <circle cx="12" cy="12" r="10" />
-                                  <line x1="15" y1="9" x2="9" y2="15" />
-                                  <line x1="9" y1="9" x2="15" y2="15" />
-                                </svg>
+                                {(videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? (
+                                  <span style={{ fontSize: '1.15rem' }}>👤</span>
+                                ) : (
+                                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#DC2626" strokeWidth="2.5">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="15" y1="9" x2="9" y2="15" />
+                                    <line x1="9" y1="9" x2="15" y2="15" />
+                                  </svg>
+                                )}
                               </div>
                               <div>
-                                <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#991B1B' }}>
-                                  Video Could Not Be Accepted
+                                <div style={{
+                                  fontSize: '0.9rem',
+                                  fontWeight: 800,
+                                  color: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? (isDark ? '#FCD34D' : '#92400E') : '#991B1B'
+                                }}>
+                                  {(videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
+                                    ? 'Human Face Detected — Please Record Proper Video'
+                                    : 'Video Could Not Be Accepted'}
                                 </div>
-                                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#B91C1C', marginTop: 3 }}>
+                                <div style={{
+                                  fontSize: '0.82rem',
+                                  fontWeight: 600,
+                                  color: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
+                                    ? (isDark ? '#FDE68A' : '#78350F')
+                                    : '#B91C1C',
+                                  marginTop: 4,
+                                  lineHeight: 1.45
+                                }}>
                                   {videoValidationResult?.reason || videoValidationError}
                                 </div>
                               </div>
@@ -2964,37 +3029,63 @@ export default function CitizenPortalView({
                               type="button"
                               onClick={handleRetakeVideo}
                               style={{
-                                background: '#DC2626',
+                                background: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? '#D97706' : '#DC2626',
                                 color: '#FFFFFF',
                                 border: 'none',
                                 borderRadius: 8,
-                                padding: '7px 14px',
-                                fontSize: '0.78rem',
+                                padding: '8px 16px',
+                                fontSize: '0.8rem',
                                 fontWeight: 700,
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 6,
                                 flexShrink: 0,
-                                boxShadow: '0 2px 6px rgba(220, 38, 38, 0.3)'
+                                boxShadow: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
+                                  ? '0 2px 8px rgba(217, 119, 6, 0.4)'
+                                  : '0 2px 6px rgba(220, 38, 38, 0.3)'
                               }}
                             >
-                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
                                 <circle cx="12" cy="12" r="10" />
                                 <circle cx="12" cy="12" r="3" />
                               </svg>
-                              Record Again
+                              {(videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
+                                ? 'Record Proper Video'
+                                : 'Record Again'}
                             </button>
                           </div>
+
+                          {/* Prominent Disclaimer when Face is Detected */}
+                          {(videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) && (
+                            <div style={{
+                              padding: '10px 14px',
+                              borderRadius: 8,
+                              background: isDark ? 'rgba(30, 41, 59, 0.7)' : '#FFFFFF',
+                              border: '1.5px solid #FCD34D',
+                              fontSize: '0.78rem',
+                              fontWeight: 600,
+                              color: isDark ? '#FDE68A' : '#92400E',
+                              lineHeight: 1.5,
+                              display: 'flex',
+                              gap: 8,
+                              alignItems: 'flex-start'
+                            }}>
+                              <span style={{ fontSize: '1rem', flexShrink: 0 }}>⚠️</span>
+                              <div>
+                                <strong>Disclaimer:</strong> Selfies, personal portraits, and videos containing human faces cannot be accepted as civic grievance evidence. UrbanPulse requires clear, focused footage of the actual municipal defect (e.g. road damage, pothole, garbage pile, or streetlight).
+                              </div>
+                            </div>
+                          )}
 
                           {videoValidationResult?.guidance && (
                             <div style={{
                               padding: '8px 12px',
                               borderRadius: 8,
                               background: isDark ? 'rgba(30, 41, 59, 0.6)' : '#FFFFFF',
-                              border: '1px solid #FECACA',
+                              border: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? '1px solid #FDE68A' : '1px solid #FECACA',
                               fontSize: '0.74rem',
-                              color: isDark ? '#FCA5A5' : '#7F1D1D',
+                              color: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? (isDark ? '#FCD34D' : '#92400E') : (isDark ? '#FCA5A5' : '#7F1D1D'),
                               lineHeight: 1.45
                             }}>
                               💡 <strong>What to do differently:</strong> {videoValidationResult.guidance}
@@ -4948,28 +5039,38 @@ export default function CitizenPortalView({
                     top: 12,
                     left: 12,
                     right: 12,
-                    background: 'rgba(15, 23, 42, 0.88)',
+                    background: realtimeFeedback.toLowerCase().includes('face')
+                      ? 'rgba(180, 83, 9, 0.94)'
+                      : 'rgba(15, 23, 42, 0.88)',
                     backdropFilter: 'blur(6px)',
-                    border: '1px solid rgba(59, 130, 246, 0.45)',
-                    color: '#93C5FD',
-                    padding: '6px 12px',
+                    border: realtimeFeedback.toLowerCase().includes('face')
+                      ? '1.5px solid #FCD34D'
+                      : '1px solid rgba(59, 130, 246, 0.45)',
+                    color: realtimeFeedback.toLowerCase().includes('face')
+                      ? '#FFFBEB'
+                      : '#93C5FD',
+                    padding: '7px 12px',
                     borderRadius: 8,
-                    fontSize: '0.72rem',
-                    fontWeight: 600,
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
                     zIndex: 28,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)'
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)'
                   }}>
-                    <span style={{
-                      display: 'inline-block',
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: '#3B82F6',
-                      boxShadow: '0 0 8px #3B82F6'
-                    }} />
+                    {realtimeFeedback.toLowerCase().includes('face') ? (
+                      <span style={{ fontSize: '1rem', flexShrink: 0 }}>👤</span>
+                    ) : (
+                      <span style={{
+                        display: 'inline-block',
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: '#3B82F6',
+                        boxShadow: '0 0 8px #3B82F6'
+                      }} />
+                    )}
                     <span>{realtimeFeedback}</span>
                   </div>
                 )}
@@ -5017,25 +5118,34 @@ export default function CitizenPortalView({
                     top: 12,
                     left: 12,
                     right: 12,
-                    background: '#FEF2F2',
-                    border: '1px solid #FECACA',
-                    color: '#B91C1C',
-                    padding: '8px 12px',
+                    background: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? '#FFFBEB' : '#FEF2F2',
+                    border: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? '1.5px solid #FCD34D' : '1px solid #FECACA',
+                    color: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? '#92400E' : '#B91C1C',
+                    padding: '9px 14px',
                     borderRadius: 8,
                     fontSize: '0.78rem',
                     fontWeight: 600,
                     zIndex: 30,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
+                    gap: 10,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.45)'
                   }}>
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#DC2626" strokeWidth="2.5">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="8" x2="12" y2="12" />
-                      <line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                    <span>Video is not valid. Please record the reported issue again.</span>
+                    <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>
+                      {(videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? '👤' : '⚠️'}
+                    </span>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
+                        {(videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
+                          ? '⚠️ Human Face Detected — Please Record Proper Video'
+                          : 'Video Could Not Be Accepted'}
+                      </div>
+                      <div style={{ fontSize: '0.74rem', opacity: 0.95, marginTop: 1 }}>
+                        {(videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
+                          ? 'Personal faces or selfies cannot be accepted. Please point camera at the civic problem to record proper video.'
+                          : (videoValidationResult?.reason || 'Video is not valid. Please record the reported issue again.')}
+                      </div>
+                    </div>
                   </div>
                 )}
 

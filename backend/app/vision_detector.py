@@ -673,9 +673,12 @@ class MultiFrameVideoValidator:
                     "verdict": "rejected",
                     "category_match": False,
                     "confidence": 0.05,
-                    "error": "The reported issue is not visible.",
-                    "reason": "The reported issue is not visible. Camera is aimed at a person rather than the road problem.",
-                    "guidance": "Point the camera downward towards the road defect or pothole, keeping faces out of frame.",
+                    "is_face_detected": True,
+                    "error": "Human Face Detected — Please Record Proper Video",
+                    "title": "Human Face Detected — Please Record Proper Video",
+                    "reason": "Human face detected in the recording. Personal faces or selfies cannot be accepted as civic grievance evidence. Please record a proper video clearly showing the road defect or pothole.",
+                    "guidance": "Point the camera downward towards the road defect or pothole and record a proper video, keeping faces out of the frame.",
+                    "disclaimer": "⚠️ Disclaimer: Selfies, personal portraits, and videos containing human faces cannot be accepted as civic grievance evidence. UrbanPulse requires clear, focused footage of the actual municipal defect.",
                     "action": "record_again",
                     "frames_analyzed": frames_analyzed
                 }
@@ -735,9 +738,12 @@ class MultiFrameVideoValidator:
                 "verdict": "rejected",
                 "category_match": False,
                 "confidence": 0.05,
-                "error": "The reported issue is not visible.",
-                "reason": "The reported issue is not visible. Camera is aimed at a person rather than the civic problem.",
-                "guidance": "Point the camera at the physical civic issue instead of people or faces.",
+                "is_face_detected": True,
+                "error": "Human Face Detected — Please Record Proper Video",
+                "title": "Human Face Detected — Please Record Proper Video",
+                "reason": "Human face detected in the recording. Personal faces or selfies cannot be accepted as civic grievance evidence. Please record a proper video clearly showing the civic problem.",
+                "guidance": "Point the camera directly at the physical civic problem and record a proper video, keeping faces out of the frame.",
+                "disclaimer": "⚠️ Disclaimer: Selfies, personal portraits, and videos containing human faces cannot be accepted as civic grievance evidence. UrbanPulse requires clear, focused footage of the actual municipal defect.",
                 "action": "record_again",
                 "frames_analyzed": frames_analyzed
             }
