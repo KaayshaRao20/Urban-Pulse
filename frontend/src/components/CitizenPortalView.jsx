@@ -22,8 +22,6 @@ const BENGALURU_PRESET_LOCATIONS = [
 ];
 
 export default function CitizenPortalView({
-  onSwitchToAuthority,
-  onOpenOfficerAuth,
   isAuthenticated,
   officer,
   user,
@@ -2187,11 +2185,27 @@ export default function CitizenPortalView({
       {/* =================================================================== */}
       <aside className={`citizen-sidebar-modern ${sidebarCollapsed ? 'collapsed' : ''} ${mobileDrawerOpen ? 'mobile-open' : ''}`}>
         <div className="citizen-sidebar-top-section">
-          {/* 1. macOS Style Window Traffic Dots */}
-          <div className="citizen-mac-dots">
-            <span className="mac-dot red"></span>
-            <span className="mac-dot yellow"></span>
-            <span className="mac-dot green"></span>
+          {/* 1. Drawer Header with macOS Dots & Mobile Close Button */}
+          <div className="citizen-drawer-header-row">
+            <div className="citizen-mac-dots">
+              <span className="mac-dot red"></span>
+              <span className="mac-dot yellow"></span>
+              <span className="mac-dot green"></span>
+            </div>
+            {mobileDrawerOpen && (
+              <button
+                type="button"
+                className="citizen-drawer-close-btn"
+                onClick={() => setMobileDrawerOpen(false)}
+                aria-label="Close navigation drawer"
+                title="Close Drawer"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
           </div>
 
           {/* 2. Profile Card & Collapse Toggle Pill */}
@@ -2428,51 +2442,6 @@ export default function CitizenPortalView({
               </div>
             </button>
           </nav>
-
-          {/* 6. Service: 2 Section */}
-          <div className="citizen-service-section">
-            <div className="citizen-service-header">
-              {!sidebarCollapsed && <span className="citizen-menu-label">Service: 2</span>}
-              <div className="citizen-service-edit-icon" title="Municipal Authorities">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                </svg>
-              </div>
-            </div>
-
-            {/* White Service Card */}
-            <div className="citizen-service-card">
-              <button
-                type="button"
-                className="citizen-service-action-btn"
-                onClick={() => { onSwitchToAuthority(); setMobileDrawerOpen(false); }}
-                title="Official Municipal Command Console"
-              >
-                <div className="citizen-service-btn-left">
-                  <div className="citizen-service-icon-box">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" strokeWidth="2.2">
-                      <line x1="3" y1="21" x2="21" y2="21" />
-                      <line x1="3" y1="10" x2="21" y2="10" />
-                      <polyline points="5 6 12 3 19 6" />
-                      <line x1="4" y1="10" x2="4" y2="21" />
-                      <line x1="20" y1="10" x2="20" y2="21" />
-                    </svg>
-                  </div>
-                  {!sidebarCollapsed && (
-                    <div style={{ textAlign: 'left' }}>
-                      <div className="citizen-service-title">{t('brand.switchToAuthority', 'Command Console')}</div>
-                      <div className="citizen-service-sub">Restricted Municipal</div>
-                    </div>
-                  )}
-                </div>
-                {!sidebarCollapsed && (
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#94A3B8" strokeWidth="2.5">
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* 7. Bottom Skyline & Theme Controls */}
@@ -2633,37 +2602,6 @@ export default function CitizenPortalView({
                   </div>
                 ))}
               </div>
-            )}
-
-            {onSwitchToAuthority && (
-              <button
-                type="button"
-                className="citizen-header-authority-btn"
-                onClick={onSwitchToAuthority}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: '#0F172A',
-                  color: '#FFFFFF',
-                  border: '1px solid #334155',
-                  padding: '5px 12px',
-                  borderRadius: '20px',
-                  fontSize: '0.74rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(15,23,42,0.15)',
-                  transition: 'all 0.15s ease'
-                }}
-                title="Switch to Municipal Authority Portal (Verified Civic Issues)"
-              >
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <path d="M9 12l2 2 4-4" />
-                </svg>
-                <span className="citizen-header-authority-label">Authority Console &bull; Verified Issues</span>
-                <span style={{ color: '#60A5FA', fontSize: '0.72rem' }}>→</span>
-              </button>
             )}
 
             <div

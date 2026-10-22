@@ -93,18 +93,11 @@ function AppContent() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleSwitchToAuthority = () => {
-    setAppMode('authority');
-    setActiveView('grievances');
-  };
-
   const handleNavigateToGrievance = (ticketId) => {
     setSelectedGrievanceId(ticketId);
-    if (user && ['officer', 'admin', 'supervisor', 'operator'].includes(user.role)) {
+    if (user && ['officer', 'admin', 'supervisor', 'operator', 'engineer'].includes(user.role)) {
       setAppMode('authority');
       setActiveView('grievances');
-    } else {
-      openAuthModal();
     }
   };
 
@@ -188,16 +181,14 @@ function AppContent() {
       {/* ------------------------------------------------------------- */}
       {/* PORTAL MODE 1: PUBLIC CITIZEN CIVIC REPORTING & TRACKING PORTAL */}
       {/* ------------------------------------------------------------- */}
-      {appMode === 'citizen' ? (
+      {user?.role === 'citizen' ? (
         <div className="citizen-full-shell">
           <ErrorBoundary>
             <CitizenPortalView
-              onSwitchToAuthority={handleSwitchToAuthority}
-              onOpenOfficerAuth={openAuthModal}
               isAuthenticated={isAuthenticated}
               officer={officer}
               user={user}
-              onLogout={logout}
+              onLogout={handleLogout}
             />
           </ErrorBoundary>
         </div>
@@ -234,17 +225,10 @@ function AppContent() {
               <span className="authority-mobile-tag">ICCC</span>
             </div>
 
-            <button
-              type="button"
-              className="authority-mobile-citizen-btn"
-              onClick={() => setAppMode('citizen')}
-              title="Switch to Citizen Portal"
-            >
-              <span>Citizen</span>
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
+            <div className="authority-mobile-live-indicator" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', color: '#16A34A', fontWeight: 700 }}>
+              <span className="live-grid-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981', display: 'inline-block' }}></span>
+              <span>LIVE</span>
+            </div>
           </div>
 
           {/* Backdrop Overlay when drawer is active */}
@@ -264,10 +248,6 @@ function AppContent() {
             criticalAlertsCount={criticalAlertsCount}
             officer={user}
             onLogout={logout}
-            onSwitchToCitizen={() => {
-              setAppMode('citizen');
-              setIsMobileSidebarOpen(false);
-            }}
             isOpen={isMobileSidebarOpen}
             onClose={() => setIsMobileSidebarOpen(false)}
           />

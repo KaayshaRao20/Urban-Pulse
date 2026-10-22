@@ -2832,6 +2832,17 @@ tr:hover td {
         inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
 }
 
+.citizen-drawer-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.citizen-drawer-close-btn {
+    display: none;
+}
+
 .citizen-sidebar-modern.collapsed .citizen-mac-dots {
     justify-content: center;
     padding: 2px 0 12px 0;
@@ -4492,21 +4503,92 @@ body {
     }
 
     /* Slide-in Polymorphic Sidebar on Mobile */
-    .citizen-sidebar-modern {
+    .citizen-sidebar-modern,
+    .citizen-sidebar-modern.collapsed {
         position: fixed !important;
-        top: 12px !important;
-        bottom: 12px !important;
-        left: 12px !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
         margin: 0 !important;
-        height: calc(100vh - 24px) !important;
-        z-index: 9999 !important;
-        transform: translateX(-160%) !important;
-        transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1), width 0.24s ease !important;
-        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.3) !important;
+        width: 280px !important;
+        min-width: 280px !important;
+        max-width: 85vw !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        border-radius: 0 20px 20px 0 !important;
+        background: #FFFFFF !important;
+        z-index: 99999 !important;
+        transform: translateX(-110%) !important;
+        transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        box-shadow: 14px 0 45px rgba(15, 23, 42, 0.25) !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        padding: 16px 14px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+
+    [data-theme="dark"] .citizen-sidebar-modern,
+    [data-theme="dark"] .citizen-sidebar-modern.collapsed,
+    .theme-dark .citizen-sidebar-modern,
+    .theme-dark .citizen-sidebar-modern.collapsed {
+        background: #0F172A !important;
+        border-right: 1px solid #1E293B !important;
     }
 
     .citizen-sidebar-modern.mobile-open {
         transform: translateX(0) !important;
+    }
+
+    .citizen-sidebar-modern.collapsed .citizen-item-label,
+    .citizen-sidebar-modern.collapsed .citizen-menu-label,
+    .citizen-sidebar-modern.collapsed .citizen-profile-texts,
+    .citizen-sidebar-modern.collapsed .citizen-footer-telemetry {
+        display: block !important;
+    }
+
+    .citizen-sidebar-modern .citizen-collapse-tab {
+        display: none !important;
+    }
+
+    .citizen-drawer-header-row {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+        margin-bottom: 12px !important;
+    }
+
+    .citizen-drawer-close-btn {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 34px !important;
+        height: 34px !important;
+        border-radius: 8px !important;
+        border: 1px solid #E2E8F0 !important;
+        background: #F8FAFC !important;
+        color: #475569 !important;
+        cursor: pointer !important;
+        padding: 0 !important;
+        transition: all 0.15s ease !important;
+        flex-shrink: 0 !important;
+    }
+
+    [data-theme="dark"] .citizen-drawer-close-btn,
+    .theme-dark .citizen-drawer-close-btn {
+        background: #1E293B !important;
+        border-color: #334155 !important;
+        color: #94A3B8 !important;
+    }
+
+    .citizen-drawer-close-btn:hover,
+    .citizen-drawer-close-btn:active {
+        background: #E2E8F0 !important;
+        color: #0F172A !important;
     }
 
     /* Hamburger button shown in header */
@@ -7329,19 +7411,24 @@ body {
 
     .citizen-category-chips {
         grid-template-columns: repeat(2, 1fr) !important;
-        gap: 6px !important;
+        gap: 8px !important;
     }
 
     .citizen-category-chip {
-        padding: 7px 8px !important;
+        padding: 8px 10px !important;
         min-width: 0 !important;
+        min-height: 48px !important;
+        align-items: center !important;
+        box-sizing: border-box !important;
     }
 
     .citizen-category-chip .chip-label {
-        font-size: 0.70rem !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
+        font-size: 0.72rem !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        word-break: break-word !important;
+        line-height: 1.25 !important;
     }
 
     .citizen-urgency-grid {
@@ -7350,8 +7437,10 @@ body {
     }
 
     .citizen-urgency-pill {
-        padding: 6px 8px !important;
+        padding: 8px 10px !important;
         min-width: 0 !important;
+        min-height: 44px !important;
+        box-sizing: border-box !important;
     }
 
     .citizen-urgency-pill .urgency-desc {
@@ -7360,9 +7449,11 @@ body {
 
     .citizen-urgency-pill .urgency-title {
         font-size: 0.72rem !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        word-break: break-word !important;
+        line-height: 1.2 !important;
     }
 
     .citizen-location-summary-card {
@@ -7384,15 +7475,6 @@ body {
         font-size: 0.62rem !important;
     }
 
-    .citizen-header-authority-btn {
-        padding: 4px 8px !important;
-        gap: 4px !important;
-    }
-
-    .citizen-header-authority-label {
-        display: none !important;
-    }
-
     .citizen-camera-rec-text {
         font-size: 0.68rem !important;
         max-width: 160px !important;
@@ -7404,10 +7486,25 @@ body {
     .citizen-camera-hud {
         padding: 8px 10px !important;
     }
+
+    /* Authority Portal Table Responsiveness */
+    .table-responsive,
+    .grievance-table-container,
+    .incidents-table-container,
+    .data-table-container,
+    .reports-table-container,
+    .calendar-table-container,
+    .focus-table-container,
+    div:has(> table) {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
 }
 
 /* ------------------------------------------------------------- */
-/* ULTRA-COMPACT MOBILE PHONE BREAKPOINT (<= 360px)              */
+/* ULTRA-COMPACT MOBILE PHONE BREAKPOINT (<= 360px - e.g. 320px) */
 /* ------------------------------------------------------------- */
 @media (max-width: 360px) {
     .citizen-card {
@@ -7415,8 +7512,28 @@ body {
         border-radius: 12px !important;
     }
 
+    .citizen-category-chips {
+        grid-template-columns: 1fr !important;
+        gap: 6px !important;
+    }
+
     .citizen-category-chip {
-        padding: 6px 6px !important;
+        padding: 8px 12px !important;
+        min-height: 44px !important;
+    }
+
+    .citizen-category-chip .chip-label {
+        font-size: 0.74rem !important;
+    }
+
+    .citizen-urgency-grid {
+        grid-template-columns: 1fr !important;
+        gap: 6px !important;
+    }
+
+    .citizen-urgency-pill {
+        padding: 8px 12px !important;
+        min-height: 42px !important;
     }
 
     .grievance-kpi-grid {
@@ -7425,6 +7542,19 @@ body {
 
     .authority-mobile-brand .authority-mobile-tag {
         display: none !important;
+    }
+
+    .citizen-mobile-tab-btn {
+        padding: 2px 1px !important;
+    }
+
+    .citizen-mobile-tab-label {
+        font-size: 0.52rem !important;
+    }
+
+    .citizen-mobile-tab-btn svg {
+        width: 16px !important;
+        height: 16px !important;
     }
 }
 
