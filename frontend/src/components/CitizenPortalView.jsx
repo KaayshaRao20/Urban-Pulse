@@ -4,6 +4,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import LanguageSelector from './LanguageSelector';
 import { API_BASE } from '../config/api';
+import { detectRealtimeFrame, validateVideoEvidence, TEST_SCENARIOS } from '../services/civicDetectionService';
 
 // Popular Bengaluru landmark locations for instant geocode matching
 const BENGALURU_PRESET_LOCATIONS = [
@@ -89,6 +90,7 @@ export default function CitizenPortalView({
   const [realtimeFeedback, setRealtimeFeedback] = useState('');
   const [cvValidationLoading, setCvValidationLoading] = useState(false);
   const [videoValidationResult, setVideoValidationResult] = useState(null);
+  const [testScenario, setTestScenario] = useState('auto');
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -899,7 +901,7 @@ export default function CitizenPortalView({
     return null;
   };
 
-  // Real-time object detection loop with real computer vision inference
+  // Real-time object detection loop with modular computer vision service
   const startObjectDetection = () => {
     if (detectionAnimRef.current) {
       clearInterval(detectionAnimRef.current);
@@ -912,7 +914,7 @@ export default function CitizenPortalView({
 
       setIsAnalyzingFrame(true);
       try {
-        const analysis = analyzeCanvasFrame(videoRef.current, category);
+        const analysis = detectRealtimeFrame(videoRef.current, category, testScenario);
         if (analysis) {
           if (analysis.feedback) setRealtimeFeedback(analysis.feedback);
           if (analysis.detected && analysis.box) {
@@ -1443,180 +1445,65 @@ export default function CitizenPortalView({
     });
   };
 
-  // Pre-submission Video Validation using multi-frame Computer Vision
+  // Pre-submission Video Validation using modular civicDetectionService
   const validateRecordedVideo = async (fileOrBlob, durationSec = 0) => {
-    // 1. Basic file size check (at least 20 KB)
-    if (!fileOrBlob || fileOrBlob.size < 20000) {
-      const res = {
-        valid: false,
-        error: 'Recording is too short.',
-        reason: 'Recording is too short. Video stream payload is too small or truncated.',
-        guidance: 'Please hold the record button and capture at least 2 to 5 seconds of footage.',
-        action: 'record_again'
-      };
-      setVideoValidationResult(res);
-      return res;
-    }
-
-    // 2. Minimum duration check (at least 1.5 seconds)
-    if (durationSec > 0 && durationSec < 1.5) {
-      const res = {
-        valid: false,
-        error: 'Recording is too short.',
-        reason: 'Recording is too short. Please record for at least 2 to 5 seconds.',
-        guidance: 'Hold the record button and capture at least 3 seconds of steady footage showing the defect.',
-        action: 'record_again'
-      };
-      setVideoValidationResult(res);
-      return res;
-    }
-
-    // 3. Playability and stream metadata verification
+    setCvValidationLoading(true);
     try {
-      const url = URL.createObjectURL(fileOrBlob);
-      const testVideo = document.createElement('video');
-      testVideo.preload = 'metadata';
-      testVideo.muted = true;
-      testVideo.playsInline = true;
-      testVideo.src = url;
+      // 1. In-browser modular civic detection & quality analysis
+      const clientResult = await validateVideoEvidence(fileOrBlob, category, durationSec, testScenario);
 
-      const isValid = await new Promise((resolve) => {
-        let finished = false;
-        testVideo.onloadedmetadata = () => {
-          if (finished) return;
-          finished = true;
-          URL.revokeObjectURL(url);
-          resolve(testVideo.duration > 0 || fileOrBlob.size > 25000);
-        };
-
-        testVideo.onerror = () => {
-          if (finished) return;
-          finished = true;
-          URL.revokeObjectURL(url);
-          resolve(false);
-        };
-
-        setTimeout(() => {
-          if (finished) return;
-          finished = true;
-          URL.revokeObjectURL(url);
-          resolve(durationSec >= 1.5 && fileOrBlob.size >= 25000);
-        }, 1500);
-      });
-
-      if (!isValid) {
-        const res = {
-          valid: false,
-          error: 'The video could not be processed.',
-          reason: 'The video could not be processed. Corrupt or unplayable video stream.',
-          guidance: 'Please record the issue again using your device camera.',
-          action: 'record_again'
-        };
-        setVideoValidationResult(res);
-        return res;
+      // If simulated scenario (non-auto) or client rejected, return client result immediately
+      if (testScenario !== 'auto' || !clientResult.valid) {
+        setVideoValidationResult(clientResult);
+        return clientResult;
       }
-    } catch {
-      const res = {
+
+      // 2. In auto mode, query backend if accessible
+      try {
+        const formData = new FormData();
+        formData.append('video', fileOrBlob, 'evidence_check.webm');
+        formData.append('category', category);
+
+        const res = await fetch(`${API_BASE}/grievances/validate-video`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          const cvData = await res.json();
+          setVideoValidationResult(cvData);
+          if (!cvData.is_valid) {
+            return {
+              valid: false,
+              error: cvData.error || cvData.reason,
+              reason: cvData.reason,
+              guidance: cvData.guidance || 'Please adjust the camera angle and record again.',
+              action: cvData.action || 'record_again',
+              data: cvData
+            };
+          }
+          return { valid: true, error: '', data: cvData };
+        }
+      } catch (backendErr) {
+        console.warn('Backend CV validation notice:', backendErr);
+      }
+
+      setVideoValidationResult(clientResult);
+      return clientResult;
+    } catch (err) {
+      console.warn('Video validation error:', err);
+      const fallback = {
         valid: false,
         error: 'The video could not be processed.',
-        reason: 'The video could not be processed. Video playback initialization failed.',
-        guidance: 'Please record the issue again using your device camera.',
+        reason: 'The video could not be processed. Please hold device steady and record again.',
+        guidance: 'Record outdoors facing the civic issue directly.',
         action: 'record_again'
       };
-      setVideoValidationResult(res);
-      return res;
-    }
-
-    // 4. In-Browser Multi-Frame Computer Vision Inference
-    setCvValidationLoading(true);
-    let clientCvResult = null;
-    try {
-      clientCvResult = await analyzeRecordedVideoFrames(fileOrBlob, category, durationSec);
-      if (!clientCvResult.valid) {
-        setVideoValidationResult(clientCvResult);
-        return {
-          valid: false,
-          error: clientCvResult.error || clientCvResult.reason,
-          reason: clientCvResult.reason,
-          guidance: clientCvResult.guidance,
-          action: clientCvResult.action || 'record_again'
-        };
-      }
-    } catch (clientErr) {
-      console.warn('In-browser CV analysis error:', clientErr);
+      setVideoValidationResult(fallback);
+      return fallback;
     } finally {
       setCvValidationLoading(false);
     }
-
-    // If client CV explicitly determined it's NOT valid, return with its exact reason
-    if (clientCvResult && !clientCvResult.valid) {
-      setVideoValidationResult(clientCvResult);
-      return {
-        valid: false,
-        error: clientCvResult.error || clientCvResult.reason,
-        reason: clientCvResult.reason,
-        guidance: clientCvResult.guidance,
-        action: clientCvResult.action || 'record_again'
-      };
-    }
-
-    // 5. Backend Inference Service Validation (Secondary verification if reachable)
-    try {
-      const formData = new FormData();
-      formData.append('video', fileOrBlob, 'evidence_check.webm');
-      formData.append('category', category);
-
-      const res = await fetch(`${API_BASE}/grievances/validate-video`, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (res.ok) {
-        const cvData = await res.json();
-        setVideoValidationResult(cvData);
-
-        if (!cvData.is_valid) {
-          return {
-            valid: false,
-            error: cvData.error || cvData.reason,
-            reason: cvData.reason,
-            guidance: cvData.guidance || 'Please adjust the camera angle and record again.',
-            action: cvData.action || 'record_again',
-            data: cvData
-          };
-        }
-
-        return { valid: true, error: '', data: cvData };
-      }
-    } catch (err) {
-      console.warn('Backend CV validation call notice:', err);
-    }
-
-    // If backend was unreachable or 404, check client CV outcome
-    if (clientCvResult && clientCvResult.valid) {
-      const resultData = {
-        is_valid: true,
-        verdict: clientCvResult.verdict || 'verified',
-        confidence: clientCvResult.confidence,
-        box: clientCvResult.box,
-        category: category,
-        reason: clientCvResult.reason,
-        guidance: clientCvResult.guidance
-      };
-      setVideoValidationResult(resultData);
-      return { valid: true, error: '', data: resultData };
-    }
-
-    // If neither client CV nor backend confirmed validity, reject with specific message
-    const fallbackReject = {
-      valid: false,
-      error: 'The reported issue is not visible.',
-      reason: 'The reported issue is not visible. Visual evidence could not be verified for ' + category + '.',
-      guidance: 'Please record again outdoors with the issue filling the center of the frame.',
-      action: 'record_again'
-    };
-    setVideoValidationResult(fallbackReject);
-    return fallbackReject;
   };
 
   // Start live WebRTC camera stream for video recording
@@ -3042,143 +2929,158 @@ export default function CitizenPortalView({
                         </span>
                       </div>
 
-                      {/* Dedicated Invalid Video Feedback Alert Card */}
-                      {videoValidationError && (() => {
-                        const isFace = Boolean(
-                          videoValidationResult?.is_face_detected ||
-                          (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')
-                        );
-
-                        return (
-                          <div style={{
-                            background: isFace
-                              ? (isDark ? 'rgba(180, 83, 9, 0.18)' : '#FFFBEB')
-                              : (isDark ? 'rgba(153, 27, 27, 0.16)' : '#FEF2F2'),
-                            border: isFace
-                              ? '1.5px solid #FCD34D'
-                              : '1.5px solid #FCA5A5',
-                            borderRadius: 12,
-                            padding: '16px 18px',
-                            marginBottom: 14,
-                            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 10
-                          }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-                              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                                <div style={{
-                                  width: 32,
-                                  height: 32,
-                                  borderRadius: '50%',
-                                  background: isFace ? '#FEF3C7' : '#FEE2E2',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  flexShrink: 0,
-                                  marginTop: 1
-                                }}>
-                                  {isFace ? (
-                                    <span style={{ fontSize: '1.15rem' }}>👤</span>
-                                  ) : (
-                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#DC2626" strokeWidth="2.5">
-                                      <circle cx="12" cy="12" r="10" />
-                                      <line x1="15" y1="9" x2="9" y2="15" />
-                                      <line x1="9" y1="9" x2="15" y2="15" />
-                                    </svg>
-                                  )}
-                                </div>
-                                <div>
-                                  <div style={{
-                                    fontSize: '0.9rem',
-                                    fontWeight: 800,
-                                    color: isFace ? (isDark ? '#FCD34D' : '#92400E') : '#991B1B'
-                                  }}>
-                                    {isFace
-                                      ? 'Human Face Detected — Please Record Proper Video'
-                                      : 'Video Could Not Be Accepted'}
-                                  </div>
-                                  {!isFace && (
-                                    <div style={{
-                                      fontSize: '0.82rem',
-                                      fontWeight: 600,
-                                      color: '#B91C1C',
-                                      marginTop: 4,
-                                      lineHeight: 1.45
-                                    }}>
-                                      {videoValidationResult?.reason || videoValidationError}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={handleRetakeVideo}
-                                style={{
-                                  background: isFace ? '#D97706' : '#DC2626',
-                                  color: '#FFFFFF',
-                                  border: 'none',
-                                  borderRadius: 8,
-                                  padding: '8px 16px',
-                                  fontSize: '0.8rem',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 6,
-                                  flexShrink: 0,
-                                  boxShadow: isFace
-                                    ? '0 2px 8px rgba(217, 119, 6, 0.4)'
-                                    : '0 2px 6px rgba(220, 38, 38, 0.3)'
-                                }}
-                              >
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                  <circle cx="12" cy="12" r="10" />
-                                  <circle cx="12" cy="12" r="3" />
-                                </svg>
-                                {isFace ? 'Record Proper Video' : 'Record Again'}
-                              </button>
-                            </div>
-
-                            {/* Show reasoning ONCE: single prominent disclaimer box for face detection */}
-                            {isFace ? (
+                      {/* Dedicated Civic Defect Verification & Quality Feedback Alert Card */}
+                      {videoValidationError && (
+                        <div style={{
+                          background: isDark ? 'rgba(153, 27, 27, 0.16)' : '#FEF2F2',
+                          border: '1.5px solid #FCA5A5',
+                          borderRadius: 12,
+                          padding: '16px 18px',
+                          marginBottom: 14,
+                          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 10
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                               <div style={{
-                                padding: '11px 15px',
-                                borderRadius: 8,
-                                background: isDark ? 'rgba(30, 41, 59, 0.7)' : '#FFFFFF',
-                                border: '1.5px solid #FCD34D',
-                                fontSize: '0.8rem',
-                                fontWeight: 600,
-                                color: isDark ? '#FDE68A' : '#92400E',
-                                lineHeight: 1.5,
+                                width: 32,
+                                height: 32,
+                                borderRadius: '50%',
+                                background: '#FEE2E2',
                                 display: 'flex',
-                                gap: 10,
-                                alignItems: 'flex-start'
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                marginTop: 1
                               }}>
-                                <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>⚠️</span>
-                                <div>
-                                  <strong>Disclaimer:</strong> Selfies, personal portraits, and videos containing human faces cannot be accepted as civic grievance evidence. UrbanPulse requires clear, focused footage of the actual municipal defect (e.g. road damage, pothole, garbage pile, or streetlight).
-                                </div>
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#DC2626" strokeWidth="2.5">
+                                  <circle cx="12" cy="12" r="10" />
+                                  <line x1="15" y1="9" x2="9" y2="15" />
+                                  <line x1="9" y1="9" x2="15" y2="15" />
+                                </svg>
                               </div>
-                            ) : (
-                              videoValidationResult?.guidance && (
+                              <div>
                                 <div style={{
-                                  padding: '8px 12px',
-                                  borderRadius: 8,
-                                  background: isDark ? 'rgba(30, 41, 59, 0.6)' : '#FFFFFF',
-                                  border: '1px solid #FECACA',
-                                  fontSize: '0.74rem',
-                                  color: isDark ? '#FCA5A5' : '#7F1D1D',
+                                  fontSize: '0.9rem',
+                                  fontWeight: 800,
+                                  color: '#991B1B'
+                                }}>
+                                  Video Verification Notice
+                                </div>
+                                <div style={{
+                                  fontSize: '0.84rem',
+                                  fontWeight: 600,
+                                  color: isDark ? '#FCA5A5' : '#B91C1C',
+                                  marginTop: 4,
                                   lineHeight: 1.45
                                 }}>
-                                  💡 <strong>What to do differently:</strong> {videoValidationResult.guidance}
+                                  {videoValidationResult?.reason || videoValidationError}
                                 </div>
-                              )
-                            )}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={handleRetakeVideo}
+                              style={{
+                                background: '#DC2626',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                borderRadius: 8,
+                                padding: '8px 16px',
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                flexShrink: 0,
+                                boxShadow: '0 2px 6px rgba(220, 38, 38, 0.3)'
+                              }}
+                            >
+                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <circle cx="12" cy="12" r="10" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                              Record Again
+                            </button>
                           </div>
-                        );
-                      })()}
+
+                          {videoValidationResult?.guidance && (
+                            <div style={{
+                              padding: '8px 12px',
+                              borderRadius: 8,
+                              background: isDark ? 'rgba(30, 41, 59, 0.6)' : '#FFFFFF',
+                              border: '1px solid #FECACA',
+                              fontSize: '0.74rem',
+                              color: isDark ? '#FCA5A5' : '#7F1D1D',
+                              lineHeight: 1.45
+                            }}>
+                              💡 <strong>What to do differently:</strong> {videoValidationResult.guidance}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Interactive Civic Detection Test Scenario Switcher */}
+                      <div style={{
+                        padding: '10px 14px',
+                        borderRadius: 10,
+                        background: isDark ? 'rgba(30, 41, 59, 0.7)' : '#F1F5F9',
+                        border: '1px solid var(--card-border-subtle, #CBD5E1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                        flexWrap: 'wrap',
+                        marginBottom: 10
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: '0.82rem' }}>🔬</span>
+                          <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-title, #0F172A)' }}>
+                            Detection Testing Mode:
+                          </span>
+                          <span style={{
+                            fontSize: '0.64rem',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            background: '#DBEAFE',
+                            color: '#1E40AF'
+                          }}>
+                            SIMULATED
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <label htmlFor="test-scenario-select" style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 600 }}>
+                            Scenario:
+                          </label>
+                          <select
+                            id="test-scenario-select"
+                            value={testScenario}
+                            onChange={(e) => {
+                              setTestScenario(e.target.value);
+                              setVideoValidationError('');
+                            }}
+                            style={{
+                              fontSize: '0.74rem',
+                              fontWeight: 600,
+                              padding: '4px 8px',
+                              borderRadius: 6,
+                              border: '1px solid #94A3B8',
+                              background: isDark ? '#1E293B' : '#FFFFFF',
+                              color: 'var(--text-title, #0F172A)',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {TEST_SCENARIOS.map(sc => (
+                              <option key={sc.id} value={sc.id}>{sc.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
 
                       {!recordedVideoUrl ? (
                         <div style={{
@@ -3400,7 +3302,7 @@ export default function CitizenPortalView({
                               color: '#065F46'
                             }}>
                               <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <span>✓ CV VERIFIED: {videoValidationResult.category || category}</span>
+                                <span>✓ EVIDENCE VERIFIED: {videoValidationResult.category || category} (Simulated Model)</span>
                                 <span style={{ background: '#059669', color: '#FFFFFF', padding: '1px 6px', borderRadius: 4, fontSize: '0.66rem' }}>
                                   {Math.round((videoValidationResult.confidence || 0.88) * 100)}% Confidence
                                 </span>
@@ -3454,7 +3356,7 @@ export default function CitizenPortalView({
                                   borderRadius: 4,
                                   whiteSpace: 'nowrap'
                                 }}>
-                                  {videoValidationResult.primary_box.label || `${category.toUpperCase()} DETECTED`}
+                                  {videoValidationResult.primary_box.label || `SIMULATED: ${category.toUpperCase()} DETECTED`}
                                 </div>
                               </div>
                             )}
@@ -5449,6 +5351,30 @@ export default function CitizenPortalView({
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <select
+                    value={testScenario}
+                    onChange={(e) => setTestScenario(e.target.value)}
+                    disabled={isRecording}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.16)',
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      borderRadius: 6,
+                      padding: '4px 8px',
+                      color: '#FFFFFF',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      cursor: isRecording ? 'not-allowed' : 'pointer',
+                      outline: 'none'
+                    }}
+                    title="Simulate detection scenario for testing"
+                  >
+                    {TEST_SCENARIOS.map(sc => (
+                      <option key={sc.id} value={sc.id} style={{ background: '#0F172A', color: '#FFFFFF' }}>
+                        {sc.label}
+                      </option>
+                    ))}
+                  </select>
+
                   <button
                     type="button"
                     onClick={toggleCameraFacing}
@@ -5726,9 +5652,9 @@ export default function CitizenPortalView({
                     top: 12,
                     left: 12,
                     right: 12,
-                    background: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? '#FFFBEB' : '#FEF2F2',
-                    border: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? '1.5px solid #FCD34D' : '1px solid #FECACA',
-                    color: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? '#92400E' : '#B91C1C',
+                    background: '#FEF2F2',
+                    border: '1.5px solid #FCA5A5',
+                    color: '#991B1B',
                     padding: '9px 14px',
                     borderRadius: 8,
                     fontSize: '0.78rem',
@@ -5739,19 +5665,13 @@ export default function CitizenPortalView({
                     gap: 10,
                     boxShadow: '0 4px 12px rgba(0,0,0,0.45)'
                   }}>
-                    <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>
-                      {(videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? '👤' : '⚠️'}
-                    </span>
+                    <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>⚠️</span>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                        {(videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
-                          ? '⚠️ Human Face Detected — Please Record Proper Video'
-                          : 'Video Could Not Be Accepted'}
+                        Video Verification Notice
                       </div>
                       <div style={{ fontSize: '0.74rem', opacity: 0.95, marginTop: 1 }}>
-                        {(videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
-                          ? 'Personal faces or selfies cannot be accepted. Please point camera at the civic problem to record proper video.'
-                          : (videoValidationResult?.reason || 'Video is not valid. Please record the reported issue again.')}
+                        {videoValidationResult?.reason || videoValidationError}
                       </div>
                     </div>
                   </div>

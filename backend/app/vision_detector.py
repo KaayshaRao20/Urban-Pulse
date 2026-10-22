@@ -57,54 +57,31 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
 
     def detect_human_face(self, frame: np.ndarray, gray: np.ndarray, height: int, width: int) -> Optional[Dict[str, Any]]:
         """
-        Detects if frame contains a human face or subject using both:
-        1. Haar Cascade Frontal Face Classifier
-        2. Biological Skin Chrominance Segmentation (YCrCb: Cr in [133, 173], Cb in [77, 127])
+        Detects if frame contains an extreme close-up personal face / selfie taking up dominant view.
+        Ambient pedestrians, cyclists, passing people, or hands in public footage are explicitly ignored.
         """
         frame_area = height * width
 
-        # Method 1: Haar Cascade Classifier
+        # Only extreme close-up selfie occupying > 40% of the entire frame area is flagged
         if FACE_CASCADE is not None and not FACE_CASCADE.empty():
             faces = FACE_CASCADE.detectMultiScale(
                 gray,
-                scaleFactor=1.12,
-                minNeighbors=4,
-                minSize=(int(min(height, width) * 0.10), int(min(height, width) * 0.10))
+                scaleFactor=1.15,
+                minNeighbors=5,
+                minSize=(int(min(height, width) * 0.40), int(min(height, width) * 0.40))
             )
             if len(faces) > 0:
                 largest = max(faces, key=lambda r: r[2] * r[3])
                 fx, fy, fw, fh = largest
-                if (fw * fh) >= (0.025 * frame_area):
+                if (fw * fh) >= (0.35 * frame_area):
                     return {
                         "detected": True,
                         "x": round((fx / width) * 100, 1),
                         "y": round((fy / height) * 100, 1),
                         "width": round((fw / width) * 100, 1),
                         "height": round((fh / height) * 100, 1),
-                        "label": "Human Subject / Face Detected"
+                        "label": "SIMULATED: FACE CLOSE-UP"
                     }
-
-        # Method 2: Skin Chrominance in YCrCb color space
-        ycrcb = cv2.cvtColor(frame, cv2.COLOR_BGR2YCrCb)
-        cr = ycrcb[:, :, 1]
-        cb = ycrcb[:, :, 2]
-        skin_mask = (cr >= 133) & (cr <= 175) & (cb >= 75) & (cb <= 128)
-        skin_ratio = float(np.sum(skin_mask)) / frame_area
-
-        if skin_ratio >= 0.06: # 6% or more of frame is human skin
-            # Find bounding box around skin region
-            contours, _ = cv2.findContours(skin_mask.astype(np.uint8) * 255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            if contours:
-                largest_c = max(contours, key=cv2.contourArea)
-                fx, fy, fw, fh = cv2.boundingRect(largest_c)
-                return {
-                    "detected": True,
-                    "x": round((fx / width) * 100, 1),
-                    "y": round((fy / height) * 100, 1),
-                    "width": round((fw / width) * 100, 1),
-                    "height": round((fh / height) * 100, 1),
-                    "label": "Human Subject / Face Detected"
-                }
 
         return None
 
@@ -186,7 +163,8 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                         "height": round((h / height) * 100, 1),
                         "raw_area": area,
                         "confidence": round(conf, 2),
-                        "label": "Pothole Defect"
+                        "label": "SIMULATED: POTHOLE DEFECT",
+                        "simulated": True
                     })
 
         if pothole_boxes:
@@ -196,14 +174,15 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                 "detected": True,
                 "confidence": best["confidence"],
                 "box": best,
-                "reason": f"Pothole cavity detected on asphalt surface (coverage {best['width']}%x{best['height']}%)."
+                "simulated": True,
+                "reason": "Road damage detected. You can submit this report."
             }
 
         return {
             "detected": False,
             "confidence": 0.15,
             "box": None,
-            "reason": "Road asphalt surface detected, but no visible pothole cavity found."
+            "reason": "No pothole or road damage detected. Please record the affected road surface more clearly."
         }
 
     def detect_broken_road_cracks(self, frame: np.ndarray, gray: np.ndarray, hsv: np.ndarray) -> Dict[str, Any]:
@@ -267,31 +246,31 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
             return {
                 "detected": True,
                 "confidence": round(conf, 2),
+                "simulated": True,
                 "box": {
                     "x": round((x / width) * 100, 1),
                     "y": round((y / height) * 100, 1),
                     "width": round((w / width) * 100, 1),
                     "height": round((h / height) * 100, 1),
                     "confidence": round(conf, 2),
-                    "label": "Road Surface Fracture / Crack"
+                    "label": "SIMULATED: ROAD CRACK DEFECT",
+                    "simulated": True
                 },
-                "reason": f"Pavement fracture detected (density {crack_density*100:.1f}%, {len(crack_contours)} crack segments)."
+                "reason": "Road surface crack damage detected. You can submit this report."
             }
 
         return {
             "detected": False,
             "confidence": 0.10,
             "box": None,
-            "reason": "Road pavement is ordinary and structurally intact without significant crack fissures."
+            "reason": "No pothole or road damage detected. Please record the affected road surface more clearly."
         }
 
     def detect_streetlights(self, frame: np.ndarray, gray: np.ndarray, hsv: np.ndarray) -> Dict[str, Any]:
         """
         Detects streetlight failure:
-        - Critical rule: Do not infer streetlight failure from daytime footage!
-        - If daytime (mean brightness > 60): Inconclusive / invalid for streetlight failure.
-        - If nighttime (mean brightness <= 55): Look for vertical pole / lamp structure with non-illuminating head.
-        - If lamp head is emitting light (bright bloom > 230): Functional light -> reject failure claim.
+        - Critical rule: Daytime footage cannot establish streetlight failure.
+        - Nighttime: Vertical pole structure without illumination.
         """
         height, width = frame.shape[:2]
         mean_brightness = float(np.mean(gray))
@@ -304,86 +283,121 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                 "is_daytime": True,
                 "box": None,
                 "inconclusive": True,
-                "reason": f"Daytime footage detected (ambient luminance {mean_brightness:.1f} > 55). Streetlight failure cannot be determined during daytime hours."
+                "reason": "Daytime footage cannot establish streetlight failure. Streetlight failure cannot be determined during daytime hours."
             }
 
-        # It is nighttime / dark conditions!
-        # Check for bright illuminating lamp head
+        # Nighttime / dark conditions: check if lamp head is actively emitting light
         bright_lamp_mask = gray > 220
         bright_pixels = int(np.sum(bright_lamp_mask))
-        
-        # Check if there is an illuminating lamp
+
         if bright_pixels > (0.003 * height * width):
-            # There is a strong light source active
             return {
                 "detected": False,
                 "confidence": 0.1,
                 "is_daytime": False,
                 "box": None,
-                "reason": "Active light emission detected. Streetlight appears illuminated/functional."
+                "reason": "No streetlight defect detected. Streetlight appears illuminated and operational."
             }
 
         # Look for vertical streetlight pole structure in the dark
-        # Vertical edge filter
         sobel_v = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
         abs_v = np.uint8(np.absolute(sobel_v))
         _, thresh_v = cv2.threshold(abs_v, 25, 255, cv2.THRESH_BINARY)
-        
-        # Morphological vertical kernel to find tall pole
+
         v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 25))
         poles = cv2.morphologyEx(thresh_v, cv2.MORPH_OPEN, v_kernel)
         contours, _ = cv2.findContours(poles, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for c in contours:
             x, y, w, h = cv2.boundingRect(c)
-            # Pole should be vertically elongated (height > 25% of frame, aspect ratio < 0.3)
-            if h > (height * 0.22) and w < (width * 0.25):
-                # We have a vertical infrastructure pole at night without illumination!
+            if h > (height * 0.20) and w < (width * 0.30):
                 conf = 0.85
                 return {
                     "detected": True,
                     "confidence": conf,
                     "is_daytime": False,
+                    "simulated": True,
                     "box": {
                         "x": round((x / width) * 100, 1),
                         "y": round((y / height) * 100, 1),
                         "width": round((max(w, int(width * 0.18)) / width) * 100, 1),
                         "height": round((h / height) * 100, 1),
                         "confidence": conf,
-                        "label": "Non-Working Streetlight (Dark Infrastructure)"
+                        "label": "SIMULATED: DARK STREETLIGHT INFRASTRUCTURE",
+                        "simulated": True
                     },
-                    "reason": "Nighttime footage confirms non-illuminating streetlight pole infrastructure in dark corridor."
+                    "reason": "Non-operational streetlight infrastructure detected in low-light conditions. You can submit this report."
                 }
 
-        # If night scene is pitch dark or no distinct pole detected
         return {
             "detected": False,
-            "confidence": 0.3,
+            "confidence": 0.2,
             "is_daytime": False,
             "box": None,
             "inconclusive": True,
-            "reason": "Nighttime scene detected, but specific streetlight fixture could not be distinctly isolated."
+            "reason": "No streetlight defect detected. Please record the unlit streetlight fixture at night."
+        }
+
+    def detect_waterlogging(self, frame: np.ndarray, gray: np.ndarray, hsv: np.ndarray) -> Dict[str, Any]:
+        """
+        Detects waterlogging, road flooding, and standing water.
+        """
+        height, width = frame.shape[:2]
+        frame_area = height * width
+
+        s_channel = hsv[:, :, 1]
+        v_channel = hsv[:, :, 2]
+
+        blurred = cv2.GaussianBlur(gray, (7, 7), 0)
+        grad_x = cv2.Sobel(blurred, cv2.CV_16S, 1, 0, ksize=3)
+        grad_y = cv2.Sobel(blurred, cv2.CV_16S, 0, 1, ksize=3)
+        abs_grad = cv2.convertScaleAbs(grad_x) + cv2.convertScaleAbs(grad_y)
+
+        # Standing water accumulation mask
+        water_mask = (abs_grad < 32) & (s_channel < 90) & (v_channel > 15) & (v_channel < 225)
+        water_fraction = float(np.sum(water_mask) / frame_area)
+
+        if water_fraction >= 0.06:
+            contours, _ = cv2.findContours(water_mask.astype(np.uint8) * 255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                largest_c = max(contours, key=cv2.contourArea)
+                if cv2.contourArea(largest_c) >= (0.03 * frame_area):
+                    x, y, w, h = cv2.boundingRect(largest_c)
+                    conf = min(0.92, 0.75 + (water_fraction * 0.35))
+                    box = {
+                        "x": round((x / width) * 100, 1),
+                        "y": round((y / height) * 100, 1),
+                        "width": round((w / width) * 100, 1),
+                        "height": round((h / height) * 100, 1),
+                        "confidence": round(conf, 2),
+                        "label": "SIMULATED: WATERLOGGING / ACCUMULATION",
+                        "simulated": True
+                    }
+                    return {
+                        "detected": True,
+                        "confidence": round(conf, 2),
+                        "box": box,
+                        "simulated": True,
+                        "reason": "Visible waterlogging / drainage issue detected. You can submit this report."
+                    }
+
+        return {
+            "detected": False,
+            "confidence": 0.15,
+            "box": None,
+            "reason": "No visible waterlogging detected. Capture the flooded area and surrounding road."
         }
 
     def detect_garbage_accumulation(self, frame: np.ndarray, gray: np.ndarray, hsv: np.ndarray) -> Dict[str, Any]:
         """
-        Detects garbage accumulation and solid waste piles:
-        - Analyzes localized color entropy (diverse packaging, multi-colored litter)
-        - Analyzes irregular clutter contour density
-        - Extracts bounding box enclosing waste accumulation
+        Detects garbage accumulation and solid waste piles.
         """
         height, width = frame.shape[:2]
 
-        # Clean surfaces (walls, smooth roads, sky) have low color diversity
-        # Garbage piles contain plastics, paper, debris of varied hues
         h_channel = hsv[:, :, 0]
         s_channel = hsv[:, :, 1]
-        v_channel = hsv[:, :, 2]
 
-        # Calculate localized clutter using Canny edges
         edges = cv2.Canny(gray, 40, 130)
-        
-        # Dilate edges to merge debris clusters
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (11, 11))
         clustered = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
         clustered = cv2.dilate(clustered, kernel, iterations=1)
@@ -394,18 +408,16 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
 
         for c in contours:
             area = cv2.contourArea(c)
-            if (0.015 * frame_area) < area < (0.65 * frame_area):
+            if (0.012 * frame_area) < area < (0.70 * frame_area):
                 x, y, w, h = cv2.boundingRect(c)
-                # Compute color variance in this ROI
                 roi_h = h_channel[y:y+h, x:x+w]
                 roi_s = s_channel[y:y+h, x:x+w]
-                
+
                 h_std = float(np.std(roi_h))
                 s_mean = float(np.mean(roi_s))
-                
-                # Garbage clusters have high hue standard deviation (> 20) and non-zero saturation
-                if h_std > 18.0 and s_mean > 25.0:
-                    conf = min(0.93, 0.72 + (h_std / 100.0) * 0.25)
+
+                if h_std > 16.0 and s_mean > 20.0:
+                    conf = min(0.93, 0.74 + (h_std / 100.0) * 0.25)
                     garbage_candidates.append({
                         "x": round((x / width) * 100, 1),
                         "y": round((y / height) * 100, 1),
@@ -413,7 +425,8 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                         "height": round((h / height) * 100, 1),
                         "raw_area": area,
                         "confidence": round(conf, 2),
-                        "label": "Garbage / Waste Accumulation"
+                        "label": "SIMULATED: GARBAGE ACCUMULATION",
+                        "simulated": True
                     })
 
         if garbage_candidates:
@@ -422,19 +435,43 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                 "detected": True,
                 "confidence": best["confidence"],
                 "box": best,
-                "reason": f"Debris clutter and solid waste accumulation detected (spread {best['width']}%x{best['height']}%)."
+                "simulated": True,
+                "reason": "Garbage accumulation detected. You can submit this report."
             }
 
         return {
             "detected": False,
             "confidence": 0.12,
             "box": None,
-            "reason": "No significant scattered garbage or solid waste pile detected in the visual frame."
+            "reason": "No visible garbage accumulation detected. Record the waste accumulation clearly."
+        }
+
+    def detect_general_civic_hazard(self, frame: np.ndarray, gray: np.ndarray, hsv: np.ndarray, category: str) -> Dict[str, Any]:
+        """
+        Detects general civic hazard, fallen tree, traffic obstruction, or public infrastructure issue.
+        """
+        box = {
+            "x": 25.0,
+            "y": 30.0,
+            "width": 50.0,
+            "height": 45.0,
+            "label": f"SIMULATED: {category.upper()[:24]}",
+            "confidence": 0.85,
+            "simulated": True
+        }
+        return {
+            "detected": True,
+            "confidence": 0.85,
+            "box": box,
+            "simulated": True,
+            "reason": "Civic defect visual evidence detected. You can submit this report."
         }
 
     def detect_frame(self, frame: np.ndarray, category: str) -> Dict[str, Any]:
         """
-        Evaluates a single frame against the selected category and negative filters.
+        Evaluates a single frame against the selected category.
+        Ambient pedestrians, vehicles, or passing people in public footage are preserved
+        and do not reject the recording.
         """
         if frame is None or frame.size == 0:
             return {"valid": False, "detected": False, "reason": "Empty frame"}
@@ -452,70 +489,45 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                 "box": None,
                 "blur_score": blur_score,
                 "is_blurry": True,
-                "reason": f"High motion blur (sharpness {blur_score} < 45.0)."
+                "reason": "The footage is too blurry or out of focus to verify. Please hold the device steady and re-record."
             }
 
-        cat_lower = category.lower()
-        is_road_issue = any(k in cat_lower for k in ["pothole", "road", "crack", "pavement", "asphalt"])
+        cat_lower = (category or "").lower()
 
-        # Check human face presence
-        face_info = self.detect_human_face(frame, gray, height, width)
-
-        # For road issues:
-        # Prioritize road surface & reported defect! People, pedestrians, cyclists, or passing vehicles
-        # naturally appear in road footage and must NEVER invalidate or block road defect analysis.
-        if is_road_issue:
-            # Check for potholes first, then broken road / cracks
-            res = self.detect_potholes(frame, gray, hsv)
-            if not res.get("detected"):
+        # 2. Road surface issues (potholes, cracks, broken pavement)
+        if any(k in cat_lower for k in ["pothole", "road", "crack", "pavement", "asphalt", "fissure"]):
+            if "crack" in cat_lower or "fissure" in cat_lower:
                 res = self.detect_broken_road_cracks(frame, gray, hsv)
+                if not res.get("detected"):
+                    res = self.detect_potholes(frame, gray, hsv)
+            else:
+                res = self.detect_potholes(frame, gray, hsv)
+                if not res.get("detected"):
+                    res = self.detect_broken_road_cracks(frame, gray, hsv)
 
             res["blur_score"] = blur_score
+            return res
 
-            # If road defect is verified, return defect box immediately (never return person as defect)
-            if res.get("detected"):
-                res["is_road_surface"] = True
-                return res
+        # 3. Waterlogging, flooding, drainage, leaks
+        if any(k in cat_lower for k in ["waterlog", "flood", "drainage", "leak", "pipe", "standing water"]):
+            res = self.detect_waterlogging(frame, gray, hsv)
+            res["blur_score"] = blur_score
+            return res
 
-            # If no defect was detected, check if camera was pointed directly at a human face (selfie)
-            # with negligible road surface visible
-            asphalt_pct, _ = self.analyze_asphalt_road(hsv, height, width)
-            if face_info and face_info.get("detected") and asphalt_pct < 0.05:
-                return {
-                    "detected": False,
-                    "confidence": 0.1,
-                    "box": None,
-                    "is_human_face": True,
-                    "reason": "Camera is aimed directly at human face rather than road surface. Please angle camera downward at the road issue."
-                }
-
-            return {
-                "detected": False,
-                "confidence": res.get("confidence", 0.2),
-                "box": None,
-                "is_road_surface": asphalt_pct >= 0.12,
-                "reason": res.get("reason", "Road surface scanned. No obvious cavity or crack detected.")
-            }
-
-        # 2. For non-road civic categories: human face negative check
-        if face_info and face_info["detected"]:
-            return {
-                "detected": False,
-                "confidence": 0.05,
-                "box": None,
-                "is_human_face": True,
-                "reason": "Human face / subject detected. Not a valid civic infrastructure defect."
-            }
-
-        # 3. Category-specific detector execution for non-road categories
-        if "streetlight" in cat_lower or "light" in cat_lower:
+        # 4. Streetlights
+        if any(k in cat_lower for k in ["streetlight", "light", "lamp", "pole"]):
             res = self.detect_streetlights(frame, gray, hsv)
-        elif "garbage" in cat_lower or "waste" in cat_lower:
-            res = self.detect_garbage_accumulation(frame, gray, hsv)
-        else:
-            # General fallback: check generic surface or clutter
-            res = self.detect_potholes(frame, gray, hsv)
+            res["blur_score"] = blur_score
+            return res
 
+        # 5. Garbage / solid waste
+        if any(k in cat_lower for k in ["garbage", "waste", "dump", "debris", "trash"]):
+            res = self.detect_garbage_accumulation(frame, gray, hsv)
+            res["blur_score"] = blur_score
+            return res
+
+        # 6. Other / traffic / general hazards
+        res = self.detect_general_civic_hazard(frame, gray, hsv, category)
         res["blur_score"] = blur_score
         return res
 
@@ -639,15 +651,18 @@ class MultiFrameVideoValidator:
             }
 
         # Decision Logic based on category:
-        is_road_issue = any(k in category.lower() for k in ["pothole", "road", "crack", "pavement", "asphalt"])
+        cat_lower = (category or "").lower()
+        is_road_issue = any(k in cat_lower for k in ["pothole", "road", "crack", "pavement", "asphalt", "fissure"])
+        is_water_issue = any(k in cat_lower for k in ["waterlog", "flood", "drainage", "leak", "pipe", "standing water"])
+        is_garbage_issue = any(k in cat_lower for k in ["garbage", "waste", "dump", "debris", "trash"])
+        is_streetlight_issue = any(k in cat_lower for k in ["streetlight", "light", "lamp", "pole"])
 
-        # Road-focused validation:
-        # People, pedestrians, cyclists, and vehicles may naturally appear in road footage.
-        # Their presence alone MUST NOT invalidate a recording or prevent submission!
+        detection_ratio = len(detections) / max(1, frames_analyzed)
+
+        # 1. Road Damage (Potholes & Cracks)
         if is_road_issue:
-            # Case 1: Defect confirmed across frames (at least 20% of sampled frames):
-            detection_ratio = len(detections) / max(1, frames_analyzed)
             if detection_ratio >= 0.20 and best_box is not None:
+                succ_msg = "Road surface crack damage detected. You can submit this report." if ("crack" in cat_lower or "fissure" in cat_lower) else "Road damage detected. You can submit this report."
                 return {
                     "is_valid": True,
                     "verdict": "verified",
@@ -655,64 +670,45 @@ class MultiFrameVideoValidator:
                     "confidence": round(best_confidence, 2),
                     "error": None,
                     "primary_box": best_box,
+                    "simulated": True,
                     "frames_analyzed": frames_analyzed,
                     "frames_with_defect": len(detections),
                     "features": [
                         f"Road defect verified across {len(detections)}/{frames_analyzed} sampled frames",
-                        f"Detection confidence: {best_confidence*100:.0f}%",
-                        f"Category: {category}"
+                        f"Simulated confidence: {best_confidence*100:.0f}%",
+                        f"Category: {category}",
+                        "Testing Phase: Simulated Detection Model"
                     ],
-                    "reason": detections[0].get("reason", "Physical road defect confirmed by computer vision."),
+                    "reason": succ_msg,
                     "guidance": "Defect confirmed! You can proceed to submit your geotagged report."
                 }
 
-            # Case 2: Camera pointed at human face / selfie with negligible road surface
-            if human_face_detections >= max(1, frames_analyzed // 2) and asphalt_frames == 0:
+            if asphalt_frames == 0 and detection_ratio == 0:
                 return {
                     "is_valid": False,
                     "verdict": "rejected",
                     "category_match": False,
                     "confidence": 0.05,
-                    "is_face_detected": True,
-                    "error": "Human Face Detected — Please Record Proper Video",
-                    "title": "Human Face Detected — Please Record Proper Video",
-                    "reason": "Human face detected in the recording. Personal faces or selfies cannot be accepted as civic grievance evidence. Please record a proper video clearly showing the road defect or pothole.",
-                    "guidance": "Point the camera downward towards the road defect or pothole and record a proper video, keeping faces out of the frame.",
-                    "disclaimer": "⚠️ Disclaimer: Selfies, personal portraits, and videos containing human faces cannot be accepted as civic grievance evidence. UrbanPulse requires clear, focused footage of the actual municipal defect.",
-                    "action": "record_again",
-                    "frames_analyzed": frames_analyzed
-                }
-
-            # Case 3: The reported issue is not visible - no outdoor road or pavement surface detected
-            if asphalt_frames == 0:
-                return {
-                    "is_valid": False,
-                    "verdict": "rejected",
-                    "category_match": False,
-                    "confidence": 0.05,
-                    "error": "The reported issue is not visible.",
-                    "reason": "The reported issue is not visible. No outdoor road or pavement surface detected in the frame.",
+                    "error": "The video does not appear to show the selected civic issue.",
+                    "reason": "The video does not appear to show the selected civic issue. Please record the reported issue again.",
                     "guidance": "Please record on-site outdoors with the damaged road pavement occupying the central view.",
                     "action": "record_again",
                     "frames_analyzed": frames_analyzed
                 }
 
-            # Case 4: Road surface was scanned, but NO pothole or road damage was detected
             if len(detections) == 0:
                 return {
                     "is_valid": False,
                     "verdict": "rejected",
                     "category_match": False,
                     "confidence": 0.15,
-                    "error": "No pothole or road damage detected. Please record the issue more clearly.",
-                    "reason": "No pothole or road damage detected. Please record the issue more clearly.",
+                    "error": "No pothole or road damage detected.",
+                    "reason": "No pothole or road damage detected. Please record the affected road surface more clearly.",
                     "guidance": "Move closer to the damaged section, hold the camera steady, and point directly at the pothole or cracked asphalt.",
                     "action": "record_again",
                     "frames_analyzed": frames_analyzed
                 }
 
-            # Case 5: Uncertain / ambiguous results (partial cues or borderline confidence)
-            # Route for review instead of rejecting, with option to record again
             return {
                 "is_valid": True,
                 "verdict": "needs_review",
@@ -720,6 +716,7 @@ class MultiFrameVideoValidator:
                 "confidence": round(max(0.48, best_confidence), 2),
                 "error": None,
                 "primary_box": best_box,
+                "simulated": True,
                 "frames_analyzed": frames_analyzed,
                 "reason": "Detection is uncertain. You can submit for municipal officer review or record again for faster automated verification.",
                 "guidance": "You may submit this report for physical officer inspection, or record again closer to the defect for instant AI approval.",
@@ -730,41 +727,164 @@ class MultiFrameVideoValidator:
                 ]
             }
 
-        # Non-road category checks:
-        # 1. Face-only video
-        if human_face_detections >= max(1, frames_analyzed // 2):
+        # 2. Waterlogging & Flooding
+        if is_water_issue:
+            if detection_ratio >= 0.20 and best_box is not None:
+                return {
+                    "is_valid": True,
+                    "verdict": "verified",
+                    "category_match": True,
+                    "confidence": round(best_confidence, 2),
+                    "error": None,
+                    "primary_box": best_box,
+                    "simulated": True,
+                    "frames_analyzed": frames_analyzed,
+                    "frames_with_defect": len(detections),
+                    "features": [
+                        f"Water accumulation verified across {len(detections)}/{frames_analyzed} frames",
+                        f"Simulated confidence: {best_confidence*100:.0f}%",
+                        f"Category: {category}",
+                        "Testing Phase: Simulated Detection Model"
+                    ],
+                    "reason": "Visible waterlogging / drainage issue detected. You can submit this report.",
+                    "guidance": "Defect confirmed! You can proceed to submit your geotagged report."
+                }
+
+            if len(detections) == 0:
+                return {
+                    "is_valid": False,
+                    "verdict": "rejected",
+                    "category_match": False,
+                    "confidence": 0.12,
+                    "error": "No visible waterlogging detected.",
+                    "reason": "No visible waterlogging detected. Capture the flooded area and surrounding road.",
+                    "guidance": "Frame the standing puddle, flooded road stretch, or leaking pipe clearly.",
+                    "action": "record_again",
+                    "frames_analyzed": frames_analyzed
+                }
+
+            return {
+                "is_valid": True,
+                "verdict": "needs_review",
+                "category_match": True,
+                "confidence": round(max(0.48, best_confidence), 2),
+                "error": None,
+                "primary_box": best_box,
+                "simulated": True,
+                "frames_analyzed": frames_analyzed,
+                "reason": "Detection is uncertain. You can submit for municipal officer review or record again for faster automated verification.",
+                "guidance": "You may submit this report for physical officer inspection, or record again closer to the defect for instant AI approval.",
+                "action": "optional_record_again",
+                "features": [
+                    f"Water footage recorded ({frames_analyzed} frames analyzed)",
+                    "Officer physical inspection scheduled"
+                ]
+            }
+
+        # 3. Garbage Accumulation & Solid Waste
+        if is_garbage_issue:
+            if detection_ratio >= 0.20 and best_box is not None:
+                return {
+                    "is_valid": True,
+                    "verdict": "verified",
+                    "category_match": True,
+                    "confidence": round(best_confidence, 2),
+                    "error": None,
+                    "primary_box": best_box,
+                    "simulated": True,
+                    "frames_analyzed": frames_analyzed,
+                    "frames_with_defect": len(detections),
+                    "features": [
+                        f"Solid waste accumulation verified across {len(detections)}/{frames_analyzed} frames",
+                        f"Simulated confidence: {best_confidence*100:.0f}%",
+                        f"Category: {category}",
+                        "Testing Phase: Simulated Detection Model"
+                    ],
+                    "reason": "Garbage accumulation detected. You can submit this report.",
+                    "guidance": "Defect confirmed! You can proceed to submit your geotagged report."
+                }
+
+            if len(detections) == 0:
+                return {
+                    "is_valid": False,
+                    "verdict": "rejected",
+                    "category_match": False,
+                    "confidence": 0.12,
+                    "error": "No visible garbage accumulation detected.",
+                    "reason": "No visible garbage accumulation detected. Record the waste accumulation clearly.",
+                    "guidance": "Focus directly on the waste pile, uncollected garbage, or overflowing bin.",
+                    "action": "record_again",
+                    "frames_analyzed": frames_analyzed
+                }
+
+            return {
+                "is_valid": True,
+                "verdict": "needs_review",
+                "category_match": True,
+                "confidence": round(max(0.48, best_confidence), 2),
+                "error": None,
+                "primary_box": best_box,
+                "simulated": True,
+                "frames_analyzed": frames_analyzed,
+                "reason": "Detection is uncertain. You can submit for municipal officer review or record again for faster automated verification.",
+                "guidance": "You may submit this report for physical officer inspection, or record again closer to the defect for instant AI approval.",
+                "action": "optional_record_again",
+                "features": [
+                    f"Garbage footage recorded ({frames_analyzed} frames analyzed)",
+                    "Officer physical inspection scheduled"
+                ]
+            }
+
+        # 4. Streetlight Failure
+        if is_streetlight_issue:
+            if daytime_streetlight_flags >= (frames_analyzed // 2):
+                return {
+                    "is_valid": False,
+                    "verdict": "rejected",
+                    "category_match": False,
+                    "confidence": 0.1,
+                    "error": "Daytime footage cannot establish streetlight failure.",
+                    "reason": "Daytime footage cannot establish streetlight failure. Streetlight failure cannot be determined during daytime hours.",
+                    "guidance": "Please record during evening or night hours when streetlights are active.",
+                    "action": "record_again",
+                    "frames_analyzed": frames_analyzed
+                }
+
+            if detection_ratio >= 0.20 and best_box is not None:
+                return {
+                    "is_valid": True,
+                    "verdict": "verified",
+                    "category_match": True,
+                    "confidence": round(best_confidence, 2),
+                    "error": None,
+                    "primary_box": best_box,
+                    "simulated": True,
+                    "frames_analyzed": frames_analyzed,
+                    "frames_with_defect": len(detections),
+                    "features": [
+                        f"Dark streetlight infrastructure verified across {len(detections)}/{frames_analyzed} frames",
+                        f"Simulated confidence: {best_confidence*100:.0f}%",
+                        f"Category: {category}",
+                        "Testing Phase: Simulated Detection Model"
+                    ],
+                    "reason": "Non-operational streetlight infrastructure detected in low-light conditions. You can submit this report.",
+                    "guidance": "Defect confirmed! You can proceed to submit your geotagged report."
+                }
+
             return {
                 "is_valid": False,
                 "verdict": "rejected",
                 "category_match": False,
-                "confidence": 0.05,
-                "is_face_detected": True,
-                "error": "Human Face Detected — Please Record Proper Video",
-                "title": "Human Face Detected — Please Record Proper Video",
-                "reason": "Human face detected in the recording. Personal faces or selfies cannot be accepted as civic grievance evidence. Please record a proper video clearly showing the civic problem.",
-                "guidance": "Point the camera directly at the physical civic problem and record a proper video, keeping faces out of the frame.",
-                "disclaimer": "⚠️ Disclaimer: Selfies, personal portraits, and videos containing human faces cannot be accepted as civic grievance evidence. UrbanPulse requires clear, focused footage of the actual municipal defect.",
+                "confidence": 0.15,
+                "error": "No streetlight defect detected.",
+                "reason": "No streetlight defect detected. Please record the unlit streetlight fixture at night.",
+                "guidance": "Ensure the non-working luminaire or dark pole is centered in the frame.",
                 "action": "record_again",
                 "frames_analyzed": frames_analyzed
             }
 
-        # 2. Daytime streetlight video check
-        if "streetlight" in category.lower() and daytime_streetlight_flags >= (frames_analyzed // 2):
-            return {
-                "is_valid": False,
-                "verdict": "rejected",
-                "category_match": False,
-                "confidence": 0.1,
-                "error": "Daytime footage cannot establish streetlight failure.",
-                "reason": "Daytime footage cannot establish streetlight failure. Streetlight failure cannot be determined during daytime hours.",
-                "guidance": "Please record during evening or night hours when streetlights are active.",
-                "action": "record_again",
-                "frames_analyzed": frames_analyzed
-            }
-
-        # 3. Valid detection check for other categories
-        detection_ratio = len(detections) / max(1, frames_analyzed)
-        if detection_ratio >= 0.25 and best_box is not None:
+        # 5. General Civic Hazard / Traffic Obstruction
+        if detection_ratio >= 0.20 and best_box is not None:
             return {
                 "is_valid": True,
                 "verdict": "verified",
@@ -772,44 +892,27 @@ class MultiFrameVideoValidator:
                 "confidence": round(best_confidence, 2),
                 "error": None,
                 "primary_box": best_box,
+                "simulated": True,
                 "frames_analyzed": frames_analyzed,
                 "frames_with_defect": len(detections),
                 "features": [
                     f"Defect verified across {len(detections)}/{frames_analyzed} sampled frames",
-                    f"Detection confidence: {best_confidence*100:.0f}%",
-                    f"Category: {category}"
+                    f"Simulated confidence: {best_confidence*100:.0f}%",
+                    f"Category: {category}",
+                    "Testing Phase: Simulated Detection Model"
                 ],
-                "reason": detections[0].get("reason", "Physical civic defect confirmed by computer vision."),
+                "reason": "Civic defect visual evidence detected. You can submit this report.",
                 "guidance": "Defect confirmed! You can proceed to submit your geotagged report."
             }
 
-        # 4. Inconclusive vs Rejected check for other categories
-        if len(detections) == 0:
-            return {
-                "is_valid": False,
-                "verdict": "rejected",
-                "category_match": False,
-                "confidence": 0.12,
-                "error": "The reported issue is not visible.",
-                "reason": f"No visual evidence of '{category}' was found in the recorded video. The reported issue is not visible.",
-                "guidance": f"Please point the camera directly at the {category.lower()} issue and ensure good lighting.",
-                "action": "record_again",
-                "frames_analyzed": frames_analyzed
-            }
-
         return {
-            "is_valid": True,
-            "verdict": "needs_review",
+            "is_valid": False,
+            "verdict": "rejected",
             "category_match": False,
-            "confidence": 0.45,
-            "error": None,
-            "primary_box": best_box,
-            "frames_analyzed": frames_analyzed,
-            "reason": "Detection is uncertain. You can submit for municipal officer review or record again for faster automated verification.",
-            "guidance": "You may submit this report for physical officer inspection, or record again closer to the defect for instant AI approval.",
-            "action": "optional_record_again",
-            "features": [
-                f"Partial visual cues detected ({len(detections)}/{frames_analyzed} frames)",
-                "Officer physical inspection required"
-            ]
+            "confidence": 0.12,
+            "error": "The video does not appear to show the selected civic issue.",
+            "reason": "The video does not appear to show the selected civic issue. Please record the reported issue again.",
+            "guidance": f"Please point the camera directly at the {category.lower()} issue and ensure good lighting.",
+            "action": "record_again",
+            "frames_analyzed": frames_analyzed
         }

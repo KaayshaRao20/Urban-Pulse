@@ -98,7 +98,7 @@ def run_tests():
     val3 = res3.json()
     print(f"Result: is_valid={val3.get('is_valid')}, reason='{val3.get('reason')}', action='{val3.get('action')}'")
     assert val3.get("is_valid") is False
-    assert "reported issue is not visible" in val3.get("reason", "").lower()
+    assert ("reported issue is not visible" in val3.get("reason", "").lower()) or ("does not appear to show" in val3.get("reason", "").lower())
     print("[PASS] Test 3 Passed: Face-only selfie rejected with clear explanation.")
 
     # Test 4: Road Defect with Pedestrian Present in Background
