@@ -14,20 +14,18 @@ export default function LoginPage({
     verifyOtp,
     resendOtp,
     forgotPassword,
-    resetPassword,
-    loginWithGoogle,
-    linkGoogleAccount
+    resetPassword
   } = useAuth();
 
-  // Mode: 'login' | 'register' | 'verify' | 'forgot' | 'reset' | 'link'
+  // Mode: 'login' | 'register' | 'verify' | 'forgot' | 'reset'
   const [authMode, setAuthMode] = useState(initialMode || 'login');
 
   // Background visual mode: 'realistic' (4K photorealistic) | 'classic' (original artwork)
   const [bgVisual, setBgVisual] = useState('realistic');
 
   // Form Fields
-  const [identifier, setIdentifier] = useState(initialType === 'authority' ? '01kaaysha' : ''); // Email, username (e.g. 01kaaysha), or badge
-  const [password, setPassword] = useState(initialType === 'authority' ? 'bbmp2026' : '');
+  const [identifier, setIdentifier] = useState(''); // Email, username, or badge ID
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   // Registration Fields
@@ -51,11 +49,6 @@ export default function LoginPage({
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetDevToken, setResetDevToken] = useState('');
-
-  // Account Linking Fields
-  const [linkEmail, setLinkEmail] = useState('');
-  const [linkGoogleId, setLinkGoogleId] = useState('');
-  const [linkPassword, setLinkPassword] = useState('');
 
   // UI States
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -266,72 +259,6 @@ export default function LoginPage({
       setErrorMessage(err.message || 'Password reset failed. Invalid or expired token.');
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  // ---------------------------------------------------------------------------
-  // 5. Google Authentication
-  // ---------------------------------------------------------------------------
-  const handleGoogleSignIn = async () => {
-    clearMessages();
-    setIsSubmitting(true);
-
-    try {
-      const res = await loginWithGoogle();
-      if (res && res.requires_linking) {
-        setLinkEmail(res.email);
-        setLinkGoogleId(res.google_id || '');
-        setAuthMode('link');
-      } else if (res && res.success && res.user) {
-        if (onAuthSuccess) {
-          onAuthSuccess(res.user);
-        }
-      }
-    } catch (err) {
-      setErrorMessage(err.message || 'Google sign-in could not be completed.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleLinkAccountSubmit = async (e) => {
-    e.preventDefault();
-    clearMessages();
-    setIsSubmitting(true);
-
-    try {
-      if (!linkPassword) {
-        throw new Error('Please enter your account password to confirm linking.');
-      }
-
-      const res = await linkGoogleAccount(linkEmail, linkGoogleId, linkPassword);
-      if (res && res.success) {
-        if (onAuthSuccess) {
-          onAuthSuccess(res.user);
-        }
-      }
-    } catch (err) {
-      setErrorMessage(err.message || 'Account linking failed. Incorrect password.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Preset demo account fillers for frictionless testing
-  const fillDemoAccount = (type) => {
-    clearMessages();
-    if (type === 'kaaysha') {
-      setIdentifier('01kaaysha');
-      setPassword('bbmp2026');
-    } else if (type === 'admin') {
-      setIdentifier('admin@urbanpulse.gov.in');
-      setPassword('bbmp2026');
-    } else if (type === 'officer') {
-      setIdentifier('engineer.rao@bbmp.gov.in');
-      setPassword('bbmp2026');
-    } else if (type === 'citizen') {
-      setIdentifier('citizen@urbanpulse.org');
-      setPassword('citizen2026');
     }
   };
 
@@ -670,41 +597,8 @@ export default function LoginPage({
                 </div>
               </form>
 
-              {/* Or Divider */}
-              <div className="auth-divider">
-                <span>or</span>
-              </div>
-
-              {/* Continue with Google */}
-              <button
-                type="button"
-                className="auth-google-btn"
-                onClick={handleGoogleSignIn}
-                disabled={isSubmitting}
-              >
-                <svg className="google-icon" viewBox="0 0 24 24" width="18" height="18">
-                  <path
-                    fill="#4285F4"
-                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.05h3.9c2.28-2.1 3.64-5.2 3.64-9.14z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.1-6.67-4.92H1.27v3.13C3.25 21.3 7.34 24 12 24z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.33 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.59H1.27C.46 8.21 0 10.05 0 12s.46 3.79 1.27 5.41l4.06-3.13z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.25 2.7 1.27 6.59l4.06 3.13c.94-2.82 3.57-4.97 6.67-4.97z"
-                  />
-                </svg>
-                <span>Continue with Google</span>
-              </button>
-
               {/* Create Account Link for Citizens */}
-              <div className="auth-footer-prompt">
+              <div className="auth-footer-prompt" style={{ marginTop: '20px' }}>
                 <span>Don't have an account? </span>
                 <button
                   type="button"
@@ -716,22 +610,6 @@ export default function LoginPage({
                 >
                   Create Account
                 </button>
-              </div>
-
-              {/* Demo Fillers for Instant Development Evaluation */}
-              <div className="auth-demo-chips">
-                <span className="demo-chip-title">Quick Demo Logins:</span>
-                <div className="demo-chips-row">
-                  <button type="button" onClick={() => fillDemoAccount('kaaysha')} title="Authority City 01 Commander">
-                    01kaaysha
-                  </button>
-                  <button type="button" onClick={() => fillDemoAccount('admin')} title="ICCC Commander Nayak">
-                    admin
-                  </button>
-                  <button type="button" onClick={() => fillDemoAccount('citizen')} title="Citizen Ramesh Kumar">
-                    citizen
-                  </button>
-                </div>
               </div>
             </div>
           )}
@@ -1151,64 +1029,6 @@ export default function LoginPage({
                     }}
                   >
                     ← Back to Sign In
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* ============================================================= */}
-          {/* VIEW 6: GOOGLE ACCOUNT LINKING PROMPT                         */}
-          {/* ============================================================= */}
-          {authMode === 'link' && (
-            <div className="auth-mode-content">
-              <div className="auth-headings">
-                <h2 className="auth-main-heading">Link Google Account</h2>
-                <p className="auth-sub-heading">
-                  An existing password-based account is registered with <strong>{linkEmail}</strong>.
-                  Please enter your account password to verify ownership and link your Google sign-in.
-                </p>
-              </div>
-
-              <form onSubmit={handleLinkAccountSubmit} className="auth-form-fields">
-                <div className="auth-input-group">
-                  <div className="auth-input-wrapper">
-                    <span className="auth-input-icon">
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                      </svg>
-                    </span>
-                    <input
-                      type="password"
-                      required
-                      className="auth-text-input"
-                      placeholder="Account Password"
-                      value={linkPassword}
-                      onChange={(e) => setLinkPassword(e.target.value)}
-                      autoFocus
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="auth-action-btn primary-gradient"
-                >
-                  {isSubmitting ? <span>Linking Account...</span> : <span>Confirm & Link Account →</span>}
-                </button>
-
-                <div className="auth-footer-prompt">
-                  <button
-                    type="button"
-                    className="auth-link-btn"
-                    onClick={() => {
-                      clearMessages();
-                      setAuthMode('login');
-                    }}
-                  >
-                    Cancel
                   </button>
                 </div>
               </form>

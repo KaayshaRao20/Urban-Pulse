@@ -1965,7 +1965,7 @@ async def create_grievance(
         "image_filename": saved_filename,
         "citizen_name": None if is_anonymous else citizen_name,
         "citizen_phone": None if is_anonymous else citizen_phone,
-        "citizen_email": None if is_anonymous else citizen_email,
+        "citizen_email": citizen_email or None,
         "is_anonymous": is_anonymous,
         "status": "Submitted",
         "verification_status": initial_verification_status,
@@ -2016,7 +2016,7 @@ async def create_grievance(
             image_filename=saved_filename,
             citizen_name=None if is_anonymous else citizen_name,
             citizen_phone=None if is_anonymous else citizen_phone,
-            citizen_email=None if is_anonymous else citizen_email,
+            citizen_email=citizen_email or None,
             is_anonymous=is_anonymous,
             status="Submitted",
             verification_status=initial_verification_status,
@@ -2333,11 +2333,18 @@ def list_public_grievances(
     status_filter: Optional[str] = Query(None, alias="status"),
     urgency_filter: Optional[str] = Query(None, alias="urgency"),
     department: Optional[str] = Query(None),
+    citizen_email: Optional[str] = Query(None),
     limit: int = Query(50, le=200)
 ):
-    """Public feed of recent civic issues with sensitive contact data omitted."""
+    """Public feed of recent civic issues with sensitive contact data omitted or account-isolated."""
     results = []
+    c_email_filter = citizen_email.strip().lower() if citizen_email else None
+
     for g in IN_MEMORY_COMPLAINTS.values():
+        if c_email_filter:
+            rec_email = (g.get("citizen_email") or "").strip().lower()
+            if rec_email != c_email_filter:
+                continue
         if category and category.lower() not in g.get("category", "").lower():
             continue
         if status_filter and status_filter.lower() != g.get("status", "").lower():
@@ -2388,6 +2395,32 @@ def list_public_grievances(
         "grievances": results[:limit],
         "complaints": results[:limit]
     }
+
+
+@router.get("/my-grievances")
+def list_my_grievances(
+    citizen_email: str = Query(...),
+    limit: int = Query(50, le=100)
+):
+    """
+    Returns strictly the authenticated citizen's personal grievances.
+    Completely isolated so no other citizen's complaints are ever leaked.
+    """
+    sync_complaints_from_db()
+    c_email_clean = (citizen_email or "").strip().lower()
+    results = []
+    for g in IN_MEMORY_COMPLAINTS.values():
+        rec_email = (g.get("citizen_email") or "").strip().lower()
+        if rec_email and rec_email == c_email_clean:
+            results.append(g)
+
+    results.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return {
+        "total": len(results),
+        "grievances": results[:limit],
+        "complaints": results[:limit]
+    }
+
 
 
 

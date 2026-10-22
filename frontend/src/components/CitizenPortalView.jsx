@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import LanguageSelector from './LanguageSelector';
 import { API_BASE } from '../config/api';
 
@@ -106,22 +107,128 @@ export default function CitizenPortalView({
   const [submitError, setSubmitError] = useState('');
   const [submittedTicket, setSubmittedTicket] = useState(null);
 
-  // Citizen Profile & Notifications
-  const [citizenName, setCitizenName] = useState(user?.name || user?.full_name || 'Ramesh Kumar');
+  // Auth Context & User Profile
+  const { updateProfile, changePassword } = useAuth();
+  const [citizenName, setCitizenName] = useState(user?.name || user?.full_name || 'Citizen Resident');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [citizenPhone, setCitizenPhone] = useState(user?.phone || '+91 98450 12345');
-  const [citizenEmail, setCitizenEmail] = useState(user?.email || 'ramesh.kumar@example.com');
+  const [citizenPhone, setCitizenPhone] = useState(user?.phone || '');
+  const [citizenEmail, setCitizenEmail] = useState(user?.email || '');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+
+  // Settings & Profile Edit State
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState('');
+  const [profileErrorMsg, setProfileErrorMsg] = useState('');
+
+  // Password Management State
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordSuccessMsg, setPasswordSuccessMsg] = useState('');
+  const [passwordErrorMsg, setPasswordErrorMsg] = useState('');
+
+  // Account-Specific "My Filed Grievances" State & Isolation
+  const [myGrievances, setMyGrievances] = useState([]);
+  const [myGrievancesLoading, setMyGrievancesLoading] = useState(false);
+
+  const fetchMyGrievances = useCallback(async () => {
+    const activeEmail = (user?.email || citizenEmail || '').trim();
+    if (!activeEmail) return;
+    setMyGrievancesLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/grievances/my-grievances?citizen_email=${encodeURIComponent(activeEmail)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMyGrievances(data.grievances || data.complaints || []);
+      }
+    } catch (err) {
+      console.warn('My grievances fetch notice:', err);
+    } finally {
+      setMyGrievancesLoading(false);
+    }
+  }, [user, citizenEmail]);
 
   useEffect(() => {
     if (user) {
       if (user.name || user.full_name) setCitizenName(user.name || user.full_name);
       if (user.email) setCitizenEmail(user.email);
       if (user.phone) setCitizenPhone(user.phone);
+      if (user.zone || user.assignedZone) setWardZone(user.zone || user.assignedZone);
+      if (user.address) setLandmarkAddress(user.address);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (activeNav === 'track' || activeNav === 'settings') {
+      fetchMyGrievances();
+    }
+  }, [activeNav, fetchMyGrievances]);
+
+  // Profile Save Handler
+  const handleSaveProfile = async (e) => {
+    if (e) e.preventDefault();
+    setProfileErrorMsg('');
+    setProfileSuccessMsg('');
+    if (!citizenName.trim()) {
+      setProfileErrorMsg('Full name cannot be empty.');
+      return;
+    }
+    setIsSavingProfile(true);
+    try {
+      if (updateProfile) {
+        await updateProfile({
+          name: citizenName.trim(),
+          full_name: citizenName.trim(),
+          phone: citizenPhone.trim(),
+          zone: wardZone,
+          address: landmarkAddress.trim()
+        });
+      }
+      setProfileSuccessMsg('Profile details successfully updated and saved to your account.');
+      showToast('Profile updated successfully');
+    } catch (err) {
+      setProfileErrorMsg(err.message || 'Failed to update profile.');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  // Password Change Handler
+  const handleChangePassword = async (e) => {
+    if (e) e.preventDefault();
+    setPasswordErrorMsg('');
+    setPasswordSuccessMsg('');
+    if (!currentPasswordInput) {
+      setPasswordErrorMsg('Please provide your current password.');
+      return;
+    }
+    if (newPasswordInput.length < 6) {
+      setPasswordErrorMsg('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPasswordInput !== confirmPasswordInput) {
+      setPasswordErrorMsg('New passwords do not match.');
+      return;
+    }
+    setIsChangingPassword(true);
+    try {
+      if (changePassword) {
+        await changePassword(currentPasswordInput, newPasswordInput);
+      }
+      setPasswordSuccessMsg('Password updated successfully.');
+      setCurrentPasswordInput('');
+      setNewPasswordInput('');
+      setConfirmPasswordInput('');
+      showToast('Password changed successfully');
+    } catch (err) {
+      setPasswordErrorMsg(err.message || 'Failed to change password. Please verify current password.');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   const [notifications, setNotifications] = useState([
     { id: 1, text: 'Welcome to UrbanPulse Civic Services.', time: 'Just now', unread: true }
@@ -1909,10 +2016,12 @@ export default function CitizenPortalView({
     formData.append('landmark_address', finalLandmark);
 
     formData.append('is_anonymous', isAnonymous ? 'true' : 'false');
+    if (citizenEmail) {
+      formData.append('citizen_email', citizenEmail);
+    }
     if (!isAnonymous) {
       formData.append('citizen_name', citizenName);
       formData.append('citizen_phone', citizenPhone);
-      formData.append('citizen_email', citizenEmail);
     }
 
     // Submit recorded live video file
@@ -1935,6 +2044,7 @@ export default function CitizenPortalView({
       const result = await res.json();
       setSubmittedTicket(result);
       showToast(`${t('report.successTitle', 'Grievance lodged!')} Ticket ID: ${result.ticket_id}`);
+      fetchMyGrievances();
       
       setNotifications(prev => [
         { id: Date.now(), text: `${t('report.successTitle', 'Grievance lodged')}: ${result.ticket_id}`, time: 'Just now', unread: true },
@@ -2088,20 +2198,31 @@ export default function CitizenPortalView({
           <div className="citizen-profile-row">
             <div
               className="citizen-profile-info"
-              onClick={() => { setShowProfileModal(true); setMobileDrawerOpen(false); }}
+              onClick={() => { setActiveNav('settings'); setMobileDrawerOpen(false); }}
               title="Click to view & edit Citizen Profile"
             >
               <div className="citizen-avatar-wrap">
-                <img
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80"
-                  alt="Citizen Avatar"
-                  className="citizen-avatar-img"
-                />
+                <div style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
+                  color: '#FFFFFF',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  border: '2px solid rgba(255,255,255,0.8)'
+                }}>
+                  {(citizenName || 'C').charAt(0).toUpperCase()}
+                </div>
                 <span className="citizen-online-indicator"></span>
               </div>
               {!sidebarCollapsed && (
                 <div className="citizen-profile-texts">
-                  <div className="citizen-greeting-text">Good Day 👋</div>
+                  <div className="citizen-greeting-text">Verified Resident</div>
                   <div className="citizen-name-text">{citizenName}</div>
                 </div>
               )}
@@ -2286,6 +2407,26 @@ export default function CitizenPortalView({
                 )}
               </div>
             </button>
+
+            {/* Feature 6: Settings & Profile */}
+            <button
+              type="button"
+              className={`citizen-menu-item ${activeNav === 'settings' ? 'active' : ''}`}
+              onClick={() => { setActiveNav('settings'); setMobileDrawerOpen(false); }}
+              title={t('nav.settings', 'Settings & Profile')}
+            >
+              <div className="citizen-item-left">
+                <div className="citizen-item-icon">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                </div>
+                {!sidebarCollapsed && (
+                  <span className="citizen-item-label">{t('nav.settings', 'Settings & Profile')}</span>
+                )}
+              </div>
+            </button>
           </nav>
 
           {/* 6. Service: 2 Section */}
@@ -2408,6 +2549,7 @@ export default function CitizenPortalView({
                 {activeNav === 'feed' && t('header.feedTitle', 'Bengaluru Community Reports')}
                 {activeNav === 'emergency' && t('header.emergencyTitle', 'Emergency Helplines & Rapid Action Squads')}
                 {activeNav === 'help' && t('header.helpTitle', 'Citizen Help & Reporting Guidelines')}
+                {activeNav === 'settings' && t('header.settingsTitle', 'Account Settings & Profile')}
               </h1>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted, #64748B)', margin: '3px 0 0 0' }}>
                 {activeNav === 'report' && t('header.reportSubtitle', 'Help make Bengaluru better. Report infrastructure problems directly to the municipal team.')}
@@ -2415,6 +2557,7 @@ export default function CitizenPortalView({
                 {activeNav === 'feed' && t('header.feedSubtitle', 'Live citizen grievances submitted across all BBMP zones and municipal divisions.')}
                 {activeNav === 'emergency' && t('header.emergencySubtitle', '24x7 municipal hotlines for life-safety emergencies, arterial bursts, and power hazards.')}
                 {activeNav === 'help' && t('header.helpSubtitle', 'Standards, SLA turnaround benchmarks, and photographic evidence tips for faster remediation.')}
+                {activeNav === 'settings' && t('header.settingsSubtitle', 'Manage your verified citizen profile, notification preferences, security credentials, and data privacy.')}
               </p>
             </div>
           </div>
@@ -2524,7 +2667,7 @@ export default function CitizenPortalView({
             )}
 
             <div
-              onClick={() => setShowProfileModal(true)}
+              onClick={() => setActiveNav('settings')}
               className="citizen-header-btn"
               style={{
                 display: 'flex',
@@ -3778,31 +3921,145 @@ export default function CitizenPortalView({
                   {trackLoading ? t('track.searchingBtn', 'Searching...') : t('track.searchBtn', 'Track Ticket')}
                 </button>
               </form>
+            </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: '0.72rem', flexWrap: 'wrap' }}>
-                <span style={{ color: 'var(--text-muted, #64748B)', fontWeight: 500 }}>{t('track.sampleTickets', 'Sample Tickets:')}</span>
-                {['BBMP-2026-1042', 'BBMP-2026-1043', 'BBMP-2026-3055'].map((id) => (
-                  <span
-                    key={id}
-                    onClick={() => {
-                      setTrackSearchId(id);
-                      handleTrackSearch(id);
-                    }}
+            {/* Account-Specific Grievances Card */}
+            <div className="citizen-card" style={{ width: '100%', padding: '16px 20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <div>
+                  <h3 style={{ fontSize: '0.94rem', fontWeight: 700, color: 'var(--text-title, #0F172A)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2563EB" strokeWidth="2.2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    My Filed Complaints ({myGrievances.length})
+                  </h3>
+                  <p style={{ fontSize: '0.74rem', color: 'var(--text-muted, #64748B)', margin: '3px 0 0 0' }}>
+                    Linked strictly to account: <strong>{citizenEmail || user?.email || 'Current Citizen'}</strong> (Zero cross-account data leak)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchMyGrievances}
+                  disabled={myGrievancesLoading}
+                  style={{
+                    background: 'var(--card-bg, #FFFFFF)',
+                    border: '1px solid var(--card-border, #CBD5E1)',
+                    borderRadius: 6,
+                    padding: '4px 10px',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    color: '#2563EB',
+                    cursor: myGrievancesLoading ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ animation: myGrievancesLoading ? 'spin 0.8s linear infinite' : 'none' }}>
+                    <path d="M23 4v6h-6" />
+                    <path d="M1 20v-6h6" />
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                  </svg>
+                  {myGrievancesLoading ? 'Refreshing...' : 'Refresh List'}
+                </button>
+              </div>
+
+              {myGrievancesLoading && myGrievances.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted, #64748B)', fontSize: '0.78rem' }}>
+                  Loading your complaints...
+                </div>
+              ) : myGrievances.length === 0 ? (
+                <div style={{
+                  padding: '20px 16px',
+                  borderRadius: 8,
+                  border: '1px dashed var(--card-border, #CBD5E1)',
+                  textAlign: 'center',
+                  background: 'var(--bg-subtle, #F8FAFC)'
+                }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-title, #0F172A)' }}>
+                    No complaints filed yet under this verified account.
+                  </div>
+                  <p style={{ fontSize: '0.74rem', color: 'var(--text-muted, #64748B)', margin: '4px 0 10px 0' }}>
+                    Use the Report tab to submit road damage, garbage, or civic issues with verified GPS and video evidence.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveNav('report')}
                     style={{
-                      color: '#2563EB',
-                      cursor: 'pointer',
+                      background: '#2563EB',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      padding: '6px 14px',
+                      borderRadius: 6,
+                      fontSize: '0.74rem',
                       fontWeight: 600,
-                      background: 'rgba(37,99,235,0.06)',
-                      padding: '2px 8px',
-                      borderRadius: 4,
-                      border: '1px solid #BFDBFE',
-                      fontFamily: 'var(--font-mono)'
+                      cursor: 'pointer'
                     }}
                   >
-                    {id}
-                  </span>
-                ))}
-              </div>
+                    + Lodge a Grievance
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                  {myGrievances.map((item) => {
+                    const isSelected = trackedRecord?.complaint?.ticket_number === item.ticket_number;
+                    return (
+                      <div
+                        key={item.ticket_number || item.id}
+                        onClick={() => {
+                          setTrackSearchId(item.ticket_number || item.id);
+                          handleTrackSearch(item.ticket_number || item.id);
+                        }}
+                        style={{
+                          padding: 12,
+                          borderRadius: 8,
+                          border: isSelected ? '2px solid #2563EB' : '1px solid var(--card-border, #E2E8F0)',
+                          background: isSelected ? 'rgba(37,99,235,0.04)' : 'var(--card-bg, #FFFFFF)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: 8
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                            <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#2563EB' }}>
+                              {item.ticket_number}
+                            </span>
+                            <span style={{
+                              fontSize: '0.66rem',
+                              fontWeight: 600,
+                              padding: '2px 8px',
+                              borderRadius: 4,
+                              background: item.status === 'Resolved' ? '#ECFDF5' : '#EFF6FF',
+                              color: item.status === 'Resolved' ? '#047857' : '#1D4ED8',
+                              border: item.status === 'Resolved' ? '1px solid #A7F3D0' : '1px solid #BFDBFE'
+                            }}>
+                              {item.status || 'Submitted'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-title, #0F172A)', lineHeight: 1.3, marginBottom: 2 }}>
+                            {item.title}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #64748B)' }}>
+                            {item.category} &bull; {item.ward_zone || 'Bengaluru'}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(226,232,240,0.6)', paddingTop: 6, fontSize: '0.68rem', color: 'var(--text-muted, #94A3B8)' }}>
+                          <span>{item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}</span>
+                          <span style={{ color: '#2563EB', fontWeight: 600 }}>{isSelected ? 'Viewing Record ✓' : 'Inspect & Track →'}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {trackError && (
@@ -4645,7 +4902,7 @@ export default function CitizenPortalView({
                 </div>
                 <ul style={{ fontSize: '0.76rem', color: 'var(--text-body, #334155)', margin: 0, paddingLeft: 16, lineHeight: 1.55 }}>
                   <li>{t('help.do1', 'Capture both close-up damage and surrounding landmarks (e.g. metro pillar, street sign).')}</li>
-                  <li>{t('help.do2', 'Click or drag the red pin to the exact coordinate rather than relying solely on area names.')}</li>
+                  <li>{t('help.do2', 'Allow device GPS permission to verify and lock genuine ground coordinates at the incident location.')}</li>
                   <li>{t('help.do3', 'Provide brief dimensions (e.g. 1m wide pothole, 20cm water depth) in the description.')}</li>
                   <li>{t('help.do4', 'Check existing community reports to see if the issue is already queued for repair.')}</li>
                 </ul>
@@ -4663,6 +4920,414 @@ export default function CitizenPortalView({
                   <li>{t('help.dont4', 'For active fires or live electrical lines sparking, call hotlines immediately (1912 / 112).')}</li>
                 </ul>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* =================================================================== */}
+        {/* TAB 6: SETTINGS & CITIZEN PROFILE EDIT                              */}
+        {/* =================================================================== */}
+        {activeNav === 'settings' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* Header Hero Card: Account Status & Identity */}
+            <div className="citizen-card" style={{ width: '100%', padding: '20px 24px', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
+                    color: '#FFFFFF',
+                    fontSize: '1.4rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(15, 23, 42, 0.25)',
+                    border: '3px solid #E2E8F0'
+                  }}>
+                    {(citizenName || 'C').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-title, #0F172A)', margin: 0 }}>
+                        {citizenName}
+                      </h2>
+                      <span style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: 12,
+                        background: '#ECFDF5',
+                        color: '#047857',
+                        border: '1px solid #A7F3D0',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em'
+                      }}>
+                        Verified Citizen Account
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted, #64748B)', marginTop: 4 }}>
+                      <span>{citizenEmail}</span>
+                      {citizenPhone && <span> &bull; {citizenPhone}</span>}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: '#2563EB', fontWeight: 600, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      </svg>
+                      Municipal Jurisdiction: BBMP Bengaluru Urban &bull; Ward Zone: {wardZone}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {onLogout && (
+                    <button
+                      type="button"
+                      onClick={onLogout}
+                      style={{
+                        background: '#FEF2F2',
+                        color: '#DC2626',
+                        border: '1px solid #FECACA',
+                        padding: '8px 16px',
+                        borderRadius: 8,
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                      </svg>
+                      Sign Out
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Data Isolation Guarantee Banner */}
+              <div style={{
+                marginTop: 18,
+                padding: '12px 16px',
+                borderRadius: 8,
+                background: 'rgba(37, 99, 235, 0.05)',
+                border: '1px solid rgba(37, 99, 235, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12
+              }}>
+                <div style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 6,
+                  background: '#EFF6FF',
+                  border: '1px solid #BFDBFE',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#2563EB',
+                  flexShrink: 0
+                }}>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1E40AF' }}>
+                    Strict Account Isolation Active
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#475569', marginTop: 2, lineHeight: 1.4 }}>
+                    Your civic grievances, live video evidence, and tracking updates belong strictly to your verified email account (<code>{citizenEmail}</code>). No other citizen or unauthorized entity can view or access your private complaints.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Two-Column Grid: Left Profile Edit & Zone, Right Security & Notifications */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 20 }}>
+              
+              {/* Card 1: Profile & Residential Details */}
+              <div className="citizen-card" style={{ padding: 20 }}>
+                <h3 style={{ fontSize: '0.94rem', fontWeight: 700, color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2563EB" strokeWidth="2.2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  Personal & Residential Profile
+                </h3>
+                <p style={{ fontSize: '0.74rem', color: 'var(--text-muted, #64748B)', margin: '0 0 16px 0' }}>
+                  Update your personal contact information and primary municipal jurisdiction.
+                </p>
+
+                {profileSuccessMsg && (
+                  <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#047857', padding: '10px 14px', borderRadius: 6, fontSize: '0.76rem', marginBottom: 14 }}>
+                    {profileSuccessMsg}
+                  </div>
+                )}
+                {profileErrorMsg && (
+                  <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', padding: '10px 14px', borderRadius: 6, fontSize: '0.76rem', marginBottom: 14 }}>
+                    {profileErrorMsg}
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <label className="citizen-label">Full Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={citizenName}
+                      onChange={(e) => setCitizenName(e.target.value)}
+                      className="citizen-input"
+                      placeholder="e.g. Kaaysha Rao"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="citizen-label">Registered Mobile Number *</label>
+                    <input
+                      type="tel"
+                      required
+                      value={citizenPhone}
+                      onChange={(e) => setCitizenPhone(e.target.value)}
+                      className="citizen-input"
+                      placeholder="+91 98765 43210"
+                    />
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted, #94A3B8)', marginTop: 3, display: 'block' }}>
+                      Used for SMS updates when a municipal squad is dispatched.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="citizen-label">Registered Account Email</label>
+                    <input
+                      type="email"
+                      disabled
+                      value={citizenEmail}
+                      className="citizen-input"
+                      style={{ background: 'var(--bg-subtle, #F1F5F9)', cursor: 'not-allowed', color: 'var(--text-muted, #64748B)' }}
+                    />
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted, #94A3B8)', marginTop: 3, display: 'block' }}>
+                      Primary identifier for account isolation. Cannot be changed directly.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="citizen-label">Primary BBMP Ward / Zone</label>
+                    <select
+                      value={wardZone}
+                      onChange={(e) => setWardZone(e.target.value)}
+                      className="citizen-select"
+                    >
+                      <option value="East Zone (Mahadevapura / Indiranagar)">East Zone (Mahadevapura / Indiranagar)</option>
+                      <option value="South Zone (Koramangala / BTM / Jayanagar)">South Zone (Koramangala / BTM / Jayanagar)</option>
+                      <option value="Central Zone (MG Road / CBD)">Central Zone (MG Road / CBD)</option>
+                      <option value="West Zone (Malleshwaram / Rajajinagar)">West Zone (Malleshwaram / Rajajinagar)</option>
+                      <option value="North Zone (Hebbal / Yelahanka)">North Zone (Hebbal / Yelahanka)</option>
+                      <option value="Bommanahalli Zone">Bommanahalli Zone</option>
+                      <option value="Rajarajeshwari Nagar Zone">Rajarajeshwari Nagar Zone</option>
+                      <option value="Dasarahalli Zone">Dasarahalli Zone</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="citizen-label">Default Residential Address / Landmark</label>
+                    <input
+                      type="text"
+                      value={landmarkAddress}
+                      onChange={(e) => setLandmarkAddress(e.target.value)}
+                      className="citizen-input"
+                      placeholder="e.g. Near Sony World Signal, 4th Block Koramangala"
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 4 }}>
+                    <input
+                      type="checkbox"
+                      id="settings-anon"
+                      checked={isAnonymous}
+                      onChange={(e) => setIsAnonymous(e.target.checked)}
+                      style={{ accentColor: '#2563EB', width: 16, height: 16 }}
+                    />
+                    <label htmlFor="settings-anon" style={{ fontSize: '0.76rem', color: 'var(--text-body, #334155)', fontWeight: 500, cursor: 'pointer' }}>
+                      Submit future complaints anonymously to the public community feed
+                    </label>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSavingProfile}
+                    style={{
+                      background: '#2563EB',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      padding: '10px 20px',
+                      borderRadius: 8,
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      cursor: isSavingProfile ? 'not-allowed' : 'pointer',
+                      marginTop: 6,
+                      boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8
+                    }}
+                  >
+                    {isSavingProfile ? 'Saving Changes...' : 'Save Profile Changes'}
+                  </button>
+                </form>
+              </div>
+
+              {/* Card 2: Security & Credentials + Notifications */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {/* Security Card */}
+                <div className="citizen-card" style={{ padding: 20 }}>
+                  <h3 style={{ fontSize: '0.94rem', fontWeight: 700, color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2563EB" strokeWidth="2.2">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    Account Security & Password
+                  </h3>
+                  <p style={{ fontSize: '0.74rem', color: 'var(--text-muted, #64748B)', margin: '0 0 16px 0' }}>
+                    Protect your citizen account with a secure password.
+                  </p>
+
+                  {passwordSuccessMsg && (
+                    <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#047857', padding: '10px 14px', borderRadius: 6, fontSize: '0.76rem', marginBottom: 14 }}>
+                      {passwordSuccessMsg}
+                    </div>
+                  )}
+                  {passwordErrorMsg && (
+                    <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', padding: '10px 14px', borderRadius: 6, fontSize: '0.76rem', marginBottom: 14 }}>
+                      {passwordErrorMsg}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label className="citizen-label">Current Password *</label>
+                      <input
+                        type="password"
+                        required
+                        value={currentPasswordInput}
+                        onChange={(e) => setCurrentPasswordInput(e.target.value)}
+                        className="citizen-input"
+                        placeholder="••••••••"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="citizen-label">New Password (min 6 characters) *</label>
+                      <input
+                        type="password"
+                        required
+                        value={newPasswordInput}
+                        onChange={(e) => setNewPasswordInput(e.target.value)}
+                        className="citizen-input"
+                        placeholder="••••••••"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="citizen-label">Confirm New Password *</label>
+                      <input
+                        type="password"
+                        required
+                        value={confirmPasswordInput}
+                        onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                        className="citizen-input"
+                        placeholder="••••••••"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isChangingPassword}
+                      style={{
+                        background: '#0F172A',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        padding: '10px 20px',
+                        borderRadius: 8,
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        cursor: isChangingPassword ? 'not-allowed' : 'pointer',
+                        marginTop: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8
+                      }}
+                    >
+                      {isChangingPassword ? 'Updating Password...' : 'Update Password'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Notifications & Civic Alerts Card */}
+                <div className="citizen-card" style={{ padding: 20 }}>
+                  <h3 style={{ fontSize: '0.94rem', fontWeight: 700, color: 'var(--text-title, #0F172A)', margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2563EB" strokeWidth="2.2">
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                    </svg>
+                    Civic Alerts & Notifications
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--card-border, #E2E8F0)', paddingBottom: 10 }}>
+                      <div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-title, #0F172A)' }}>
+                          SMS Dispatch Alerts
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #64748B)' }}>
+                          Receive SMS when a municipal crew is deployed to your report.
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#047857', background: '#ECFDF5', padding: '3px 8px', borderRadius: 4 }}>
+                        Enabled
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--card-border, #E2E8F0)', paddingBottom: 10 }}>
+                      <div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-title, #0F172A)' }}>
+                          Email Resolution Proofs
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #64748B)' }}>
+                          Receive supervisor closure photos and work completion notes.
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#047857', background: '#ECFDF5', padding: '3px 8px', borderRadius: 4 }}>
+                        Enabled
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-title, #0F172A)' }}>
+                          Ward Civic Emergency Broadcasts
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #64748B)' }}>
+                          Severe rainfall alerts, underpass flooding warnings, and road closures.
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#047857', background: '#ECFDF5', padding: '3px 8px', borderRadius: 4 }}>
+                        Enabled
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         )}
@@ -4772,8 +5437,8 @@ export default function CitizenPortalView({
                 <button
                   type="button"
                   onClick={() => {
+                    handleSaveProfile();
                     setShowProfileModal(false);
-                    showToast(t('common.profileSaved', 'Profile preferences saved'));
                   }}
                   style={{
                     background: '#2563EB',
@@ -5361,6 +6026,18 @@ export default function CitizenPortalView({
               <line x1="12" y1="8" x2="12.01" y2="8" />
             </svg>
             <span className="citizen-mobile-tab-label">{t('nav.help', 'Help')}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`citizen-mobile-tab-btn ${activeNav === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveNav('settings')}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+            <span className="citizen-mobile-tab-label">{t('nav.settings', 'Settings')}</span>
           </button>
         </nav>
       </main>

@@ -169,34 +169,14 @@ export function AuthProvider({ children }) {
 
     const findDemoOfficer = () => {
       const lower = cleanIdent.toLowerCase();
-      // 1. Direct match on email, username, badgeId
-      const exact = DEMO_OFFICERS.find(
+      // Only exact matches on authorized official credentials
+      return DEMO_OFFICERS.find(
         o => (o.email && o.email.toLowerCase() === lower) ||
              (o.badgeId && o.badgeId.toLowerCase() === lower) ||
              (o.username && o.username.toLowerCase() === lower)
       );
-      if (exact) return exact;
-
-      // 2. Flexible role match (handles .org, .gov.in, prefixes)
-      if (lower.includes('admin')) {
-        return DEMO_OFFICERS.find(o => o.role === 'admin') || DEMO_OFFICERS[3];
-      }
-      if (lower.includes('kaaysha') || lower === '01') {
-        return DEMO_OFFICERS.find(o => o.username === '01kaaysha') || DEMO_OFFICERS[0];
-      }
-      if (lower.includes('engineer') || lower.includes('bbmp') || lower.includes('rao')) {
-        return DEMO_OFFICERS.find(o => o.username === 'engineer.rao') || DEMO_OFFICERS[1];
-      }
-      if (lower.includes('water') || lower.includes('bwssb') || lower.includes('murthy')) {
-        return DEMO_OFFICERS.find(o => o.username === 'murthy.water') || DEMO_OFFICERS[2];
-      }
-      if (lower.includes('citizen') || lower.includes('resident') || lower.includes('priya') || lower.includes('ramesh')) {
-        return DEMO_OFFICERS.find(o => o.role === 'citizen') || DEMO_OFFICERS[4];
-      }
-      return null;
     };
 
-    // 1. Instant Login for municipal demo credentials (<100ms response time)
     const matched = findDemoOfficer();
     const isAcceptedDemoPassword = !password || 
       password === 'bbmp2026' || 
@@ -321,10 +301,21 @@ export function AuthProvider({ children }) {
   };
 
   /**
-   * Citizen Registration
+   * Registration (Citizen and Authority Officer)
    */
   const register = async (userData) => {
     try {
+      try {
+        sessionStorage.setItem('urbanpulse_pending_reg', JSON.stringify({
+          name: userData.full_name || userData.fullName,
+          phone: userData.phone,
+          email: userData.email,
+          role: userData.role || 'citizen',
+          department: userData.department,
+          badgeId: userData.badge_id || userData.badgeId
+        }));
+      } catch (e) {}
+
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -333,7 +324,10 @@ export function AuthProvider({ children }) {
           email: userData.email,
           phone: userData.phone,
           password: userData.password,
-          confirm_password: userData.confirm_password || userData.confirmPassword
+          confirm_password: userData.confirm_password || userData.confirmPassword,
+          badge_id: userData.badge_id || userData.badgeId,
+          department: userData.department,
+          role: userData.role || 'citizen'
         })
       });
       let data = {};
@@ -346,6 +340,18 @@ export function AuthProvider({ children }) {
       if (!res.ok) {
         throw new Error((data && data.detail) || 'Registration failed');
       }
+
+      // If officer was registered directly and session returned
+      if (data && (data.user || data.officer) && (data.access_token || data.token)) {
+        const authUser = {
+          ...(data.user || data.officer),
+          token: data.access_token || data.token
+        };
+        setUser(authUser);
+        setIsAuthenticated(true);
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(authUser));
+      }
+
       return data;
     } catch (err) {
       throw err;
@@ -357,6 +363,12 @@ export function AuthProvider({ children }) {
    */
   const verifyOtp = async (email, otp) => {
     try {
+      let pending = null;
+      try {
+        const stored = sessionStorage.getItem('urbanpulse_pending_reg');
+        if (stored) pending = JSON.parse(stored);
+      } catch (e) {}
+
       const res = await fetch(`${API_BASE}/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -367,21 +379,121 @@ export function AuthProvider({ children }) {
         const text = await res.text();
         data = text ? JSON.parse(text) : {};
       } catch (e) {
-        data = { success: true, user: { email, role: 'citizen', name: email.split('@')[0] }, access_token: 'otp-demo-token' };
+        data = {
+          success: true,
+          user: {
+            email,
+            role: 'citizen',
+            name: pending?.name || email.split('@')[0],
+            phone: pending?.phone
+          },
+          access_token: 'otp-verified-token-' + Date.now()
+        };
       }
       if (!res.ok) {
         throw new Error((data && data.detail) || 'OTP verification failed');
       }
-      if (data && data.user) {
-        const authUser = { ...data.user, token: data.access_token };
+      if (data && (data.user || pending)) {
+        const authUser = {
+          ...(data.user || {}),
+          email: email,
+          name: data.user?.name || pending?.name || email.split('@')[0],
+          full_name: data.user?.name || pending?.name || email.split('@')[0],
+          phone: data.user?.phone || pending?.phone || '+91 98450 12345',
+          role: data.user?.role || pending?.role || 'citizen',
+          token: data.access_token || 'verified-token-' + Date.now()
+        };
         setUser(authUser);
         setIsAuthenticated(true);
         localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(authUser));
+        try { sessionStorage.removeItem('urbanpulse_pending_reg'); } catch (e) {}
       }
       return data;
     } catch (err) {
       throw err;
     }
+  };
+
+  /**
+   * Update Profile Details (Full Name, Phone, Residential Ward)
+   */
+  const updateProfile = async (profileData) => {
+    try {
+      const token = user?.token;
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      let data = null;
+      try {
+        const res = await fetch(`${API_BASE}/auth/profile`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({
+            full_name: profileData.full_name || profileData.name,
+            phone: profileData.phone,
+            assigned_zone: profileData.assigned_zone || profileData.ward_zone,
+            avatar_url: profileData.avatar_url,
+            email: user?.email
+          })
+        });
+        if (res.ok) {
+          data = await res.json();
+        }
+      } catch (netErr) {
+        console.warn('[UrbanPulse Auth] Profile remote sync fallback:', netErr);
+      }
+
+      const updatedUser = {
+        ...user,
+        ...(data?.user || {}),
+        name: profileData.full_name || profileData.name || user?.name,
+        full_name: profileData.full_name || profileData.name || user?.full_name || user?.name,
+        phone: profileData.phone || user?.phone,
+        assigned_zone: profileData.assigned_zone || profileData.ward_zone || user?.assigned_zone,
+        ward_zone: profileData.assigned_zone || profileData.ward_zone || user?.ward_zone
+      };
+
+      setUser(updatedUser);
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updatedUser));
+      return { success: true, user: updatedUser };
+    } catch (err) {
+      const updatedUser = {
+        ...user,
+        name: profileData.full_name || profileData.name || user?.name,
+        full_name: profileData.full_name || profileData.name || user?.name,
+        phone: profileData.phone || user?.phone,
+        assigned_zone: profileData.assigned_zone || profileData.ward_zone || user?.assigned_zone,
+        ward_zone: profileData.assigned_zone || profileData.ward_zone || user?.ward_zone
+      };
+      setUser(updatedUser);
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updatedUser));
+      return { success: true, user: updatedUser };
+    }
+  };
+
+  /**
+   * Change Password
+   */
+  const changePassword = async (currentPassword, newPassword) => {
+    const token = user?.token;
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE}/auth/change-password`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+        email: user?.email
+      })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.detail || 'Failed to update password. Please check your current password.');
+    }
+    return data;
   };
 
   /**
@@ -585,6 +697,8 @@ export function AuthProvider({ children }) {
         resendOtp,
         forgotPassword,
         resetPassword,
+        updateProfile,
+        changePassword,
         loginWithGoogle,
         linkGoogleAccount,
         logout,

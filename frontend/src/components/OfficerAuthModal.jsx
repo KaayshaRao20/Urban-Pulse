@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { useAuth, DEMO_OFFICERS } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 
 export default function OfficerAuthModal({ isOpen, onClose, onSuccess }) {
   const { login, register } = useAuth();
   const [tab, setTab] = useState('login'); // 'login' | 'register'
   const [authMode, setAuthMode] = useState('badge'); // 'badge' | 'email'
-  const [badgeId, setBadgeId] = useState('BBMP-ENG-8412');
-  const [email, setEmail] = useState('engineer.rao@bbmp.gov.in');
+  const [badgeId, setBadgeId] = useState('');
+  const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
-  const [password, setPassword] = useState('bbmp2026');
+  const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [department, setDepartment] = useState('BBMP Road Infrastructure Cell');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,14 +61,6 @@ export default function OfficerAuthModal({ isOpen, onClose, onSuccess }) {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleSelectDemoOfficer = (demo) => {
-    setBadgeId(demo.badgeId);
-    setEmail(demo.email);
-    setPassword('bbmp2026');
-    setDepartment(demo.department);
-    setErrorMsg('');
   };
 
   return (
@@ -269,7 +261,7 @@ export default function OfficerAuthModal({ isOpen, onClose, onSuccess }) {
 
           {tab === 'register' && (
             <div className="officer-form-field">
-              <label>Official Badge ID (Optional)</label>
+              <label>Official Badge ID (Leave blank to auto-generate)</label>
               <div className="officer-input-wrap">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#64748B" strokeWidth="2">
                   <rect x="3" y="4" width="18" height="16" rx="2" />
@@ -277,10 +269,13 @@ export default function OfficerAuthModal({ isOpen, onClose, onSuccess }) {
                 </svg>
                 <input
                   type="text"
-                  placeholder="e.g. BBMP-ENG-9921"
+                  placeholder="e.g. Leave blank for auto-generated ID"
                   value={badgeId}
                   onChange={(e) => setBadgeId(e.target.value)}
                 />
+              </div>
+              <div style={{ fontSize: '0.7rem', color: '#64748B', marginTop: 4 }}>
+                A systematic municipal ID (e.g. OFF-BBMP-ENG-2026-XXXX) will be generated for your department.
               </div>
             </div>
           )}
@@ -351,26 +346,6 @@ export default function OfficerAuthModal({ isOpen, onClose, onSuccess }) {
             )}
           </button>
         </form>
-
-        {/* Quick Selection Demo Officers (only for login) */}
-        {tab === 'login' && (
-          <div className="officer-demo-section">
-            <div className="officer-demo-header">One-Click Authorized Municipal Profiles:</div>
-            <div className="officer-demo-grid">
-              {DEMO_OFFICERS.map((demo) => (
-                <button
-                  key={demo.id}
-                  type="button"
-                  className={`officer-demo-pill ${(authMode === 'badge' ? badgeId === demo.badgeId : email === demo.email) ? 'active' : ''}`}
-                  onClick={() => handleSelectDemoOfficer(demo)}
-                >
-                  <div style={{ fontWeight: 600, color: '#0F172A' }}>{demo.name}</div>
-                  <div style={{ fontSize: '0.68rem', color: '#64748B' }}>{demo.badgeId} • {demo.department.split(' ')[0]}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
