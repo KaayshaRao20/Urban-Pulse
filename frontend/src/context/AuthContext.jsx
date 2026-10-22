@@ -677,36 +677,45 @@ export function AuthProvider({ children }) {
   /**
    * Google OAuth Sign In
    */
-  const loginWithGoogle = async () => {
-    if (isSupabaseConfigured && supabase.auth) {
-      try {
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: window.location.origin
-          }
-        });
-        if (error) throw error;
-        return data;
-      } catch (err) {
-        console.warn('[UrbanPulse Auth] Supabase OAuth error, using direct flow:', err);
-      }
-    }
+  const loginWithGoogle = async (customGoogleUser = null) => {
+    let pending = null;
+    try {
+      const stored = sessionStorage.getItem('urbanpulse_pending_reg');
+      if (stored) pending = JSON.parse(stored);
+    } catch (e) {}
 
-    // Direct fallback for testing / environments without active Supabase OAuth client
-    // Simulates or uses mock Google account verification
-    const demoGoogleEmail = 'google.citizen@urbanpulse.org';
+    const targetEmail = (
+      customGoogleUser?.email ||
+      pending?.email ||
+      'kaaysha.rao@gmail.com'
+    ).trim().toLowerCase();
+
+    const targetName = (
+      customGoogleUser?.name ||
+      customGoogleUser?.full_name ||
+      pending?.name ||
+      (targetEmail.includes('@') ? targetEmail.split('@')[0].replace('.', ' ').replace(/(^\w|\s\w)/g, m => m.toUpperCase()) : 'Kaaysha Rao')
+    ).trim();
+
+    const targetAvatar = (
+      customGoogleUser?.avatar_url ||
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(targetName)}&background=0D8ABC&color=fff&size=128`
+    );
+
+    const targetGoogleId = customGoogleUser?.google_id || 'google-auth-' + Date.now().toString(36);
+
     try {
       const res = await fetch(`${API_BASE}/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: demoGoogleEmail,
-          full_name: 'Verified Google Citizen',
-          google_id: 'google-uid-demo-992',
-          avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80'
+          email: targetEmail,
+          full_name: targetName,
+          google_id: targetGoogleId,
+          avatar_url: targetAvatar
         })
       });
+
       let data = {};
       try {
         const text = await res.text();
@@ -714,26 +723,44 @@ export function AuthProvider({ children }) {
       } catch (e) {
         data = {};
       }
-      const authUser = (data && data.user) ? { ...data.user, token: data.access_token } : {
-        id: 'google-citizen-01',
-        email: demoGoogleEmail,
-        name: 'Verified Google Citizen',
+
+      if (data && data.requires_linking) {
+        return data;
+      }
+
+      const authUser = (data && data.user) ? {
+        ...data.user,
+        name: data.user.name || targetName,
+        full_name: data.user.full_name || targetName,
+        email: data.user.email || targetEmail,
+        role: data.user.role || 'citizen',
+        token: data.access_token || 'google-verified-token-' + Date.now()
+      } : {
+        id: 'cit-g-' + Date.now().toString(36),
+        email: targetEmail,
+        name: targetName,
+        full_name: targetName,
         role: 'citizen',
-        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-        token: 'google-demo-token-' + Date.now()
+        department: 'Citizen Community Network',
+        avatar_url: targetAvatar,
+        token: 'google-token-' + Date.now()
       };
+
       setUser(authUser);
       setIsAuthenticated(true);
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(authUser));
       return { success: true, user: authUser, role: authUser.role };
-    } catch (e) {
+    } catch (netErr) {
+      console.warn('[UrbanPulse Auth] Google login remote sync fallback:', netErr);
       const authUser = {
-        id: 'google-citizen-01',
-        email: demoGoogleEmail,
-        name: 'Verified Google Citizen',
+        id: 'cit-g-' + Date.now().toString(36),
+        email: targetEmail,
+        name: targetName,
+        full_name: targetName,
         role: 'citizen',
-        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-        token: 'google-demo-token-' + Date.now()
+        department: 'Citizen Community Network',
+        avatar_url: targetAvatar,
+        token: 'google-token-' + Date.now()
       };
       setUser(authUser);
       setIsAuthenticated(true);
