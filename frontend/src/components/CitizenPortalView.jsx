@@ -647,259 +647,7 @@ export default function CitizenPortalView({
   // Live Video Recording & Real-Time Object Detection Engine
   // -----------------------------------------------------------------------------
 
-  // Real-time Canvas-based Computer Vision Frame Analyzer
-  const analyzeCanvasFrame = (videoEl, targetCat) => {
-    if (!videoEl || videoEl.videoWidth === 0 || videoEl.readyState < 2) return null;
 
-    if (!detectionCanvasRef.current) {
-      detectionCanvasRef.current = document.createElement('canvas');
-    }
-    const canvas = detectionCanvasRef.current;
-    const sampleW = 240;
-    const sampleH = 180;
-    canvas.width = sampleW;
-    canvas.height = sampleH;
-
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    if (!ctx) return null;
-
-    ctx.drawImage(videoEl, 0, 0, sampleW, sampleH);
-    const imgData = ctx.getImageData(0, 0, sampleW, sampleH);
-    const data = imgData.data;
-    const totalPixels = sampleW * sampleH;
-
-    // 1. Biological Skin Chrominance / Human Face Filter (YCbCr)
-    let skinPixels = 0;
-    let sumLuminance = 0;
-    let asphaltPixels = 0;
-    let sumRoadLuminance = 0;
-
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-
-      const y = 0.299 * r + 0.587 * g + 0.114 * b;
-      const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
-      const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
-
-      sumLuminance += y;
-
-      // Skin chrominance (YCbCr + RGB heuristics for diverse human skin tones)
-      const isSkinYCbCr = cr >= 133 && cr <= 175 && cb >= 75 && cb <= 128;
-      const isSkinRGB = r > 60 && g > 35 && b > 20 && (r - g) >= 8 && (r - b) >= 8 && r > g && g > b;
-      if (isSkinYCbCr || isSkinRGB) {
-        skinPixels++;
-      }
-
-      // Asphalt road surface check: low saturation (max-min < 45), medium-dark (20 < y < 190)
-      const maxVal = Math.max(r, g, b);
-      const minVal = Math.min(r, g, b);
-      const satDiff = maxVal - minVal;
-      if (satDiff < 45 && y > 20 && y < 190) {
-        asphaltPixels++;
-        sumRoadLuminance += y;
-      }
-    }
-
-    const meanLuminance = sumLuminance / totalPixels;
-    const skinRatio = skinPixels / totalPixels;
-    const catLower = (targetCat || '').toLowerCase();
-    const isRoadIssue = catLower.includes('pothole') || catLower.includes('road') || catLower.includes('crack');
-
-    const asphaltRatio = asphaltPixels / totalPixels;
-
-    // Check for human face / selfie portrait in the camera view across all categories
-    // Triggers if skin ratio is prominent and road context is minimal, or if someone takes a direct selfie
-    if ((skinRatio > 0.045 && asphaltRatio < 0.14) || skinRatio > 0.075) {
-      return {
-        type: 'face',
-        detected: false,
-        is_face: true,
-        box: null,
-        feedback: '⚠️ Human face detected — Please point camera at the civic defect to record proper video'
-      };
-    }
-
-    // A. Potholes & Broken Roads / Cracks
-    if (catLower.includes('pothole') || catLower.includes('road') || catLower.includes('crack')) {
-      const asphaltRatio = asphaltPixels / totalPixels;
-      if (asphaltRatio < 0.16) {
-        return {
-          type: 'non_road',
-          detected: false,
-          box: null,
-          feedback: 'Scanning for asphalt road surface...'
-        };
-      }
-
-      const meanRoadY = sumRoadLuminance / Math.max(1, asphaltPixels);
-      let cavityPixels = 0;
-      let minX = sampleW, maxX = 0, minY = sampleH, maxY = 0;
-
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const y = 0.299 * r + 0.587 * g + 0.114 * b;
-        const satDiff = Math.max(r, g, b) - Math.min(r, g, b);
-
-        // Cavity is significantly darker than surrounding asphalt
-        if (satDiff < 45 && y < (meanRoadY - 13) && y > 6) {
-          cavityPixels++;
-          const px = (i / 4) % sampleW;
-          const py = Math.floor((i / 4) / sampleW);
-          if (px < minX) minX = px;
-          if (px > maxX) maxX = px;
-          if (py < minY) minY = py;
-          if (py > maxY) maxY = py;
-        }
-      }
-
-      const cavityRatio = cavityPixels / totalPixels;
-      if (cavityRatio > 0.005 && cavityRatio < 0.38 && maxX > minX && maxY > minY) {
-        const w = maxX - minX;
-        const h = maxY - minY;
-        const aspect = w / Math.max(1, h);
-        if (aspect > 0.25 && aspect < 3.5) {
-          const conf = Math.min(0.96, 0.74 + cavityRatio * 3.5);
-          return {
-            type: 'pothole',
-            detected: true,
-            box: {
-              x: Math.round((minX / sampleW) * 100),
-              y: Math.round((minY / sampleH) * 100),
-              width: Math.round((w / sampleW) * 100),
-              height: Math.round((h / sampleH) * 100),
-              label: catLower.includes('crack') ? 'ROAD CRACK DEFECT' : 'POTHOLE DEFECT',
-              confidence: conf
-            },
-            feedback: `Defect outlined: ${Math.round(conf * 100)}% confidence`
-          };
-        }
-      }
-
-      return {
-        type: 'clean_road',
-        detected: false,
-        box: null,
-        feedback: 'Scanning road surface for structural cavities or cracks...'
-      };
-    }
-
-    // B. Streetlight Failure
-    if (catLower.includes('streetlight') || catLower.includes('light')) {
-      if (meanLuminance > 55) {
-        return {
-          type: 'daytime_streetlight',
-          detected: false,
-          box: null,
-          feedback: 'Daytime lighting — Streetlight failure verification requires nighttime recording'
-        };
-      }
-
-      let brightBulbCount = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        const y = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        if (y > 215) brightBulbCount++;
-      }
-
-      if (brightBulbCount > totalPixels * 0.003) {
-        return {
-          type: 'illuminated_streetlight',
-          detected: false,
-          box: null,
-          feedback: 'Illuminating light emission detected — lamp appears operational'
-        };
-      }
-
-      return {
-        type: 'dark_streetlight',
-        detected: true,
-        box: {
-          x: 42,
-          y: 18,
-          width: 22,
-          height: 68,
-          label: 'DARK STREETLIGHT INFRASTRUCTURE',
-          confidence: 0.85
-        },
-        feedback: 'Nighttime non-illuminating streetlight infrastructure detected'
-      };
-    }
-
-    // C. Garbage Accumulation
-    if (catLower.includes('garbage') || catLower.includes('waste')) {
-      let highVarianceBlocks = 0;
-      const blockSize = 30;
-      const blocksX = Math.floor(sampleW / blockSize);
-      const blocksY = Math.floor(sampleH / blockSize);
-
-      let minBx = blocksX, maxBx = 0, minBy = blocksY, maxBy = 0;
-
-      for (let by = 0; by < blocksY; by++) {
-        for (let bx = 0; bx < blocksX; bx++) {
-          let blockR = 0, blockG = 0, blockB = 0;
-          let diffSum = 0;
-          const blockPixels = blockSize * blockSize;
-
-          for (let py = 0; py < blockSize; py++) {
-            for (let px = 0; px < blockSize; px++) {
-              const idx = ((by * blockSize + py) * sampleW + (bx * blockSize + px)) * 4;
-              blockR += data[idx];
-              blockG += data[idx + 1];
-              blockB += data[idx + 2];
-            }
-          }
-          const meanR = blockR / blockPixels;
-          const meanG = blockG / blockPixels;
-          const meanB = blockB / blockPixels;
-
-          for (let py = 0; py < blockSize; py++) {
-            for (let px = 0; px < blockSize; px++) {
-              const idx = ((by * blockSize + py) * sampleW + (bx * blockSize + px)) * 4;
-              diffSum += Math.abs(data[idx] - meanR) + Math.abs(data[idx + 1] - meanG) + Math.abs(data[idx + 2] - meanB);
-            }
-          }
-
-          const variance = diffSum / (blockPixels * 3);
-          if (variance > 23) {
-            highVarianceBlocks++;
-            if (bx < minBx) minBx = bx;
-            if (bx > maxBx) maxBx = bx;
-            if (by < minBy) minBy = by;
-            if (by > maxBy) maxBy = by;
-          }
-        }
-      }
-
-      if (highVarianceBlocks >= 3 && maxBx >= minBx && maxBy >= minBy) {
-        const conf = Math.min(0.93, 0.72 + (highVarianceBlocks / (blocksX * blocksY)) * 0.4);
-        return {
-          type: 'garbage',
-          detected: true,
-          box: {
-            x: Math.round((minBx * blockSize / sampleW) * 100),
-            y: Math.round((minBy * blockSize / sampleH) * 100),
-            width: Math.round(((maxBx - minBx + 1) * blockSize / sampleW) * 100),
-            height: Math.round(((maxBy - minBy + 1) * blockSize / sampleH) * 100),
-            label: 'GARBAGE ACCUMULATION DETECTED',
-            confidence: conf
-          },
-          feedback: `Garbage accumulation detected (${Math.round(conf * 100)}% confidence)`
-        };
-      }
-
-      return {
-        type: 'clean_ground',
-        detected: false,
-        box: null,
-        feedback: 'Scanning for scattered solid waste accumulation...'
-      };
-    }
-
-    return null;
-  };
 
   // Real-time object detection loop with modular computer vision service
   const startObjectDetection = () => {
@@ -943,507 +691,6 @@ export default function CitizenPortalView({
     setRealtimeFeedback('');
   };
 
-  // Comprehensive In-Browser Multi-Frame Computer Vision Defect & Negative Validator
-  const analyzeRecordedVideoFrames = async (fileOrBlob, targetCat, knownDurationSec = 0) => {
-    return new Promise((resolve) => {
-      const video = document.createElement('video');
-      video.muted = true;
-      video.playsInline = true;
-      video.preload = 'auto';
-      const blobUrl = URL.createObjectURL(fileOrBlob);
-      video.src = blobUrl;
-
-      const finish = (result) => {
-        URL.revokeObjectURL(blobUrl);
-        video.removeAttribute('src');
-        video.load();
-        resolve(result);
-      };
-
-      const fallbackTimer = setTimeout(() => {
-        finish({
-          valid: false,
-          reason: 'Video stream processing timed out. Please record the issue again.'
-        });
-      }, 6000);
-
-      video.onloadedmetadata = async () => {
-        try {
-          // Robust duration calculation: WebM recorded blobs report Infinity in Chromium!
-          const rawDur = video.duration;
-          let safeDuration = 3.0;
-          if (typeof rawDur === 'number' && Number.isFinite(rawDur) && rawDur > 0) {
-            safeDuration = rawDur;
-          } else if (typeof knownDurationSec === 'number' && Number.isFinite(knownDurationSec) && knownDurationSec > 0) {
-            safeDuration = knownDurationSec;
-          }
-          safeDuration = Math.max(1.5, Math.min(60.0, safeDuration));
-
-          if (safeDuration < 1.5) {
-            clearTimeout(fallbackTimer);
-            return finish({
-              valid: false,
-              verdict: 'rejected',
-              error: 'Recording is too short.',
-              reason: 'Recording is too short. Please record for at least 2 to 5 seconds.',
-              guidance: 'Hold the record button and capture at least 3 seconds of steady footage showing the defect.',
-              action: 'record_again'
-            });
-          }
-
-          const canvas = document.createElement('canvas');
-          const sampleW = 240;
-          const sampleH = 180;
-          canvas.width = sampleW;
-          canvas.height = sampleH;
-          const ctx = canvas.getContext('2d', { willReadFrequently: true });
-          if (!ctx) {
-            clearTimeout(fallbackTimer);
-            return finish({
-              valid: false,
-              verdict: 'rejected',
-              error: 'The video could not be processed.',
-              reason: 'The video could not be processed. Canvas processing context not available.',
-              guidance: 'Please record the issue again using the live camera.',
-              action: 'record_again'
-            });
-          }
-
-          // Sample 5 timestamps evenly distributed across duration: 15%, 32%, 50%, 68%, 85%
-          const timestamps = [
-            safeDuration * 0.15,
-            safeDuration * 0.32,
-            safeDuration * 0.50,
-            safeDuration * 0.68,
-            safeDuration * 0.85
-          ];
-
-          let faceDetections = 0;
-          let defectDetections = 0;
-          let totalFramesSampled = 0;
-          let asphaltFrames = 0;
-          let blurFlags = 0;
-          let daytimeStreetlightFlags = 0;
-          let primaryBox = null;
-          let highestConf = 0;
-          let lastReason = '';
-
-          for (const time of timestamps) {
-            await new Promise((seekResolve) => {
-              let done = false;
-              const onSeeked = () => {
-                if (done) return;
-                done = true;
-                video.removeEventListener('seeked', onSeeked);
-
-                try {
-                  ctx.drawImage(video, 0, 0, sampleW, sampleH);
-                  const imgData = ctx.getImageData(0, 0, sampleW, sampleH);
-                  const data = imgData.data;
-                  const totalPixels = sampleW * sampleH;
-
-                  // 1. Biological Skin Chrominance / Human Face Detection
-                  let skinPixels = 0;
-                  let sumLuminance = 0;
-                  let asphaltPixels = 0;
-                  let sumRoadLuminance = 0;
-                  let blurDiff = 0;
-
-                  for (let i = 0; i < data.length; i += 4) {
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
-                    const y = 0.299 * r + 0.587 * g + 0.114 * b;
-                    const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
-                    const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
-
-                    sumLuminance += y;
-
-                    // Measure high-frequency pixel transitions for blur detection
-                    if (i < data.length - 16 && (i % 16 === 0)) {
-                      blurDiff += Math.abs(data[i] - data[i + 4]);
-                    }
-
-                    // Skin chrominance
-                    const isSkinYCbCr = cr >= 133 && cr <= 175 && cb >= 75 && cb <= 128;
-                    const isSkinRGB = r > 60 && g > 35 && b > 20 && (r - g) >= 8 && (r - b) >= 8 && r > g && g > b;
-                    if (isSkinYCbCr || isSkinRGB) skinPixels++;
-
-                    // Asphalt road surface check
-                    const satDiff = Math.max(r, g, b) - Math.min(r, g, b);
-                    if (satDiff < 45 && y > 20 && y < 190) {
-                      asphaltPixels++;
-                      sumRoadLuminance += y;
-                    }
-                  }
-
-                  const meanLuminance = sumLuminance / totalPixels;
-                  const skinRatio = skinPixels / totalPixels;
-                  const asphaltRatio = asphaltPixels / totalPixels;
-                  const avgBlur = blurDiff / (data.length / 16);
-                  if (avgBlur < 3.2) {
-                    blurFlags++;
-                  }
-                  if (asphaltRatio >= 0.12) {
-                    asphaltFrames++;
-                  }
-
-                  totalFramesSampled++;
-
-                  const catLower = (targetCat || '').toLowerCase();
-                  const isRoadIssue = catLower.includes('pothole') || catLower.includes('road') || catLower.includes('crack');
-
-                  // Face filter across all categories:
-                  // Detects if someone is recording a personal face / selfie portrait (high skin ratio and road context is minimal, or face close-up)
-                  if ((skinRatio > 0.045 && asphaltRatio < 0.14) || skinRatio > 0.075) {
-                    faceDetections++;
-                    lastReason = 'Human face detected in the recording. Personal faces or selfies cannot be accepted as civic grievance evidence. Please record a proper video of the civic issue instead of people or faces.';
-                  }
-
-                  // Category check: Pothole / Road damage / Cracks
-                  if (catLower.includes('pothole') || catLower.includes('road') || catLower.includes('crack')) {
-                    if (asphaltRatio < 0.14) {
-                      lastReason = 'The reported issue is not visible. No outdoor road or pavement surface detected in the frame.';
-                      seekResolve();
-                      return;
-                    }
-
-                    const meanRoadY = sumRoadLuminance / Math.max(1, asphaltPixels);
-                    let cavityPixels = 0;
-                    let minX = sampleW, maxX = 0, minY = sampleH, maxY = 0;
-
-                    for (let i = 0; i < data.length; i += 4) {
-                      const r = data[i];
-                      const g = data[i + 1];
-                      const b = data[i + 2];
-                      const y = 0.299 * r + 0.587 * g + 0.114 * b;
-                      const satDiff = Math.max(r, g, b) - Math.min(r, g, b);
-
-                      if (satDiff < 45 && y < (meanRoadY - 12) && y > 6) {
-                        cavityPixels++;
-                        const px = (i / 4) % sampleW;
-                        const py = Math.floor((i / 4) / sampleW);
-                        if (px < minX) minX = px;
-                        if (px > maxX) maxX = px;
-                        if (py < minY) minY = py;
-                        if (py > maxY) maxY = py;
-                      }
-                    }
-
-                    const cavityRatio = cavityPixels / totalPixels;
-                    if (cavityRatio >= 0.004 && cavityRatio <= 0.38 && maxX > minX && maxY > minY) {
-                      const w = maxX - minX;
-                      const h = maxY - minY;
-                      const aspect = w / Math.max(1, h);
-                      if (aspect > 0.2 && aspect < 4.0) {
-                        defectDetections++;
-                        const conf = Math.min(0.96, 0.74 + cavityRatio * 3.5);
-                        if (conf > highestConf) {
-                          highestConf = conf;
-                          primaryBox = {
-                            x: Math.round((minX / sampleW) * 100),
-                            y: Math.round((minY / sampleH) * 100),
-                            width: Math.round((w / sampleW) * 100),
-                            height: Math.round((h / sampleH) * 100),
-                            label: catLower.includes('crack') ? 'ROAD CRACK DEFECT' : 'POTHOLE DEFECT',
-                            confidence: conf
-                          };
-                        }
-                      }
-                    } else {
-                      lastReason = 'No pothole or road damage detected. Please record the issue more clearly.';
-                    }
-                  } else if (catLower.includes('streetlight') || catLower.includes('light')) {
-                    // Streetlight failure check
-                    if (meanLuminance > 55) {
-                      daytimeStreetlightFlags++;
-                      lastReason = 'Daytime footage cannot establish streetlight failure. Streetlight failure cannot be determined during daytime hours.';
-                    } else {
-                      let brightBulbCount = 0;
-                      for (let i = 0; i < data.length; i += 4) {
-                        const y = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                        if (y > 215) brightBulbCount++;
-                      }
-                      if (brightBulbCount > totalPixels * 0.003) {
-                        lastReason = 'Streetlight appears illuminated and operational.';
-                      } else {
-                        defectDetections++;
-                        highestConf = Math.max(highestConf, 0.85);
-                        primaryBox = {
-                          x: 42,
-                          y: 18,
-                          width: 22,
-                          height: 68,
-                          label: 'DARK STREETLIGHT INFRASTRUCTURE',
-                          confidence: 0.85
-                        };
-                      }
-                    }
-                  } else if (catLower.includes('garbage') || catLower.includes('waste')) {
-                    // Garbage accumulation check
-                    let highVarianceBlocks = 0;
-                    const blockSize = 30;
-                    const blocksX = Math.floor(sampleW / blockSize);
-                    const blocksY = Math.floor(sampleH / blockSize);
-                    let minBx = blocksX, maxBx = 0, minBy = blocksY, maxBy = 0;
-
-                    for (let by = 0; by < blocksY; by++) {
-                      for (let bx = 0; bx < blocksX; bx++) {
-                        let blockR = 0, blockG = 0, blockB = 0;
-                        const blockPixels = blockSize * blockSize;
-                        for (let py = 0; py < blockSize; py++) {
-                          for (let px = 0; px < blockSize; px++) {
-                            const idx = ((by * blockSize + py) * sampleW + (bx * blockSize + px)) * 4;
-                            blockR += data[idx];
-                            blockG += data[idx + 1];
-                            blockB += data[idx + 2];
-                          }
-                        }
-                        const meanR = blockR / blockPixels;
-                        const meanG = blockG / blockPixels;
-                        const meanB = blockB / blockPixels;
-                        let diffSum = 0;
-                        for (let py = 0; py < blockSize; py++) {
-                          for (let px = 0; px < blockSize; px++) {
-                            const idx = ((by * blockSize + py) * sampleW + (bx * blockSize + px)) * 4;
-                            diffSum += Math.abs(data[idx] - meanR) + Math.abs(data[idx + 1] - meanG) + Math.abs(data[idx + 2] - meanB);
-                          }
-                        }
-                        const variance = diffSum / (blockPixels * 3);
-                        if (variance > 23) {
-                          highVarianceBlocks++;
-                          if (bx < minBx) minBx = bx;
-                          if (bx > maxBx) maxBx = bx;
-                          if (by < minBy) minBy = by;
-                          if (by > maxBy) maxBy = by;
-                        }
-                      }
-                    }
-
-                    if (highVarianceBlocks >= 3 && maxBx >= minBx && maxBy >= minBy) {
-                      defectDetections++;
-                      const conf = Math.min(0.93, 0.72 + (highVarianceBlocks / (blocksX * blocksY)) * 0.4);
-                      if (conf > highestConf) {
-                        highestConf = conf;
-                        primaryBox = {
-                          x: Math.round((minBx * blockSize / sampleW) * 100),
-                          y: Math.round((minBy * blockSize / sampleH) * 100),
-                          width: Math.round(((maxBx - minBx + 1) * blockSize / sampleW) * 100),
-                          height: Math.round(((maxBy - minBy + 1) * blockSize / sampleH) * 100),
-                          label: 'GARBAGE ACCUMULATION DETECTED',
-                          confidence: conf
-                        };
-                      }
-                    } else {
-                      lastReason = `No visual evidence of '${category}' was found in the recorded video. The reported issue is not visible.`;
-                    }
-                  } else {
-                    defectDetections++;
-                    highestConf = 0.8;
-                  }
-                } catch (e) {
-                  console.warn('Frame analysis error:', e);
-                }
-                seekResolve();
-              };
-
-              video.addEventListener('seeked', onSeeked);
-              const targetTime = Number.isFinite(time) ? Math.min(Math.max(0.1, time), Math.max(0.2, safeDuration - 0.05)) : 0.5;
-              try {
-                if (Number.isFinite(targetTime)) {
-                  video.currentTime = targetTime;
-                } else {
-                  video.currentTime = 0.5;
-                }
-              } catch (seekErr) {
-                console.warn('Seek error:', seekErr);
-                onSeeked();
-              }
-              setTimeout(() => {
-                if (!done) {
-                  done = true;
-                  video.removeEventListener('seeked', onSeeked);
-                  seekResolve();
-                }
-              }, 600);
-            });
-          }
-
-          clearTimeout(fallbackTimer);
-
-          // Priority 1: Check if human face / selfie was recorded across frames!
-          if (faceDetections >= Math.max(1, Math.floor(totalFramesSampled * 0.4))) {
-            return finish({
-              valid: false,
-              verdict: 'rejected',
-              is_face_detected: true,
-              error: 'Human Face Detected — Please Record Proper Video',
-              title: 'Human Face Detected — Please Record Proper Video',
-              reason: 'Human face detected in the recording. Personal faces or selfies cannot be accepted as civic grievance evidence. Please record a proper video clearly showing the civic issue (such as the road damage, pothole, garbage, or streetlight) instead of people or faces.',
-              guidance: 'Point your camera directly at the physical road defect or civic problem and record a proper video. Please keep personal faces and selfies out of the camera view.',
-              disclaimer: '⚠️ Disclaimer: Selfies, personal portraits, and videos containing human faces cannot be accepted as civic grievance evidence. UrbanPulse requires clear, focused footage of the actual municipal defect.',
-              action: 'record_again'
-            });
-          }
-
-          // Check motion blur across sampled frames
-          if (blurFlags >= Math.max(2, Math.floor(totalFramesSampled * 0.6))) {
-            return finish({
-              valid: false,
-              verdict: 'rejected',
-              error: 'The video is too blurry.',
-              reason: 'The video is too blurry. Rapid device motion or loss of focus prevented verification.',
-              guidance: 'Hold your device steady, wipe the camera lens, and ensure good lighting when recording.',
-              action: 'record_again'
-            });
-          }
-
-          const catLower = (targetCat || '').toLowerCase();
-          const isRoadCategory = catLower.includes('pothole') || catLower.includes('road') || catLower.includes('crack');
-
-          // Decision logic for Road Issues:
-          // People, pedestrians, cyclists, and vehicles may naturally appear in road footage.
-          // Their presence alone must not invalidate a recording or prevent submission!
-          if (isRoadCategory) {
-            // Case 1: High-confidence defect verified across sampled frames
-            if (defectDetections >= 1 && primaryBox) {
-              return finish({
-                valid: true,
-                verdict: 'verified',
-                confidence: highestConf || 0.88,
-                box: primaryBox,
-                reason: 'Physical road defect confirmed by computer vision on asphalt surface.',
-                guidance: 'Defect confirmed! You can proceed to submit your geotagged report.'
-              });
-            }
-
-            // Case 2: Camera pointed at human face / selfie with negligible road surface
-            if (faceDetections >= Math.max(1, Math.floor(totalFramesSampled * 0.4)) && asphaltFrames === 0) {
-              return finish({
-                valid: false,
-                verdict: 'rejected',
-                is_face_detected: true,
-                error: 'Human Face Detected — Please Record Proper Video',
-                title: 'Human Face Detected — Please Record Proper Video',
-                reason: 'Human face detected in the recording. Personal faces or selfies cannot be accepted as civic grievance evidence. Please record a proper video clearly showing the road defect or pothole.',
-                guidance: 'Point the camera downward towards the road defect or pothole and record a proper video, keeping faces out of the frame.',
-                disclaimer: '⚠️ Disclaimer: Selfies, personal portraits, and videos containing human faces cannot be accepted as civic grievance evidence. UrbanPulse requires clear, focused footage of the actual municipal defect.',
-                action: 'record_again'
-              });
-            }
-
-            // Case 3: No outdoor road surface detected in video
-            if (asphaltFrames === 0) {
-              return finish({
-                valid: false,
-                verdict: 'rejected',
-                error: 'The reported issue is not visible.',
-                reason: 'The reported issue is not visible. No outdoor road or pavement surface detected in the frame.',
-                guidance: 'Please record on-site outdoors with the damaged road pavement occupying the central view.',
-                action: 'record_again'
-              });
-            }
-
-            // Case 4: Road surface detected, but NO pothole, crack, or defect was found
-            if (defectDetections === 0) {
-              return finish({
-                valid: false,
-                verdict: 'rejected',
-                error: 'No pothole or road damage detected. Please record the issue more clearly.',
-                reason: 'No pothole or road damage detected. Please record the issue more clearly.',
-                guidance: 'Move closer to the damaged section, hold the camera steady, and point directly at the pothole or cracked asphalt.',
-                action: 'record_again'
-              });
-            }
-
-            // Case 5: Inconclusive or ambiguous detection -> Route to needs_review!
-            return finish({
-              valid: true,
-              verdict: 'needs_review',
-              confidence: 0.52,
-              box: primaryBox || null,
-              reason: 'Detection is uncertain. You can submit for municipal officer review or record again for faster automated verification.',
-              guidance: 'You may submit this report for physical officer inspection, or record again closer to the defect for instant AI approval.',
-              action: 'optional_record_again'
-            });
-          }
-
-          // For Non-Road Categories:
-          // 1. Face-only selfie video -> Reject
-          if (faceDetections >= Math.max(1, Math.floor(totalFramesSampled * 0.4))) {
-            return finish({
-              valid: false,
-              verdict: 'rejected',
-              is_face_detected: true,
-              error: 'Human Face Detected — Please Record Proper Video',
-              title: 'Human Face Detected — Please Record Proper Video',
-              reason: 'Human face detected in the recording. Personal faces or selfies cannot be accepted as civic grievance evidence. Please record a proper video clearly showing the civic problem.',
-              guidance: 'Point the camera directly at the physical civic problem and record a proper video, keeping faces out of the frame.',
-              disclaimer: '⚠️ Disclaimer: Selfies, personal portraits, and videos containing human faces cannot be accepted as civic grievance evidence. UrbanPulse requires clear, focused footage of the actual municipal defect.',
-              action: 'record_again'
-            });
-          }
-
-          // 2. Daytime streetlight check
-          if ((catLower.includes('streetlight') || catLower.includes('light')) && daytimeStreetlightFlags >= Math.floor(totalFramesSampled * 0.5)) {
-            return finish({
-              valid: false,
-              verdict: 'rejected',
-              error: 'Daytime footage cannot establish streetlight failure.',
-              reason: 'Daytime footage cannot establish streetlight failure. Streetlight failure cannot be determined during daytime hours.',
-              guidance: 'Please record during evening or night hours when streetlights are active.',
-              action: 'record_again'
-            });
-          }
-
-          // 3. Defect detection check
-          if (defectDetections === 0) {
-            return finish({
-              valid: false,
-              verdict: 'rejected',
-              error: 'The reported issue is not visible.',
-              reason: lastReason || `No visual evidence of '${category}' was found in the recorded video. The reported issue is not visible.`,
-              guidance: `Please point the camera directly at the ${category.toLowerCase()} issue and ensure good lighting.`,
-              action: 'record_again'
-            });
-          }
-
-          // Video is legitimately valid!
-          return finish({
-            valid: true,
-            verdict: 'verified',
-            confidence: highestConf || 0.85,
-            box: primaryBox,
-            reason: 'Civic defect visual evidence verified across sampled video frames.',
-            guidance: 'Defect confirmed! You can proceed to submit your geotagged report.'
-          });
-        } catch (err) {
-          clearTimeout(fallbackTimer);
-          console.warn('Frame analysis error:', err);
-          return finish({
-            valid: false,
-            verdict: 'rejected',
-            error: 'The video could not be processed.',
-            reason: 'The video could not be processed. Please record the issue again holding the camera steady.',
-            guidance: 'Please record the issue again using the live camera.',
-            action: 'record_again'
-          });
-        }
-      };
-
-      video.onerror = () => {
-        clearTimeout(fallbackTimer);
-        finish({
-          valid: false,
-          verdict: 'rejected',
-          error: 'The video could not be processed.',
-          reason: 'The video could not be processed. Unable to decode video format or play stream.',
-          guidance: 'Please record the issue again using the live camera.',
-          action: 'record_again'
-        });
-      };
-    });
-  };
 
   // Pre-submission Video Validation using modular civicDetectionService
   const validateRecordedVideo = async (fileOrBlob, durationSec = 0) => {
@@ -2981,31 +2228,63 @@ export default function CitizenPortalView({
                               </div>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={handleRetakeVideo}
-                              style={{
-                                background: '#DC2626',
-                                color: '#FFFFFF',
-                                border: 'none',
-                                borderRadius: 8,
-                                padding: '8px 16px',
-                                fontSize: '0.8rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                flexShrink: 0,
-                                boxShadow: '0 2px 6px rgba(220, 38, 38, 0.3)'
-                              }}
-                            >
-                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <circle cx="12" cy="12" r="10" />
-                                <circle cx="12" cy="12" r="3" />
-                              </svg>
-                              Record Again
-                            </button>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              <button
+                                type="button"
+                                onClick={handleRetakeVideo}
+                                style={{
+                                  background: '#DC2626',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  borderRadius: 8,
+                                  padding: '8px 14px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  flexShrink: 0,
+                                  boxShadow: '0 2px 6px rgba(220, 38, 38, 0.3)'
+                                }}
+                              >
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <circle cx="12" cy="12" r="10" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                                Record Again
+                              </button>
+                              {(videoValidationResult?.can_continue || videoValidationResult?.verdict === 'needs_review') && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setVideoValidationError('');
+                                    const descEl = document.getElementById('citizen-desc-field');
+                                    if (descEl) descEl.scrollIntoView({ behavior: 'smooth' });
+                                    showToast('Report queued for officer review. Please provide description.');
+                                  }}
+                                  style={{
+                                    background: '#D97706',
+                                    color: '#FFFFFF',
+                                    border: 'none',
+                                    borderRadius: 8,
+                                    padding: '8px 14px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    flexShrink: 0
+                                  }}
+                                >
+                                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <polyline points="9 18 15 12 9 6" />
+                                  </svg>
+                                  Continue to Review
+                                </button>
+                              )}
+                            </div>
                           </div>
 
                           {videoValidationResult?.guidance && (
@@ -3288,6 +2567,57 @@ export default function CitizenPortalView({
                                   💡 <strong>Tip:</strong> {videoValidationResult.guidance}
                                 </div>
                               )}
+                              <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  onClick={handleRetakeVideo}
+                                  style={{
+                                    background: 'transparent',
+                                    color: '#B45309',
+                                    border: '1px solid #D97706',
+                                    borderRadius: 6,
+                                    padding: '5px 12px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4
+                                  }}
+                                >
+                                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <circle cx="12" cy="12" r="3" />
+                                  </svg>
+                                  Record Again
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const descEl = document.getElementById('citizen-desc-field') || document.querySelector('.citizen-textarea');
+                                    if (descEl) descEl.scrollIntoView({ behavior: 'smooth' });
+                                    showToast('Video retained for manual officer review.');
+                                  }}
+                                  style={{
+                                    background: '#D97706',
+                                    color: '#FFFFFF',
+                                    border: 'none',
+                                    borderRadius: 6,
+                                    padding: '5px 12px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4
+                                  }}
+                                >
+                                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <polyline points="9 18 15 12 9 6" />
+                                  </svg>
+                                  Continue to Review
+                                </button>
+                              </div>
                             </div>
                           )}
 
@@ -5300,7 +4630,7 @@ export default function CitizenPortalView({
 
         {/* LIVE CAMERA VIEWFINDER MODAL */}
         {isCameraOpen && (
-          <div style={{
+          <div className="citizen-camera-modal-backdrop" style={{
             position: 'fixed',
             inset: 0,
             background: 'rgba(0, 0, 0, 0.94)',
@@ -5312,7 +4642,7 @@ export default function CitizenPortalView({
             justifyContent: 'center',
             padding: 16
           }}>
-            <div style={{
+            <div className="citizen-camera-modal-card" style={{
               width: '100%',
               maxWidth: 640,
               background: '#0F172A',
@@ -5424,7 +4754,7 @@ export default function CitizenPortalView({
               </div>
 
               {/* Viewport Area */}
-              <div style={{
+              <div className="citizen-camera-viewport" style={{
                 position: 'relative',
                 width: '100%',
                 aspectRatio: '4/3',
@@ -5740,7 +5070,7 @@ export default function CitizenPortalView({
               </div>
 
               {/* Video Recording Controls: Start Recording & Stop Recording */}
-              <div style={{
+              <div className="citizen-camera-controls" style={{
                 padding: '16px 24px',
                 background: '#0F172A',
                 display: 'flex',
@@ -5754,6 +5084,7 @@ export default function CitizenPortalView({
                     <button
                       type="button"
                       onClick={startLiveRecording}
+                      className="citizen-camera-record-btn"
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -5787,6 +5118,7 @@ export default function CitizenPortalView({
                     <button
                       type="button"
                       onClick={stopLiveRecording}
+                      className="citizen-camera-record-btn"
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',

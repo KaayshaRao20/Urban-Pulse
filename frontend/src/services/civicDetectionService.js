@@ -326,9 +326,9 @@ export const validateVideoEvidence = async (fileOrBlob, category, durationSec = 
       valid: false,
       is_valid: false,
       verdict: 'rejected',
-      error: 'The video does not appear to show the selected civic issue.',
-      reason: 'The video does not appear to show the selected civic issue. Please record the reported issue again.',
-      guidance: `Point your camera at the physical ${category.toLowerCase()} and record a focused video.`,
+      error: 'The video does not appear to show the selected issue.',
+      reason: 'The video does not appear to show the selected issue. Please record the correct issue.',
+      guidance: `Point your camera directly at the reported ${category.toLowerCase()} and record again.`,
       action: 'record_again'
     };
   }
@@ -367,9 +367,11 @@ export const validateVideoEvidence = async (fileOrBlob, category, durationSec = 
       primary_box: box,
       box,
       simulated: true,
-      reason: 'Detection is uncertain. You can submit for municipal officer review or record again for faster automated verification.',
-      guidance: 'You may submit this report for physical officer inspection, or record again closer to the defect for instant AI approval.',
+      category,
+      reason: 'The issue could not be confirmed. Please record a clearer view or submit for review.',
+      guidance: 'You may submit this report for physical officer inspection, or record again closer to the defect for clearer evidence.',
       action: 'optional_record_again',
+      can_continue: true,
       features: [
         `Video recorded (${durationSec.toFixed(1)}s)`,
         'Officer physical inspection queued',
@@ -451,14 +453,23 @@ export const validateVideoEvidence = async (fileOrBlob, category, durationSec = 
 const buildNoDefectResult = (normCat, category) => {
   switch (normCat) {
     case 'pothole':
-    case 'crack':
       return {
         valid: false,
         is_valid: false,
         verdict: 'rejected',
         error: 'No pothole or road damage detected.',
-        reason: 'No pothole or road damage detected. Please record the affected road surface more clearly.',
+        reason: 'No pothole or road damage was detected. Point the camera at the damaged road and record again.',
         guidance: 'Point the camera directly at the damaged road pavement, hold steady, and re-record.',
+        action: 'record_again'
+      };
+    case 'crack':
+      return {
+        valid: false,
+        is_valid: false,
+        verdict: 'rejected',
+        error: 'No road crack damage detected.',
+        reason: 'No road crack damage detected. Point the camera at the damaged road and record again.',
+        guidance: 'Point the camera directly at the road cracks, hold steady, and re-record.',
         action: 'record_again'
       };
     case 'waterlogging':
@@ -497,8 +508,8 @@ const buildNoDefectResult = (normCat, category) => {
         valid: false,
         is_valid: false,
         verdict: 'rejected',
-        error: `No visual evidence of '${category}' was found.`,
-        reason: `The video does not appear to show the selected civic issue. Please record the reported issue again.`,
+        error: `The video does not appear to show the selected issue.`,
+        reason: `The video does not appear to show the selected issue. Please record the correct issue.`,
         guidance: `Point the camera directly at the civic problem and record again.`,
         action: 'record_again'
       };
@@ -508,20 +519,20 @@ const buildNoDefectResult = (normCat, category) => {
 const getCategorySuccessReason = (normCat) => {
   switch (normCat) {
     case 'pothole':
-      return 'Road damage detected. You can submit this report.';
+      return 'Potential road damage detected. Review the evidence before submitting.';
     case 'crack':
-      return 'Road surface crack damage detected. You can submit this report.';
+      return 'Potential road crack damage detected. Review the evidence before submitting.';
     case 'waterlogging':
     case 'water_leakage':
-      return 'Visible waterlogging / drainage issue detected. You can submit this report.';
+      return 'Potential waterlogging or flooding detected. Review the evidence before submitting.';
     case 'garbage':
-      return 'Garbage accumulation detected. You can submit this report.';
+      return 'Potential garbage accumulation detected. Review the evidence before submitting.';
     case 'streetlight':
       return 'Non-operational streetlight infrastructure detected in low-light conditions. You can submit this report.';
     case 'traffic':
-      return 'Civic traffic hazard visual evidence detected. You can submit this report.';
+      return 'Potential traffic hazard detected. Review the evidence before submitting.';
     default:
-      return 'Civic defect visual evidence detected. You can submit this report.';
+      return 'Potential civic defect detected. Review the evidence before submitting.';
   }
 };
 

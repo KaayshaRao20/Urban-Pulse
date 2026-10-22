@@ -175,14 +175,14 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                 "confidence": best["confidence"],
                 "box": best,
                 "simulated": True,
-                "reason": "Road damage detected. You can submit this report."
+                "reason": "Potential road damage detected. Review the evidence before submitting."
             }
 
         return {
             "detected": False,
             "confidence": 0.15,
             "box": None,
-            "reason": "No pothole or road damage detected. Please record the affected road surface more clearly."
+            "reason": "No pothole or road damage was detected. Point the camera at the damaged road and record again."
         }
 
     def detect_broken_road_cracks(self, frame: np.ndarray, gray: np.ndarray, hsv: np.ndarray) -> Dict[str, Any]:
@@ -200,7 +200,7 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                 "detected": False,
                 "confidence": 0.0,
                 "box": None,
-                "reason": "Not an asphalt pavement surface."
+                "reason": "The video does not appear to show the selected issue. Please record the correct issue."
             }
 
         # Filter out high-luminance road markings (white/yellow stripes)
@@ -256,14 +256,14 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                     "label": "SIMULATED: ROAD CRACK DEFECT",
                     "simulated": True
                 },
-                "reason": "Road surface crack damage detected. You can submit this report."
+                "reason": "Potential road crack damage detected. Review the evidence before submitting."
             }
 
         return {
             "detected": False,
             "confidence": 0.10,
             "box": None,
-            "reason": "No pothole or road damage detected. Please record the affected road surface more clearly."
+            "reason": "No road crack damage detected. Point the camera at the damaged road and record again."
         }
 
     def detect_streetlights(self, frame: np.ndarray, gray: np.ndarray, hsv: np.ndarray) -> Dict[str, Any]:
@@ -378,7 +378,7 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                         "confidence": round(conf, 2),
                         "box": box,
                         "simulated": True,
-                        "reason": "Visible waterlogging / drainage issue detected. You can submit this report."
+                        "reason": "Potential waterlogging or flooding detected. Review the evidence before submitting."
                     }
 
         return {
@@ -436,7 +436,7 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                 "confidence": best["confidence"],
                 "box": best,
                 "simulated": True,
-                "reason": "Garbage accumulation detected. You can submit this report."
+                "reason": "Potential garbage accumulation detected. Review the evidence before submitting."
             }
 
         return {
@@ -555,8 +555,8 @@ class MultiFrameVideoValidator:
                 "is_valid": False,
                 "verdict": "rejected",
                 "confidence": 0.0,
-                "error": "Video is not valid. Please record the reported issue again.",
-                "reason": "Video file not found or corrupted."
+                "error": "The video could not be analysed. Please try recording again.",
+                "reason": "The video could not be analysed. Please try recording again."
             }
 
         cap = cv2.VideoCapture(video_path)
@@ -565,8 +565,8 @@ class MultiFrameVideoValidator:
                 "is_valid": False,
                 "verdict": "rejected",
                 "confidence": 0.0,
-                "error": "Video is not valid. Please record the reported issue again.",
-                "reason": "Unable to decode video stream."
+                "error": "The video could not be analysed. Please try recording again.",
+                "reason": "The video could not be analysed. Please try recording again."
             }
 
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -630,8 +630,8 @@ class MultiFrameVideoValidator:
                 "is_valid": False,
                 "verdict": "rejected",
                 "confidence": 0.0,
-                "error": "The video could not be processed.",
-                "reason": "The video could not be processed. No readable frames found.",
+                "error": "The video could not be analysed. Please try recording again.",
+                "reason": "The video could not be analysed. Please try recording again.",
                 "guidance": "Please record the issue again using the live camera.",
                 "action": "record_again"
             }
@@ -662,7 +662,7 @@ class MultiFrameVideoValidator:
         # 1. Road Damage (Potholes & Cracks)
         if is_road_issue:
             if detection_ratio >= 0.20 and best_box is not None:
-                succ_msg = "Road surface crack damage detected. You can submit this report." if ("crack" in cat_lower or "fissure" in cat_lower) else "Road damage detected. You can submit this report."
+                succ_msg = "Potential road crack damage detected. Review the evidence before submitting." if ("crack" in cat_lower or "fissure" in cat_lower) else "Potential road damage detected. Review the evidence before submitting."
                 return {
                     "is_valid": True,
                     "verdict": "verified",
@@ -689,21 +689,22 @@ class MultiFrameVideoValidator:
                     "verdict": "rejected",
                     "category_match": False,
                     "confidence": 0.05,
-                    "error": "The video does not appear to show the selected civic issue.",
-                    "reason": "The video does not appear to show the selected civic issue. Please record the reported issue again.",
+                    "error": "The video does not appear to show the selected issue.",
+                    "reason": "The video does not appear to show the selected issue. Please record the correct issue.",
                     "guidance": "Please record on-site outdoors with the damaged road pavement occupying the central view.",
                     "action": "record_again",
                     "frames_analyzed": frames_analyzed
                 }
 
             if len(detections) == 0:
+                no_defect_msg = "No road crack damage detected. Point the camera at the damaged road and record again." if ("crack" in cat_lower or "fissure" in cat_lower) else "No pothole or road damage was detected. Point the camera at the damaged road and record again."
                 return {
                     "is_valid": False,
                     "verdict": "rejected",
                     "category_match": False,
                     "confidence": 0.15,
-                    "error": "No pothole or road damage detected.",
-                    "reason": "No pothole or road damage detected. Please record the affected road surface more clearly.",
+                    "error": no_defect_msg,
+                    "reason": no_defect_msg,
                     "guidance": "Move closer to the damaged section, hold the camera steady, and point directly at the pothole or cracked asphalt.",
                     "action": "record_again",
                     "frames_analyzed": frames_analyzed
@@ -718,9 +719,10 @@ class MultiFrameVideoValidator:
                 "primary_box": best_box,
                 "simulated": True,
                 "frames_analyzed": frames_analyzed,
-                "reason": "Detection is uncertain. You can submit for municipal officer review or record again for faster automated verification.",
-                "guidance": "You may submit this report for physical officer inspection, or record again closer to the defect for instant AI approval.",
+                "reason": "The issue could not be confirmed. Please record a clearer view or submit for review.",
+                "guidance": "You may submit this report for physical officer inspection, or record again closer to the defect for clearer evidence.",
                 "action": "optional_record_again",
+                "can_continue": True,
                 "features": [
                     f"Road footage recorded ({frames_analyzed} frames analyzed)",
                     "Officer physical inspection scheduled"
@@ -746,7 +748,7 @@ class MultiFrameVideoValidator:
                         f"Category: {category}",
                         "Testing Phase: Simulated Detection Model"
                     ],
-                    "reason": "Visible waterlogging / drainage issue detected. You can submit this report.",
+                    "reason": "Potential waterlogging or flooding detected. Review the evidence before submitting.",
                     "guidance": "Defect confirmed! You can proceed to submit your geotagged report."
                 }
 
@@ -772,9 +774,10 @@ class MultiFrameVideoValidator:
                 "primary_box": best_box,
                 "simulated": True,
                 "frames_analyzed": frames_analyzed,
-                "reason": "Detection is uncertain. You can submit for municipal officer review or record again for faster automated verification.",
-                "guidance": "You may submit this report for physical officer inspection, or record again closer to the defect for instant AI approval.",
+                "reason": "The issue could not be confirmed. Please record a clearer view or submit for review.",
+                "guidance": "You may submit this report for physical officer inspection, or record again closer to the defect for clearer evidence.",
                 "action": "optional_record_again",
+                "can_continue": True,
                 "features": [
                     f"Water footage recorded ({frames_analyzed} frames analyzed)",
                     "Officer physical inspection scheduled"
@@ -800,7 +803,7 @@ class MultiFrameVideoValidator:
                         f"Category: {category}",
                         "Testing Phase: Simulated Detection Model"
                     ],
-                    "reason": "Garbage accumulation detected. You can submit this report.",
+                    "reason": "Potential garbage accumulation detected. Review the evidence before submitting.",
                     "guidance": "Defect confirmed! You can proceed to submit your geotagged report."
                 }
 
@@ -826,9 +829,10 @@ class MultiFrameVideoValidator:
                 "primary_box": best_box,
                 "simulated": True,
                 "frames_analyzed": frames_analyzed,
-                "reason": "Detection is uncertain. You can submit for municipal officer review or record again for faster automated verification.",
-                "guidance": "You may submit this report for physical officer inspection, or record again closer to the defect for instant AI approval.",
+                "reason": "The issue could not be confirmed. Please record a clearer view or submit for review.",
+                "guidance": "You may submit this report for physical officer inspection, or record again closer to the defect for clearer evidence.",
                 "action": "optional_record_again",
+                "can_continue": True,
                 "features": [
                     f"Garbage footage recorded ({frames_analyzed} frames analyzed)",
                     "Officer physical inspection scheduled"
