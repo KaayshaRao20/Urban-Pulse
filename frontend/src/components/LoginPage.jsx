@@ -142,7 +142,7 @@ export default function LoginPage({
       });
 
       if (res && res.success) {
-        setOtpEmail(res.email);
+        setOtpEmail(res.email || regEmail.trim());
         if (res.dev_otp) {
           setOtpDevHint(res.dev_otp);
         }
@@ -169,7 +169,8 @@ export default function LoginPage({
         throw new Error('Please enter the 6-digit verification code.');
       }
 
-      const res = await verifyOtp(otpEmail, otpCode.trim());
+      const targetEmail = (otpEmail || regEmail || '').trim();
+      const res = await verifyOtp(targetEmail, otpCode.trim());
       if (res && res.success) {
         if (onAuthSuccess) {
           onAuthSuccess(res.user);
@@ -186,7 +187,8 @@ export default function LoginPage({
     if (resendCooldown > 0) return;
     clearMessages();
     try {
-      const res = await resendOtp(otpEmail);
+      const targetEmail = (otpEmail || regEmail || '').trim();
+      const res = await resendOtp(targetEmail);
       if (res && res.dev_otp) {
         setOtpDevHint(res.dev_otp);
       }

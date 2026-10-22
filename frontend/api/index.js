@@ -719,27 +719,62 @@ export default function handler(req, res) {
   }
 
   if (path === "auth/register") {
+    const cleanEmail = (body.email || "citizen@urbanpulse.gov.in").trim().toLowerCase();
+    const cleanName = (body.full_name || body.name || "Civic Citizen").trim();
+    const cleanPhone = (body.phone || "+91 98000 00000").trim();
     const newUser = {
       id: "usr-" + Date.now().toString(36),
-      name: body.full_name || "Civic Citizen",
-      email: body.email || "citizen@urbanpulse.gov.in",
-      phone: body.phone || "+91 98000 00000",
-      role: "citizen"
+      name: cleanName,
+      full_name: cleanName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      role: "citizen",
+      department: "Citizen Community Network"
     };
     return res.status(200).json({
       success: true,
-      message: "Registration successful. You can now log in.",
+      requires_verification: true,
+      message: `Account created! A 6-digit verification code has been dispatched to ${cleanEmail}.`,
+      email: cleanEmail,
+      phone: cleanPhone,
+      dev_otp: "123456",
+      verification_otp: "123456",
       user: newUser,
       access_token: "jwt_token_" + Buffer.from(JSON.stringify(newUser)).toString("base64")
     });
   }
 
-  if (
-    path === "auth/verify-otp" ||
-    path === "auth/resend-otp" ||
-    path === "auth/forgot-password" ||
-    path === "auth/reset-password"
-  ) {
+  if (path === "auth/verify-otp") {
+    const cleanEmail = (body.email || "citizen@urbanpulse.org").trim().toLowerCase();
+    const user = {
+      id: "usr-" + Date.now().toString(36),
+      name: body.name || cleanEmail.split("@")[0],
+      full_name: body.name || cleanEmail.split("@")[0],
+      email: cleanEmail,
+      phone: body.phone || "+91 98000 00000",
+      role: "citizen",
+      department: "Citizen Community Network"
+    };
+    return res.status(200).json({
+      success: true,
+      message: "Email and phone verified successfully! Welcome to UrbanPulse.",
+      user: user,
+      role: "citizen",
+      access_token: "jwt_token_" + Buffer.from(JSON.stringify(user)).toString("base64")
+    });
+  }
+
+  if (path === "auth/resend-otp") {
+    const cleanEmail = (body.email || "").trim().toLowerCase();
+    return res.status(200).json({
+      success: true,
+      message: `A fresh verification code has been dispatched to ${cleanEmail}.`,
+      dev_otp: "123456",
+      verification_otp: "123456"
+    });
+  }
+
+  if (path === "auth/forgot-password" || path === "auth/reset-password") {
     return res.status(200).json({ success: true, message: "Verification confirmed" });
   }
 
