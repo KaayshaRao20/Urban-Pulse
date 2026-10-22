@@ -2962,137 +2962,142 @@ export default function CitizenPortalView({
                       </div>
 
                       {/* Dedicated Invalid Video Feedback Alert Card */}
-                      {videoValidationError && (
-                        <div style={{
-                          background: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
-                            ? (isDark ? 'rgba(180, 83, 9, 0.18)' : '#FFFBEB')
-                            : (isDark ? 'rgba(153, 27, 27, 0.16)' : '#FEF2F2'),
-                          border: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
-                            ? '1.5px solid #FCD34D'
-                            : '1.5px solid #FCA5A5',
-                          borderRadius: 12,
-                          padding: '16px 18px',
-                          marginBottom: 14,
-                          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 10
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                              <div style={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: '50%',
-                                background: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? '#FEF3C7' : '#FEE2E2',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                                marginTop: 1
-                              }}>
-                                {(videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? (
-                                  <span style={{ fontSize: '1.15rem' }}>👤</span>
-                                ) : (
-                                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#DC2626" strokeWidth="2.5">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <line x1="15" y1="9" x2="9" y2="15" />
-                                    <line x1="9" y1="9" x2="15" y2="15" />
-                                  </svg>
-                                )}
-                              </div>
-                              <div>
+                      {videoValidationError && (() => {
+                        const isFace = Boolean(
+                          videoValidationResult?.is_face_detected ||
+                          (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')
+                        );
+
+                        return (
+                          <div style={{
+                            background: isFace
+                              ? (isDark ? 'rgba(180, 83, 9, 0.18)' : '#FFFBEB')
+                              : (isDark ? 'rgba(153, 27, 27, 0.16)' : '#FEF2F2'),
+                            border: isFace
+                              ? '1.5px solid #FCD34D'
+                              : '1.5px solid #FCA5A5',
+                            borderRadius: 12,
+                            padding: '16px 18px',
+                            marginBottom: 14,
+                            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 10
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                                 <div style={{
-                                  fontSize: '0.9rem',
-                                  fontWeight: 800,
-                                  color: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? (isDark ? '#FCD34D' : '#92400E') : '#991B1B'
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: '50%',
+                                  background: isFace ? '#FEF3C7' : '#FEE2E2',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                  marginTop: 1
                                 }}>
-                                  {(videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
-                                    ? 'Human Face Detected — Please Record Proper Video'
-                                    : 'Video Could Not Be Accepted'}
+                                  {isFace ? (
+                                    <span style={{ fontSize: '1.15rem' }}>👤</span>
+                                  ) : (
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#DC2626" strokeWidth="2.5">
+                                      <circle cx="12" cy="12" r="10" />
+                                      <line x1="15" y1="9" x2="9" y2="15" />
+                                      <line x1="9" y1="9" x2="15" y2="15" />
+                                    </svg>
+                                  )}
                                 </div>
+                                <div>
+                                  <div style={{
+                                    fontSize: '0.9rem',
+                                    fontWeight: 800,
+                                    color: isFace ? (isDark ? '#FCD34D' : '#92400E') : '#991B1B'
+                                  }}>
+                                    {isFace
+                                      ? 'Human Face Detected — Please Record Proper Video'
+                                      : 'Video Could Not Be Accepted'}
+                                  </div>
+                                  {!isFace && (
+                                    <div style={{
+                                      fontSize: '0.82rem',
+                                      fontWeight: 600,
+                                      color: '#B91C1C',
+                                      marginTop: 4,
+                                      lineHeight: 1.45
+                                    }}>
+                                      {videoValidationResult?.reason || videoValidationError}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={handleRetakeVideo}
+                                style={{
+                                  background: isFace ? '#D97706' : '#DC2626',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  borderRadius: 8,
+                                  padding: '8px 16px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                  flexShrink: 0,
+                                  boxShadow: isFace
+                                    ? '0 2px 8px rgba(217, 119, 6, 0.4)'
+                                    : '0 2px 6px rgba(220, 38, 38, 0.3)'
+                                }}
+                              >
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <circle cx="12" cy="12" r="10" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                                {isFace ? 'Record Proper Video' : 'Record Again'}
+                              </button>
+                            </div>
+
+                            {/* Show reasoning ONCE: single prominent disclaimer box for face detection */}
+                            {isFace ? (
+                              <div style={{
+                                padding: '11px 15px',
+                                borderRadius: 8,
+                                background: isDark ? 'rgba(30, 41, 59, 0.7)' : '#FFFFFF',
+                                border: '1.5px solid #FCD34D',
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                color: isDark ? '#FDE68A' : '#92400E',
+                                lineHeight: 1.5,
+                                display: 'flex',
+                                gap: 10,
+                                alignItems: 'flex-start'
+                              }}>
+                                <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>⚠️</span>
+                                <div>
+                                  <strong>Disclaimer:</strong> Selfies, personal portraits, and videos containing human faces cannot be accepted as civic grievance evidence. UrbanPulse requires clear, focused footage of the actual municipal defect (e.g. road damage, pothole, garbage pile, or streetlight).
+                                </div>
+                              </div>
+                            ) : (
+                              videoValidationResult?.guidance && (
                                 <div style={{
-                                  fontSize: '0.82rem',
-                                  fontWeight: 600,
-                                  color: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
-                                    ? (isDark ? '#FDE68A' : '#78350F')
-                                    : '#B91C1C',
-                                  marginTop: 4,
+                                  padding: '8px 12px',
+                                  borderRadius: 8,
+                                  background: isDark ? 'rgba(30, 41, 59, 0.6)' : '#FFFFFF',
+                                  border: '1px solid #FECACA',
+                                  fontSize: '0.74rem',
+                                  color: isDark ? '#FCA5A5' : '#7F1D1D',
                                   lineHeight: 1.45
                                 }}>
-                                  {videoValidationResult?.reason || videoValidationError}
+                                  💡 <strong>What to do differently:</strong> {videoValidationResult.guidance}
                                 </div>
-                              </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={handleRetakeVideo}
-                              style={{
-                                background: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? '#D97706' : '#DC2626',
-                                color: '#FFFFFF',
-                                border: 'none',
-                                borderRadius: 8,
-                                padding: '8px 16px',
-                                fontSize: '0.8rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                flexShrink: 0,
-                                boxShadow: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
-                                  ? '0 2px 8px rgba(217, 119, 6, 0.4)'
-                                  : '0 2px 6px rgba(220, 38, 38, 0.3)'
-                              }}
-                            >
-                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <circle cx="12" cy="12" r="10" />
-                                <circle cx="12" cy="12" r="3" />
-                              </svg>
-                              {(videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face'))
-                                ? 'Record Proper Video'
-                                : 'Record Again'}
-                            </button>
+                              )
+                            )}
                           </div>
-
-                          {/* Prominent Disclaimer when Face is Detected */}
-                          {(videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) && (
-                            <div style={{
-                              padding: '10px 14px',
-                              borderRadius: 8,
-                              background: isDark ? 'rgba(30, 41, 59, 0.7)' : '#FFFFFF',
-                              border: '1.5px solid #FCD34D',
-                              fontSize: '0.78rem',
-                              fontWeight: 600,
-                              color: isDark ? '#FDE68A' : '#92400E',
-                              lineHeight: 1.5,
-                              display: 'flex',
-                              gap: 8,
-                              alignItems: 'flex-start'
-                            }}>
-                              <span style={{ fontSize: '1rem', flexShrink: 0 }}>⚠️</span>
-                              <div>
-                                <strong>Disclaimer:</strong> Selfies, personal portraits, and videos containing human faces cannot be accepted as civic grievance evidence. UrbanPulse requires clear, focused footage of the actual municipal defect (e.g. road damage, pothole, garbage pile, or streetlight).
-                              </div>
-                            </div>
-                          )}
-
-                          {videoValidationResult?.guidance && (
-                            <div style={{
-                              padding: '8px 12px',
-                              borderRadius: 8,
-                              background: isDark ? 'rgba(30, 41, 59, 0.6)' : '#FFFFFF',
-                              border: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? '1px solid #FDE68A' : '1px solid #FECACA',
-                              fontSize: '0.74rem',
-                              color: (videoValidationResult?.is_face_detected || (videoValidationResult?.reason || videoValidationError).toLowerCase().includes('face')) ? (isDark ? '#FCD34D' : '#92400E') : (isDark ? '#FCA5A5' : '#7F1D1D'),
-                              lineHeight: 1.45
-                            }}>
-                              💡 <strong>What to do differently:</strong> {videoValidationResult.guidance}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {!recordedVideoUrl ? (
                         <div style={{
