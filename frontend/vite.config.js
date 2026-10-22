@@ -17,5 +17,14 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/[name]-[hash]-v3.js',
+        chunkFileNames: 'assets/[name]-[hash]-v3.js',
+        assetFileNames: 'assets/[name]-[hash]-v3.[ext]'
+      }
+    }
   }
 })
