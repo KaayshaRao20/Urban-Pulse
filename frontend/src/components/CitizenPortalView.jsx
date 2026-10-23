@@ -4871,16 +4871,16 @@ export default function CitizenPortalView({
                     top: 12,
                     left: 12,
                     right: 12,
-                    background: realtimeFeedback.toLowerCase().includes('face')
+                    background: (realtimeFeedback.toLowerCase().includes('face') || realtimeFeedback.toLowerCase().includes('unrelated') || realtimeFeedback.toLowerCase().includes('not detected') || realtimeFeedback.toLowerCase().includes('obstruct') || realtimeFeedback.toLowerCase().includes('blurry') || realtimeFeedback.toLowerCase().includes('dark'))
                       ? 'rgba(180, 83, 9, 0.94)'
-                      : 'rgba(15, 23, 42, 0.88)',
+                      : (detectedIssueBox ? 'rgba(6, 78, 59, 0.94)' : 'rgba(15, 23, 42, 0.88)'),
                     backdropFilter: 'blur(6px)',
-                    border: realtimeFeedback.toLowerCase().includes('face')
+                    border: (realtimeFeedback.toLowerCase().includes('face') || realtimeFeedback.toLowerCase().includes('unrelated') || realtimeFeedback.toLowerCase().includes('not detected') || realtimeFeedback.toLowerCase().includes('obstruct') || realtimeFeedback.toLowerCase().includes('blurry') || realtimeFeedback.toLowerCase().includes('dark'))
                       ? '1.5px solid #FCD34D'
-                      : '1px solid rgba(59, 130, 246, 0.45)',
-                    color: realtimeFeedback.toLowerCase().includes('face')
+                      : (detectedIssueBox ? '1.5px solid #34D399' : '1px solid rgba(59, 130, 246, 0.45)'),
+                    color: (realtimeFeedback.toLowerCase().includes('face') || realtimeFeedback.toLowerCase().includes('unrelated') || realtimeFeedback.toLowerCase().includes('not detected') || realtimeFeedback.toLowerCase().includes('obstruct') || realtimeFeedback.toLowerCase().includes('blurry') || realtimeFeedback.toLowerCase().includes('dark'))
                       ? '#FFFBEB'
-                      : '#93C5FD',
+                      : (detectedIssueBox ? '#ECFDF5' : '#93C5FD'),
                     padding: '7px 12px',
                     borderRadius: 8,
                     fontSize: '0.74rem',
@@ -4891,8 +4891,17 @@ export default function CitizenPortalView({
                     gap: 8,
                     boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)'
                   }}>
-                    {realtimeFeedback.toLowerCase().includes('face') ? (
-                      <span style={{ fontSize: '1rem', flexShrink: 0 }}>👤</span>
+                    {(realtimeFeedback.toLowerCase().includes('face') || realtimeFeedback.toLowerCase().includes('unrelated')) ? (
+                      <span style={{ fontSize: '1rem', flexShrink: 0 }}>⚠️</span>
+                    ) : detectedIssueBox ? (
+                      <span style={{
+                        display: 'inline-block',
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: '#10B981',
+                        boxShadow: '0 0 8px #10B981'
+                      }} />
                     ) : (
                       <span style={{
                         display: 'inline-block',

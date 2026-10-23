@@ -239,6 +239,35 @@ def assess_civic_evidence(image_path: Optional[str], category: str) -> Dict[str,
         mean_brightness = float(np.mean(gray))
         is_extreme_lighting = mean_brightness < 20.0 or mean_brightness > 240.0
 
+        # Human Face / Selfie / Irrelevant Content check
+        try:
+            detector = OpenCVRuleBasedDetector()
+            face_info = detector.detect_human_face(img, gray, height, width)
+            if face_info:
+                return {
+                    "evaluated": True,
+                    "conclusive": False,
+                    "confidence": 0.0,
+                    "recommended_status": "Rejected",
+                    "detected_features": ["Human subject / face detected"],
+                    "blur_score": round(blur_var, 1),
+                    "brightness": round(mean_brightness, 1),
+                    "reason": "Selected issue not detected. This photo appears to show unrelated content. Please record the actual civic issue."
+                }
+            if detector.check_obstruction(img, gray):
+                return {
+                    "evaluated": True,
+                    "conclusive": False,
+                    "confidence": 0.0,
+                    "recommended_status": "Needs Review",
+                    "detected_features": ["Camera view obstructed"],
+                    "blur_score": round(blur_var, 1),
+                    "brightness": round(mean_brightness, 1),
+                    "reason": "Camera view appears obstructed. Point the camera directly at the civic defect."
+                }
+        except Exception:
+            pass
+
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         sat_mean = float(np.mean(hsv[:, :, 1]))
 
@@ -277,71 +306,47 @@ def assess_civic_evidence(image_path: Optional[str], category: str) -> Dict[str,
                 "reason": f"Ambient lighting is extreme (brightness {mean_brightness:.1f}/255). Visual validation required by field inspector."
             }
 
-        # Category-Specific CV Checks
-        if "pothole" in cat_lower or "road" in cat_lower:
-            asphalt_mask = (hsv[:, :, 1] < 60) & (hsv[:, :, 2] > 25) & (hsv[:, :, 2] < 185)
-            asphalt_pct = float(np.sum(asphalt_mask) / (height * width))
-            features.append(f"Road asphalt surface match: {asphalt_pct*100:.1f}%")
+        # Delegate to unified Computer Vision Detector
+        detector = OpenCVRuleBasedDetector()
+        frame_res = detector.detect_frame(img, category)
 
-            if edge_density > 0.035:
-                features.append(f"High-contrast cavity/crack boundary density ({edge_density*100:.1f}%)")
-
-            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            significant_contours = [c for c in contours if cv2.contourArea(c) > (height * width * 0.005)]
-            if len(significant_contours) >= 1:
-                features.append(f"Detected {len(significant_contours)} localized structural surface defects")
-
-            if asphalt_pct > 0.28 and (edge_density > 0.03 or len(significant_contours) >= 1):
-                conclusive = True
-                confidence = min(0.94, 0.74 + asphalt_pct * 0.2 + min(0.12, edge_density * 2))
-                reason = "Photographic evidence exhibits confirmed asphalt pavement fracture with significant localized road cavity."
-            else:
-                conclusive = False
-                confidence = 0.62
-                reason = "Asphalt surface detected but defect boundaries or depth profiles are ambiguous. Pending officer inspection."
-
-        elif "garbage" in cat_lower or "waste" in cat_lower:
-            h_std = float(np.std(hsv[:, :, 0]))
-            features.append(f"Color dispersion index: {h_std:.1f}")
-            if edge_density > 0.04:
-                features.append("High irregular contour clutter")
-            if h_std > 26.0 and edge_density > 0.03:
-                conclusive = True
-                confidence = min(0.92, 0.72 + (h_std / 100.0) * 0.25)
-                reason = "Evidence demonstrates characteristic scattered debris clutter and irregular solid waste accumulation."
-            else:
-                conclusive = False
-                confidence = 0.58
-                reason = "Color distribution and clutter variance are inconclusive. Officer inspection required."
-
-        elif "water" in cat_lower or "drainage" in cat_lower or "flood" in cat_lower:
-            water_sheen_mask = (hsv[:, :, 1] < 80) & (hsv[:, :, 2] > 60)
-            water_pct = float(np.sum(water_sheen_mask) / (height * width))
-            features.append(f"Hydraulic surface reflection index: {water_pct*100:.1f}%")
-            if water_pct > 0.22:
-                conclusive = True
-                confidence = min(0.90, 0.74 + water_pct * 0.2)
-                reason = "Surface specular reflection and liquid pooling indicators detected, consistent with water leakage/drainage accumulation."
-            else:
-                conclusive = False
-                confidence = 0.60
-                reason = "Reflectance profile insufficient to definitively confirm liquid standing water. Pending officer verification."
-
-        elif "streetlight" in cat_lower:
-            if mean_brightness < 70:
-                features.append(f"Nighttime/dark ambient condition (mean lux {mean_brightness:.1f})")
-                conclusive = True
-                confidence = 0.85
-                reason = "Captured dark roadway under low ambient lux, confirming unlit public illumination corridor."
-            else:
-                conclusive = False
-                confidence = 0.55
-                reason = "Daytime photo captured. Field technician required to inspect circuit connection and fixture integrity."
-
+        if frame_res.get("detected"):
+            return {
+                "evaluated": True,
+                "conclusive": True,
+                "confidence": round(float(frame_res.get("confidence", 0.8)), 2),
+                "blur_score": round(blur_var, 1),
+                "brightness": round(mean_brightness, 1),
+                "recommended_status": "Verified",
+                "detected_features": [
+                    frame_res.get("box", {}).get("label", "Civic Defect"),
+                    f"CV Confidence: {int(frame_res.get('confidence', 0.8)*100)}%"
+                ],
+                "box": frame_res.get("box"),
+                "reason": frame_res.get("reason", "Defect confirmed by computer vision.")
+            }
+        elif frame_res.get("verdict") == "needs_review":
+            return {
+                "evaluated": True,
+                "conclusive": False,
+                "confidence": round(float(frame_res.get("confidence", 0.5)), 2),
+                "blur_score": round(blur_var, 1),
+                "brightness": round(mean_brightness, 1),
+                "recommended_status": "Needs Review",
+                "detected_features": ["Borderline visual indicators"],
+                "reason": frame_res.get("reason", "Evidence is ambiguous. Pending officer inspection.")
+            }
         else:
-            conclusive = False
-            confidence = 0.60
-            reason = "General civic issue. Requires authorized municipal officer inspection."
+            return {
+                "evaluated": True,
+                "conclusive": False,
+                "confidence": round(float(frame_res.get("confidence", 0.1)), 2),
+                "blur_score": round(blur_var, 1),
+                "brightness": round(mean_brightness, 1),
+                "recommended_status": "Rejected",
+                "detected_features": ["Issue absent / negative match"],
+                "reason": frame_res.get("reason", "Selected issue not detected.")
+            }
 
         return {
             "evaluated": True,
@@ -1980,6 +1985,9 @@ async def create_grievance(
                 initial_verification_status = "Needs Review"
         else:
             evidence_assessment = assess_civic_evidence(target_path, category)
+            if evidence_assessment.get("recommended_status") == "Rejected":
+                err_detail = evidence_assessment.get("reason") or "Selected issue not detected. This photo appears to show unrelated content. Please record the actual civic issue."
+                raise HTTPException(status_code=400, detail=err_detail)
             if evidence_assessment.get("conclusive") and evidence_assessment.get("recommended_status") == "Verified":
                 initial_verification_status = "Verified"
             elif evidence_assessment.get("recommended_status") == "Needs Review":
