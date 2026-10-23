@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import LanguageSelector from './LanguageSelector';
 
@@ -21,6 +21,19 @@ export default function LoginPage({
 
   // Mode: 'login' | 'register' | 'verify' | 'forgot' | 'reset' | 'link'
   const [authMode, setAuthMode] = useState(initialMode || 'login');
+
+  // Selected Portal on Login Page: 'citizen' (Public Services) | 'authority' (Command Console)
+  const [selectedPortal, setSelectedPortal] = useState(
+    initialType === 'authority' ? 'authority' : 'citizen'
+  );
+
+  useEffect(() => {
+    if (initialType === 'authority') {
+      setSelectedPortal('authority');
+    } else if (initialType === 'citizen') {
+      setSelectedPortal('citizen');
+    }
+  }, [initialType]);
 
   // Background visual mode: 'realistic' (4K photorealistic) | 'classic' (original artwork)
   const [bgVisual, setBgVisual] = useState('realistic');
@@ -68,7 +81,7 @@ export default function LoginPage({
   };
 
   // ---------------------------------------------------------------------------
-  // 1. Unified Login Submission
+  // 1. Role-Enforced Login Submission
   // ---------------------------------------------------------------------------
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -77,7 +90,11 @@ export default function LoginPage({
 
     try {
       if (!identifier.trim()) {
-        throw new Error('Please enter your username, email, or badge ID.');
+        throw new Error(
+          selectedPortal === 'authority'
+            ? 'Please enter your Official Badge ID, Gov Email, or Username.'
+            : 'Please enter your username, email, or mobile number.'
+        );
       }
       if (!password) {
         throw new Error('Please enter your password.');
@@ -89,6 +106,25 @@ export default function LoginPage({
       });
 
       if (res && res.success) {
+        const userRole = (res.user?.role || res.role || 'citizen').toLowerCase();
+        const isOfficer = ['officer', 'admin', 'supervisor', 'operator', 'engineer', 'superadmin'].includes(userRole);
+
+        // Strict Security Validation: Citizen Portal allows only citizens
+        if (selectedPortal === 'citizen' && isOfficer) {
+          setErrorMessage(
+            `Officer Account Detected: "${res.user?.name || res.user?.username}" possesses Municipal Authority credentials. Please switch to the "Authority Platform" tab above to access the Command Console.`
+          );
+          return;
+        }
+
+        // Strict Security Validation: Authority Platform allows only verified officers
+        if (selectedPortal === 'authority' && !isOfficer) {
+          setErrorMessage(
+            `Access Denied: Account "${res.user?.email || res.user?.username}" is registered as a Citizen and lacks Municipal Authority clearance. Please switch to the "Citizen Portal" tab.`
+          );
+          return;
+        }
+
         if (onAuthSuccess) {
           onAuthSuccess(res.user);
         }
@@ -97,18 +133,28 @@ export default function LoginPage({
       const rawMsg = err?.message || '';
       if (rawMsg.includes('Unexpected token') || rawMsg.includes('valid JSON') || rawMsg.includes('The page c') || rawMsg.includes('HTML')) {
         const cleanIdent = identifier.trim().toLowerCase();
-        // Instant graceful recovery for demo accounts
-        const role = cleanIdent.includes('citizen') ? 'citizen' : (cleanIdent.includes('admin') ? 'admin' : 'officer');
+        const detectedRole = cleanIdent.includes('admin') ? 'admin' : (cleanIdent.includes('officer') || cleanIdent.includes('kaaysha') ? 'officer' : 'citizen');
+        const isOfficer = ['officer', 'admin'].includes(detectedRole);
+
+        if (selectedPortal === 'citizen' && isOfficer) {
+          setErrorMessage('Officer Account Detected: Please switch to the "Authority Platform" tab to access the Command Console.');
+          return;
+        }
+        if (selectedPortal === 'authority' && !isOfficer) {
+          setErrorMessage('Access Denied: Citizen accounts cannot enter the Authority Platform. Please select the "Citizen Portal" tab.');
+          return;
+        }
+
         if (onAuthSuccess) {
           onAuthSuccess({
             email: identifier.trim(),
-            role,
+            role: detectedRole,
             name: identifier.trim().split('@')[0],
             token: 'instant-recovery-token-' + Date.now()
           });
         }
       } else {
-        setErrorMessage(rawMsg || 'Invalid credentials. Please verify and try again.');
+        setErrorMessage(rawMsg || 'Invalid credentials. Please verify your details and try again.');
       }
     } finally {
       setIsSubmitting(false);
@@ -557,30 +603,108 @@ export default function LoginPage({
           )}
 
           {/* ============================================================= */}
-          {/* VIEW 1: UNIFIED LOGIN (Citizens & Authorities)                */}
+          {/* VIEW 1: PORTAL-SELECTIVE LOGIN (Citizen vs Authority)        */}
           {/* ============================================================= */}
           {authMode === 'login' && (
             <div className="auth-mode-content">
-              <div className="auth-headings">
-                <h2 className="auth-main-heading">Welcome Back</h2>
-                <p className="auth-sub-heading">Enter your credentials to access UrbanPulse</p>
+              {/* Dual Portal Segmented Switcher */}
+              <div className="auth-portal-selector" role="tablist" aria-label="Select Portal Gateway">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedPortal === 'citizen'}
+                  className={`auth-portal-tab citizen ${selectedPortal === 'citizen' ? 'active' : ''}`}
+                  onClick={() => {
+                    clearMessages();
+                    setSelectedPortal('citizen');
+                    setIdentifier('');
+                    setPassword('');
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                  <span>Citizen Portal</span>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedPortal === 'authority'}
+                  className={`auth-portal-tab authority ${selectedPortal === 'authority' ? 'active' : ''}`}
+                  onClick={() => {
+                    clearMessages();
+                    setSelectedPortal('authority');
+                    setIdentifier('');
+                    setPassword('');
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                  <span>Authority Platform</span>
+                </button>
               </div>
+
+              {/* Headings & Role Badge */}
+              <div className="auth-headings">
+                {selectedPortal === 'citizen' ? (
+                  <>
+                    <span className="auth-role-badge citizen">🏛️ Public Citizen Services</span>
+                    <h2 className="auth-main-heading">Citizen Portal Login</h2>
+                    <p className="auth-sub-heading">Report civic issues, upload video evidence, and track ward repairs</p>
+                  </>
+                ) : (
+                  <>
+                    <span className="auth-role-badge authority">🛡️ Municipal Authority Platform</span>
+                    <h2 className="auth-main-heading">Authority & Officer Sign In</h2>
+                    <p className="auth-sub-heading">BBMP • BWSSB • BESCOM • BTP Integrated Command Center (ICCC)</p>
+                  </>
+                )}
+              </div>
+
+              {/* Authority Restricted Security Callout */}
+              {selectedPortal === 'authority' && (
+                <div className="auth-security-notice">
+                  <span style={{ fontSize: '1rem', flexShrink: 0 }}>🔒</span>
+                  <div>
+                    <strong>Official Personnel Access:</strong> Restricted to authorized department officers, ward engineers, and municipal administrators. All sessions are logged and audited.
+                  </div>
+                </div>
+              )}
 
               <form onSubmit={handleLoginSubmit} className="auth-form-fields">
                 {/* Identifier Input (Username, Email, or Badge ID) */}
                 <div className="auth-input-group">
                   <div className="auth-input-wrapper">
                     <span className="auth-input-icon">
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="8" r="4" />
-                        <path d="M6 20v-2a6 6 0 0 1 12 0v2" />
-                      </svg>
+                      {selectedPortal === 'citizen' ? (
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="8" r="4" />
+                          <path d="M6 20v-2a6 6 0 0 1 12 0v2" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="4" width="18" height="16" rx="2" />
+                          <circle cx="9" cy="10" r="2" />
+                          <line x1="15" y1="8" x2="17" y2="8" />
+                          <line x1="15" y1="12" x2="17" y2="12" />
+                          <line x1="7" y1="16" x2="17" y2="16" />
+                        </svg>
+                      )}
                     </span>
                     <input
                       type="text"
                       required
                       className="auth-text-input"
-                      placeholder="Username"
+                      placeholder={
+                        selectedPortal === 'authority'
+                          ? 'Officer Badge ID, Gov Email, or Username'
+                          : 'Username, Email, or Mobile Number'
+                      }
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
                       autoComplete="username"
@@ -601,7 +725,11 @@ export default function LoginPage({
                       type={showPassword ? 'text' : 'password'}
                       required
                       className="auth-text-input password-input"
-                      placeholder="Password"
+                      placeholder={
+                        selectedPortal === 'authority'
+                          ? 'Official Security Password'
+                          : 'Password'
+                      }
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       autoComplete="current-password"
@@ -628,17 +756,47 @@ export default function LoginPage({
                   </div>
                 </div>
 
-                {/* Login Button */}
+                {/* Instant 1-Click Demo Fillers for Quick Testing */}
+                {selectedPortal === 'citizen' ? (
+                  <button
+                    type="button"
+                    className="auth-demo-hint-btn"
+                    onClick={() => {
+                      setIdentifier('citizen@urbanpulse.org');
+                      setPassword('citizen123');
+                    }}
+                    title="Click to autofill demo citizen credentials"
+                  >
+                    <span>👤 Fill Citizen Demo</span>
+                    <span className="auth-demo-hint-pill">citizen@urbanpulse.org / citizen123</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="auth-demo-hint-btn"
+                    onClick={() => {
+                      setIdentifier('01kaaysha');
+                      setPassword('bbmp2026');
+                    }}
+                    title="Click to autofill authorized officer credentials"
+                  >
+                    <span>🛡️ Fill Officer Demo</span>
+                    <span className="auth-demo-hint-pill">01kaaysha / bbmp2026</span>
+                  </button>
+                )}
+
+                {/* Submit Action Button */}
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="auth-action-btn primary-gradient"
+                  style={selectedPortal === 'authority' ? { background: 'linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%)' } : {}}
                 >
                   {isSubmitting ? (
-                    <span>Authenticating...</span>
+                    <span>Authenticating Clearance...</span>
                   ) : (
                     <>
-                      <span>Login</span>
+                      <span>{selectedPortal === 'authority' ? 'Authorize & Enter Command Center' : 'Sign In to Citizen Portal'}</span>
                       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <line x1="5" y1="12" x2="19" y2="12" />
                         <polyline points="12 5 19 12 12 19" />
@@ -658,58 +816,70 @@ export default function LoginPage({
                       setAuthMode('forgot');
                     }}
                   >
-                    Forgot Password?
+                    {selectedPortal === 'authority' ? 'Need credential help? Reset password' : 'Forgot Password?'}
                   </button>
                 </div>
               </form>
 
-              {/* Or Divider */}
-              <div className="auth-divider">
-                <span>or</span>
-              </div>
+              {/* Citizen-Specific Registration and Google Sign-in */}
+              {selectedPortal === 'citizen' && (
+                <>
+                  <div className="auth-divider">
+                    <span>or</span>
+                  </div>
 
-              {/* Continue with Google */}
-              <button
-                type="button"
-                className="auth-google-btn"
-                onClick={handleGoogleSignIn}
-                disabled={isSubmitting}
-              >
-                <svg className="google-icon" viewBox="0 0 24 24" width="18" height="18">
-                  <path
-                    fill="#4285F4"
-                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.05h3.9c2.28-2.1 3.64-5.2 3.64-9.14z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.1-6.67-4.92H1.27v3.13C3.25 21.3 7.34 24 12 24z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.33 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.59H1.27C.46 8.21 0 10.05 0 12s.46 3.79 1.27 5.41l4.06-3.13z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.25 2.7 1.27 6.59l4.06 3.13c.94-2.82 3.57-4.97 6.67-4.97z"
-                  />
-                </svg>
-                <span>Continue with Google</span>
-              </button>
+                  {/* Continue with Google */}
+                  <button
+                    type="button"
+                    className="auth-google-btn"
+                    onClick={handleGoogleSignIn}
+                    disabled={isSubmitting}
+                  >
+                    <svg className="google-icon" viewBox="0 0 24 24" width="18" height="18">
+                      <path
+                        fill="#4285F4"
+                        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.05h3.9c2.28-2.1 3.64-5.2 3.64-9.14z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.1-6.67-4.92H1.27v3.13C3.25 21.3 7.34 24 12 24z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.33 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.59H1.27C.46 8.21 0 10.05 0 12s.46 3.79 1.27 5.41l4.06-3.13z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.25 2.7 1.27 6.59l4.06 3.13c.94-2.82 3.57-4.97 6.67-4.97z"
+                      />
+                    </svg>
+                    <span>Continue with Google</span>
+                  </button>
 
-              {/* Create Account Link for Citizens */}
-              <div className="auth-footer-prompt" style={{ marginTop: '14px' }}>
-                <span>Don't have an account? </span>
-                <button
-                  type="button"
-                  className="auth-link-bold"
-                  onClick={() => {
-                    clearMessages();
-                    setAuthMode('register');
-                  }}
-                >
-                  Create Account
-                </button>
-              </div>
+                  {/* Create Account Link for Citizens */}
+                  <div className="auth-footer-prompt" style={{ marginTop: '14px' }}>
+                    <span>Don't have an account? </span>
+                    <button
+                      type="button"
+                      className="auth-link-bold"
+                      onClick={() => {
+                        clearMessages();
+                        setAuthMode('register');
+                      }}
+                    >
+                      Create Account
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Authority Restricted Notice Footer */}
+              {selectedPortal === 'authority' && (
+                <div style={{ marginTop: '14px', textAlign: 'center', fontSize: '0.68rem', color: '#94A3B8', lineHeight: 1.4 }}>
+                  Official municipal accounts are provisioned by Administration.
+                  Unauthorized attempts are monitored under IT Act Section 66.
+                </div>
+              )}
             </div>
           )}
 

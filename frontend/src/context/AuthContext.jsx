@@ -192,19 +192,26 @@ export function AuthProvider({ children }) {
     const { identifier, email, badgeId, password, department } = credentials;
     const cleanIdent = (identifier || email || badgeId || '').trim();
 
-    const findDemoOfficer = () => {
+    const findDemoUser = () => {
       const lower = cleanIdent.toLowerCase();
-      // Only exact matches on authorized official credentials
-      return DEMO_OFFICERS.find(
+      const officerMatch = DEMO_OFFICERS.find(
         o => (o.email && o.email.toLowerCase() === lower) ||
              (o.badgeId && o.badgeId.toLowerCase() === lower) ||
              (o.username && o.username.toLowerCase() === lower)
       );
+      if (officerMatch) return officerMatch;
+      return DEMO_CITIZENS.find(
+        c => (c.email && c.email.toLowerCase() === lower) ||
+             (c.badgeId && c.badgeId.toLowerCase() === lower) ||
+             (c.username && c.username.toLowerCase() === lower)
+      );
     };
 
-    const matched = findDemoOfficer();
+    const matched = findDemoUser();
     const isAcceptedDemoPassword = !password || 
       password === 'bbmp2026' || 
+      password === 'password123' ||
+      password === 'citizen123' ||
       password === 'admin123' || 
       password === 'water2026' || 
       password === 'city2026' || 

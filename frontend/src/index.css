@@ -5202,6 +5202,132 @@ body {
     color: #047857;
 }
 
+/* Portal Selector Segmented Control */
+.auth-portal-selector {
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    margin-bottom: clamp(10px, 1.8vh, 16px);
+}
+
+.auth-portal-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: #64748B;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    white-space: nowrap;
+}
+
+.auth-portal-tab:hover {
+    color: #0F172A;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.auth-portal-tab.active {
+    background: #FFFFFF;
+    color: #0F172A;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.auth-portal-tab.citizen.active {
+    color: #047857;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.auth-portal-tab.authority.active {
+    color: #1E3A8A;
+    border: 1px solid rgba(37, 99, 235, 0.3);
+}
+
+/* Dedicated Role Status Chip */
+.auth-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.auth-role-badge.citizen {
+    background: #ECFDF5;
+    color: #065F46;
+    border: 1px solid #A7F3D0;
+}
+
+.auth-role-badge.authority {
+    background: #EFF6FF;
+    color: #1E40AF;
+    border: 1px solid #BFDBFE;
+}
+
+/* Authority Security Callout */
+.auth-security-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    color: #92400E;
+    font-size: 0.73rem;
+    line-height: 1.4;
+    font-weight: 500;
+    margin-bottom: 12px;
+    text-align: left;
+}
+
+/* Fast Demo Autofill Pill */
+.auth-demo-hint-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 6px 10px;
+    background: #F8FAFC;
+    border: 1px dashed #CBD5E1;
+    border-radius: 8px;
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-top: 4px;
+}
+
+.auth-demo-hint-btn:hover {
+    background: #F1F5F9;
+    border-color: #94A3B8;
+    color: #0F172A;
+}
+
+.auth-demo-hint-pill {
+    background: #E2E8F0;
+    color: #334155;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.66rem;
+    font-weight: 700;
+}
+
 /* Headings */
 .auth-headings {
     text-align: center;
@@ -5539,6 +5665,35 @@ body {
 
     .login-auth-card {
         margin: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .auth-portal-tab {
+        font-size: 0.74rem;
+        padding: 7px 6px;
+        gap: 5px;
+    }
+    .auth-demo-hint-btn {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+    }
+}
+
+@media (max-width: 360px) {
+    .login-auth-card {
+        padding: 14px 12px;
+        border-radius: 16px;
+    }
+    .auth-portal-tab {
+        font-size: 0.70rem;
+        padding: 6px 4px;
+        gap: 4px;
+    }
+    .auth-portal-tab svg {
+        width: 14px;
+        height: 14px;
     }
 }
 
