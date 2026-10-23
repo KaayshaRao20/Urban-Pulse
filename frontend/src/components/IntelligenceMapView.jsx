@@ -561,7 +561,12 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
     setZone('All Zones');
     setSeverities({ Critical: true, Moderate: true, Low: true });
     setSources({ traffic: true, crowd: true, weather: true });
+    setCivicCategoryFilter('all');
+    setCivicStatusFilter('all');
+    setCivicDeptFilter('all');
+    setSearchQuery('');
     fetchIncidents();
+    fetchCivicComplaints();
   };
 
   const activeInc = incidents.find(i => i.id === activeIncidentId) || incidents[0] || {};
@@ -649,7 +654,7 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
             <span className="dot-live"></span>
             <span>Live Data</span>
             <span style={{ color: '#94A3B8', margin: '0 2px' }}>|</span>
-            <span>{timestamp || '27 Sep 2026 14:32:18'}</span>
+            <span>{timestamp || new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
           </div>
 
           <div className="control-select">

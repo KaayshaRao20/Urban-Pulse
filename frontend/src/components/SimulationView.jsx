@@ -99,37 +99,55 @@ export default function SimulationView({ timestamp }) {
     else if (location.includes('Indiranagar')) { lat = 12.9784; lng = 77.6408; }
     else if (location.includes('Koramangala')) { lat = 12.9352; lng = 77.6245; }
     else if (location.includes('Electronic')) { lat = 12.8452; lng = 77.6602; }
-    else if (location.includes('BTM')) { lat = 12.9166; lng = 77.6101; }
+    else if (location.includes('MG Road')) { lat = 12.9756; lng = 77.6066; }
+    else if (location.includes('Marathahalli')) { lat = 12.9569; lng = 77.7011; }
 
     miniMapInst.current.setView([lat, lng], 13);
   }, [location]);
 
-  // Run Scenario Simulation API call
-  const handleRunAnalysis = async () => {
-    setIsAnalyzing(true);
-    const numVol = parseFloat(trafficVol.replace(/,/g, '')) || 6500;
-    const numSpeed = parseFloat(avgSpeed) || 18;
-    const numCrowd = parseFloat(crowdDensity) || 520;
-    const numTemp = parseFloat(tempC) || 24;
+  // Fetch canonical location list on mount
+  useEffect(() => {
+    const fetchLocs = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/focus/locations`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setLocationsList(data);
+          }
+        }
+      } catch (e) {
+        console.warn("Locations fetch note:", e);
+      }
+    };
+    fetchLocs();
+  }, []);
 
+  const [isLiveData, setIsLiveData] = useState(false);
+  const [liveDataTimestamp, setLiveDataTimestamp] = useState(null);
+  const [locationsList, setLocationsList] = useState([]);
+
+  // Internal executor for simulation
+  const executeSimulation = async ({ loc, vol, speed, crowd, weather, temp, road, date, time, incident }) => {
+    setIsAnalyzing(true);
     try {
       const res = await fetch(`${API_BASE}/simulation/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          location,
-          date: dateVal,
-          time: timeVal,
-          traffic_volume: numVol,
+          location: loc,
+          date: date,
+          time: time,
+          traffic_volume: vol,
           traffic_volume_unit: 'vehicles/hour',
-          avg_speed: numSpeed,
+          avg_speed: speed,
           avg_speed_unit: 'km/h',
-          crowd_density: numCrowd,
+          crowd_density: crowd,
           crowd_density_unit: 'people/km²',
-          weather_condition: weatherCondition,
-          temp_c: numTemp,
-          road_type: roadType,
-          event_incident: eventIncident
+          weather_condition: weather,
+          temp_c: temp,
+          road_type: road,
+          event_incident: incident
         })
       });
 
@@ -142,78 +160,81 @@ export default function SimulationView({ timestamp }) {
         return;
       }
     } catch (e) {
-      console.warn("Simulation API note, using deterministic scenario model:", e);
+      console.warn("Simulation API error:", e);
     } finally {
       setIsAnalyzing(false);
     }
-
-    // Local deterministic scenario calculation
-    const isSevere = numSpeed < 25 || numVol > 6000 || weatherCondition.includes('Rain') || weatherCondition.includes('Storm');
-    const condition = isSevere ? 'High Congestion & Gridlock Risk' : (numSpeed < 40 ? 'Moderate Congestion' : 'Smooth Flowing');
-    const sevLabel = isSevere ? 'High Severity' : (numSpeed < 40 ? 'Moderate Severity' : 'Low Severity');
-
-    const fallbackSim = {
-      status: 'Completed',
-      execution_time_seconds: 3,
-      predicted_condition: condition,
-      severity: sevLabel,
-      summary_alert: `Calculated flow velocity ${numSpeed} km/h under ${weatherCondition} conditions with ${numVol.toLocaleString()} vehicles/hr across ${location}.`,
-      metrics: {
-        traffic_speed: `${numSpeed} km/h`,
-        traffic_speed_sub: `${numSpeed < 30 ? '-45% vs benchmark' : '+12% optimal'}`,
-        crowd_density: `${numCrowd} /km²`,
-        crowd_density_sub: `${numCrowd > 450 ? '+24% peak' : 'Normal level'}`,
-        weather: weatherCondition,
-        temp: `${numTemp}°C`,
-        weather_sub: weatherCondition.includes('Rain') ? 'Friction coefficient degraded' : 'Clear visibility',
-        road_condition: isSevere ? 'Slower Flow' : 'Free Moving',
-        road_type: roadType,
-        road_sub: `${location.split('-')[0].trim()} corridor`
-      },
-      factors: [
-        { factor: 'Traffic Volume', pct: Math.min(55, Math.round(numVol / 130)), color: '#EF4444' },
-        { factor: 'Weather Impact', pct: weatherCondition.includes('Rain') ? 28 : 10, color: '#3B82F6' },
-        { factor: 'Crowd Density', pct: Math.min(25, Math.round(numCrowd / 30)), color: '#F97316' },
-        { factor: 'Incident Impact', pct: eventIncident !== 'None' ? 22 : 6, color: '#8B5CF6' }
-      ],
-      explainable_ai: [
-        `Vehicle capacity saturation reached ${Math.min(98, Math.round((numVol / 7500) * 100))}% for ${roadType}.`,
-        `Surface adhesion affected by ${weatherCondition.toLowerCase()} at ${numTemp}°C ambient temperature.`,
-        `Pedestrian confluence index is estimated at ${numCrowd} per sq km at ${timeVal} hrs.`,
-        `Predictive model recommends targeted traffic control deployment at critical bottlenecks.`
-      ],
-      recommendation: isSevere
-        ? `Implement corridor signal hold on side arteries. Divert non-essential transit to secondary loops and alert BBMP/Traffic Police squad.`
-        : `Corridor operating within manageable operational parameters. Maintain normal SCATS automated signal cadence.`,
-      recommended_actions: [
-        { text: `Continuous sensor monitoring along ${location}`, checked: true },
-        { text: `Coordinate with Traffic Control Room for signal priority`, checked: true },
-        { text: `Deploy emergency patrol to prevent vehicle breakdown bottlenecks`, checked: isSevere },
-        { text: `Broadcast live advisory via citizen mobility channel`, checked: isSevere }
-      ]
-    };
-    setAnalysisResult(fallbackSim);
-    setActions(fallbackSim.recommended_actions);
   };
 
-  // Populate form with current telemetry live data
-  const handleUseLiveData = () => {
-    setLocation('Marathahalli - Outer Ring Road');
-    setTrafficVol('6,500');
-    setAvgSpeed('18');
-    setCrowdDensity('520');
-    setWeatherCondition('Light Rain');
-    setTempC('24');
-    setRoadType('Urban Arterial');
-    setEventIncident('None');
-    handleRunAnalysis();
+  // Run Scenario Simulation API call from user inputs
+  const handleRunAnalysis = async () => {
+    setIsLiveData(false);
+    const numVol = parseFloat(trafficVol.replace(/,/g, '')) || 6500;
+    const numSpeed = parseFloat(avgSpeed) || 18;
+    const numCrowd = parseFloat(crowdDensity) || 520;
+    const numTemp = parseFloat(tempC) || 24;
+
+    await executeSimulation({
+      loc: location,
+      vol: numVol,
+      speed: numSpeed,
+      crowd: numCrowd,
+      weather: weatherCondition,
+      temp: numTemp,
+      road: roadType,
+      date: dateVal,
+      time: timeVal,
+      incident: eventIncident
+    });
+  };
+
+  // Populate form with current telemetry live data from backend
+  const handleUseLiveData = async () => {
+    setIsAnalyzing(true);
+    try {
+      const res = await fetch(`${API_BASE}/simulation/live?location=${encodeURIComponent(location)}`);
+      if (res.ok) {
+        const live = await res.json();
+        setTrafficVol(Math.round(live.traffic_volume).toLocaleString());
+        setAvgSpeed(String(Math.round(live.avg_speed)));
+        setCrowdDensity(String(Math.round(live.crowd_density)));
+        setWeatherCondition(live.weather_condition || 'Light Rain');
+        setTempC(String(Math.round(live.temp_c)));
+        setRoadType(live.road_type || 'Urban Arterial');
+        setEventIncident('None');
+        setDateVal(live.date || new Date().toISOString().split('T')[0]);
+        setTimeVal(live.time || new Date().toTimeString().slice(0, 5));
+        setIsLiveData(true);
+        setLiveDataTimestamp(live.timestamp);
+
+        await executeSimulation({
+          loc: live.location,
+          vol: live.traffic_volume,
+          speed: live.avg_speed,
+          crowd: live.crowd_density,
+          weather: live.weather_condition,
+          temp: live.temp_c,
+          road: live.road_type,
+          date: live.date,
+          time: live.time,
+          incident: 'None'
+        });
+        return;
+      }
+    } catch (e) {
+      console.warn("Use current live data note:", e);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   // Reset form inputs
   const handleReset = () => {
-    setLocation('Marathahalli - Outer Ring Road');
-    setDateVal('2026-09-27');
-    setTimeVal('14:30');
+    setIsLiveData(false);
+    setLiveDataTimestamp(null);
+    setLocation('Marathahalli – Outer Ring Road');
+    setDateVal(new Date().toISOString().split('T')[0]);
+    setTimeVal(new Date().toTimeString().slice(0, 5));
     setTrafficVol('6,500');
     setAvgSpeed('18');
     setCrowdDensity('520');
@@ -303,14 +324,22 @@ export default function SimulationView({ timestamp }) {
               <div className="simulation-form-row-3" style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr', gap: '6px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, color: '#64748B', marginBottom: 2 }}>Location / Zone</label>
-                  <select value={location} onChange={(e) => setLocation(e.target.value)} style={{ width: '100%', padding: '0.38rem 0.55rem', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: '0.78rem', fontWeight: 600, color: '#0F172A', outline: 'none' }}>
-                    <option value="Marathahalli - Outer Ring Road">Marathahalli - Outer Ring Road</option>
-                    <option value="Whitefield Main Road">Whitefield Main Road</option>
-                    <option value="Hebbal Flyover Junction">Hebbal Flyover Junction</option>
-                    <option value="Indiranagar 100ft Road">Indiranagar 100ft Road</option>
-                    <option value="Koramangala 80ft Road">Koramangala 80ft Road</option>
-                    <option value="Electronic City Phase 1">Electronic City Phase 1</option>
-                    <option value="BTM Layout 2nd Stage">BTM Layout 2nd Stage</option>
+                  <select value={location} onChange={(e) => { setLocation(e.target.value); setIsLiveData(false); }} style={{ width: '100%', padding: '0.38rem 0.55rem', borderRadius: 6, border: '1px solid #CBD5E1', fontSize: '0.78rem', fontWeight: 600, color: '#0F172A', outline: 'none' }}>
+                    {locationsList.length > 0 ? (
+                      locationsList.map(l => (
+                        <option key={l.id} value={l.name}>{l.name}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Marathahalli – Outer Ring Road">Marathahalli – Outer Ring Road</option>
+                        <option value="MG Road Interchange">MG Road Interchange</option>
+                        <option value="Indiranagar 100ft Road">Indiranagar 100ft Road</option>
+                        <option value="Whitefield IT Corridor">Whitefield IT Corridor</option>
+                        <option value="Koramangala 80ft Junction">Koramangala 80ft Junction</option>
+                        <option value="Electronic City Phase 1">Electronic City Phase 1</option>
+                        <option value="Hebbal Flyover Junction">Hebbal Flyover Junction</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -460,10 +489,21 @@ export default function SimulationView({ timestamp }) {
               </div>
             </div>
 
-            <div style={{ textAlign: 'right' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0', padding: '2px 7px', borderRadius: 8, fontSize: '0.68rem', fontWeight: 800 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {isLiveData ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0', padding: '2px 8px', borderRadius: 8, fontSize: '0.68rem', fontWeight: 800 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', display: 'inline-block' }}></span>
+                  Live Telemetry ({liveDataTimestamp ? liveDataTimestamp.split(',')[1] || liveDataTimestamp : 'Active Stream'})
+                </span>
+              ) : (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE', padding: '2px 8px', borderRadius: 8, fontSize: '0.68rem', fontWeight: 800 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3B82F6', display: 'inline-block' }}></span>
+                  Simulated Scenario
+                </span>
+              )}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F8FAFC', color: '#475569', border: '1px solid #E2E8F0', padding: '2px 7px', borderRadius: 8, fontSize: '0.68rem', fontWeight: 800 }}>
                 <svg viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" fill="none" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-                Completed ({analysisResult.execution_time_seconds || 3}s)
+                {analysisResult.status || 'Completed'} ({analysisResult.execution_time_seconds || 3}s)
               </span>
             </div>
           </div>

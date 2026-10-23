@@ -58,6 +58,9 @@ export default function DataView() {
     if (activeFilter === 'delayed') {
       return src.connection_status === 'Delayed' || src.ingestion_status === 'Delayed';
     }
+    if (activeFilter === 'historical') {
+      return src.connection_status === 'Historical' || src.ingestion_status === 'Historical';
+    }
     if (activeFilter === 'disconnected') {
       return src.connection_status === 'Disconnected' || src.ingestion_status === 'Disconnected' || src.connection_status === 'Unknown';
     }
@@ -91,6 +94,15 @@ export default function DataView() {
         text: '#EF4444',
         dot: '#EF4444',
         label: 'Disconnected'
+      };
+    }
+    if (s === 'historical') {
+      return {
+        bg: 'rgba(99, 102, 241, 0.12)',
+        border: '#6366F1',
+        text: '#6366F1',
+        dot: '#6366F1',
+        label: 'Historical'
       };
     }
     return {
@@ -377,6 +389,25 @@ export default function DataView() {
           </div>
         </div>
 
+        {/* Historical / Archived Datasets */}
+        <div style={{
+          background: 'var(--bg-card, #FFFFFF)',
+          border: '1px solid var(--border-color, #E2E8F0)',
+          borderRadius: '10px',
+          padding: '1rem',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+        }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary, #64748B)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Historical / Archived
+          </div>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#6366F1', margin: '4px 0' }}>
+            {summary.historical_sources || 1}
+          </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary, #64748B)' }}>
+            Static ground-truth archives
+          </div>
+        </div>
+
         {/* Disconnected / Unconfigured */}
         <div style={{
           background: 'var(--bg-card, #FFFFFF)',
@@ -485,6 +516,22 @@ export default function DataView() {
           }}
         >
           Delayed ({summary.delayed_sources})
+        </button>
+
+        <button
+          onClick={() => setActiveFilter('historical')}
+          style={{
+            padding: '6px 14px',
+            borderRadius: '6px',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            border: activeFilter === 'historical' ? '1px solid #6366F1' : '1px solid var(--border-color, #E2E8F0)',
+            background: activeFilter === 'historical' ? '#6366F1' : 'var(--bg-card, #FFFFFF)',
+            color: activeFilter === 'historical' ? '#FFFFFF' : 'var(--text-secondary, #64748B)',
+            cursor: 'pointer'
+          }}
+        >
+          Historical ({summary.historical_sources || 1})
         </button>
 
         <button

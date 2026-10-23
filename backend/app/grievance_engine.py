@@ -7,12 +7,15 @@ rejection/reopening, audit trails, municipal notifications, and role-based autho
 """
 
 import os
-import os
 import uuid
 import time
 import json
 import math
+import smtplib
+import threading
 from datetime import datetime
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query, Request, Depends, status
 from fastapi.responses import FileResponse, JSONResponse
@@ -52,6 +55,14 @@ except Exception:
         video_validator = MultiFrameVideoValidator()
     except Exception:
         video_validator = None
+
+# Email configuration (uses environment variables, silently skips if not configured)
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "UrbanPulse Civic Notifications")
+EMAIL_ENABLED = bool(SMTP_USER and SMTP_PASSWORD)
 
 router = APIRouter(prefix="/api/grievances", tags=["Citizen Civic Grievances"])
 
@@ -1299,7 +1310,7 @@ IN_MEMORY_NOTIFICATIONS: List[Dict[str, Any]] = [
 def generate_ticket_number() -> str:
     import random
     suffix = random.randint(1000, 9999)
-    return f"BBMP-2026-{suffix}"
+    return f"UP-2026-{suffix}"
 
 def log_audit_trail(
     ticket_number: str,
@@ -1344,6 +1355,43 @@ def log_audit_trail(
     except Exception as e:
         pass
 
+def _send_email_async(recipient_email: str, subject: str, body: str):
+    """Send email via SMTP in a background thread so it never blocks the API response."""
+    if not EMAIL_ENABLED:
+        print(f"[UrbanPulse Email] SMTP not configured. Set SMTP_USER/SMTP_PASSWORD env vars to enable emails.")
+        return
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"{SMTP_FROM_NAME} <{SMTP_USER}>"
+        msg["To"] = recipient_email
+
+        html_body = f"""
+        <html><body style="font-family:Arial,sans-serif;color:#1e293b;background:#f8fafc;padding:24px;">
+          <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:28px;">
+            <div style="background:#1d4ed8;color:#fff;border-radius:8px;padding:14px 20px;margin-bottom:20px;">
+              <h2 style="margin:0;font-size:1.1rem;">🏙️ UrbanPulse Smart City — Civic Notification</h2>
+            </div>
+            <p style="font-size:0.95rem;line-height:1.6;">{body.replace(chr(10),'<br>')}</p>
+            <hr style="border:1px solid #e2e8f0;margin:20px 0;">
+            <p style="font-size:0.75rem;color:#94a3b8;">This is an automated message from the Bengaluru Municipal Civic Grievance System.<br>
+            Do not reply to this email. For queries, visit the UrbanPulse portal or call BBMP: 1533 / 080-22221188.</p>
+          </div>
+        </body></html>
+        """
+        msg.attach(MIMEText(body, "plain"))
+        msg.attach(MIMEText(html_body, "html"))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.sendmail(SMTP_USER, recipient_email, msg.as_string())
+        print(f"[UrbanPulse Email] Sent to {recipient_email}: {subject}")
+    except Exception as e:
+        print(f"[UrbanPulse Email] Send error (non-fatal): {e}")
+
+
 def dispatch_notification(
     ticket_number: str,
     recipient_type: str,
@@ -1353,11 +1401,23 @@ def dispatch_notification(
     message: str
 ):
     now_iso = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    email_sent = False
+
+    # Attempt real email dispatch if contact looks like an email address
+    if recipient_contact and "@" in recipient_contact:
+        t = threading.Thread(
+            target=_send_email_async,
+            args=(recipient_contact, subject, message),
+            daemon=True
+        )
+        t.start()
+        email_sent = True
+
     notif = {
         "ticket_number": ticket_number,
         "recipient_type": recipient_type,
         "recipient_contact": recipient_contact or "Municipal Notification Gateway",
-        "channel": channel,
+        "channel": "EMAIL" if email_sent else channel,
         "subject": subject,
         "message": message,
         "status": "SENT",
@@ -1371,7 +1431,7 @@ def dispatch_notification(
             ticket_number=ticket_number,
             recipient_type=recipient_type,
             recipient_contact=recipient_contact,
-            channel=channel,
+            channel="EMAIL" if email_sent else channel,
             subject=subject,
             message=message,
             status="SENT",
@@ -2333,25 +2393,70 @@ def list_public_grievances(
     status_filter: Optional[str] = Query(None, alias="status"),
     urgency_filter: Optional[str] = Query(None, alias="urgency"),
     department: Optional[str] = Query(None),
+    zone: Optional[str] = Query(None),
+    time_range: Optional[str] = Query(None),
     citizen_email: Optional[str] = Query(None),
-    limit: int = Query(50, le=200)
+    limit: int = Query(200, le=500)
 ):
     """Public feed of recent civic issues with sensitive contact data omitted or account-isolated."""
+    try:
+        sync_complaints_from_db()
+    except Exception:
+        pass
+
     results = []
     c_email_filter = citizen_email.strip().lower() if citizen_email else None
+
+    # Prepare urgency filter set
+    u_list = [u.strip().lower() for u in urgency_filter.split(",") if u.strip()] if urgency_filter else []
+
+    # Time range minutes map
+    max_time_mins = None
+    if time_range and time_range.lower() != "all time":
+        minutes_map = {
+            "last 15 minutes": 15,
+            "last 1 hour": 60,
+            "last 6 hours": 360,
+            "last 24 hours": 1440
+        }
+        max_time_mins = minutes_map.get(time_range.lower())
+
+    now = datetime.now()
 
     for g in IN_MEMORY_COMPLAINTS.values():
         if c_email_filter:
             rec_email = (g.get("citizen_email") or "").strip().lower()
             if rec_email != c_email_filter:
                 continue
-        if category and category.lower() not in g.get("category", "").lower():
-            continue
-        if status_filter and status_filter.lower() != g.get("status", "").lower():
-            continue
-        if urgency_filter and urgency_filter.lower() != g.get("urgency", "").lower():
-            continue
-        if department:
+        if category and category.lower() != "all":
+            if category.lower() not in g.get("category", "").lower():
+                continue
+        if status_filter and status_filter.lower() != "all":
+            if status_filter.lower() != g.get("status", "").lower():
+                continue
+        if u_list:
+            g_urg = (g.get("urgency") or "").lower()
+            if not (g_urg in u_list or ("critical" in u_list and g_urg in ["critical", "high"])):
+                continue
+        if zone and zone.lower() != "all zones":
+            z_clean = zone.lower()
+            w_zone = (g.get("ward_zone") or "").lower()
+            l_addr = (g.get("landmark_address") or "").lower()
+            if z_clean not in w_zone and z_clean not in l_addr:
+                continue
+        if max_time_mins is not None:
+            c_at = g.get("created_at")
+            if c_at:
+                try:
+                    if isinstance(c_at, str):
+                        dt = datetime.fromisoformat(c_at.replace("Z", "+00:00").split("+")[0])
+                    else:
+                        dt = c_at
+                    if (now - dt).total_seconds() > max_time_mins * 60:
+                        continue
+                except Exception:
+                    pass
+        if department and department.lower() != "all":
             d_query = department.lower().replace("_", " ").strip()
             d_tokens = [t for t in d_query.split() if len(t) >= 3]
             assigned_text = f"{g.get('assigned_department', '')} {g.get('assigned_authority', '')}".lower()

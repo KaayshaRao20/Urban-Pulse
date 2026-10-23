@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { auth as firebaseAuth, googleProvider, isFirebaseConfigured } from '../lib/firebaseClient';
+import { signInWithPopup } from 'firebase/auth';
 import { API_BASE } from '../config/api';
 
 const AuthContext = createContext(null);
@@ -19,7 +21,8 @@ export const DEMO_OFFICERS = [
     role: 'officer',
     clearance: 'Municipal Security Clearance Level 5',
     assignedZone: 'Bengaluru Metropolitan Area (City Code 01)',
-    phone: '+91 98450 12345'
+    phone: '+91 98450 12345',
+    aliases: ['01kaaysha', 'kaisha01', '01kaisha', 'kaaysha01', 'kaisha', 'kaaysha', 'kaisha.01', 'kaaysha.01']
   },
   {
     id: 'off-bbmp-01',
@@ -83,6 +86,24 @@ export const DEMO_OFFICERS = [
   }
 ];
 
+const REGISTERED_CITIZENS_KEY = 'urbanpulse_registered_citizens_v2';
+const getStoredCitizens = () => {
+  try {
+    const raw = localStorage.getItem(REGISTERED_CITIZENS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+};
+const saveStoredCitizen = (citizen) => {
+  try {
+    const existing = getStoredCitizens();
+    const filtered = existing.filter(c => c.email !== citizen.email);
+    filtered.unshift(citizen);
+    localStorage.setItem(REGISTERED_CITIZENS_KEY, JSON.stringify(filtered));
+  } catch (e) {}
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -92,7 +113,7 @@ export function AuthProvider({ children }) {
   // Restore authenticated session from localStorage on startup
   useEffect(() => {
     try {
-      const savedSession = localStorage.getItem(SESSION_STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
+      const savedSession = localStorage.getItem(SESSION_STORAGE_KEY);
       if (savedSession) {
         const parsed = JSON.parse(savedSession);
         if (parsed && (parsed.email || parsed.id)) {
@@ -191,16 +212,30 @@ export function AuthProvider({ children }) {
   const login = async (credentials) => {
     const { identifier, email, badgeId, password, department } = credentials;
     const cleanIdent = (identifier || email || badgeId || '').trim();
+    const strippedIdent = cleanIdent.toLowerCase().replace(/[^a-z0-9]/g, '');
 
     const findDemoUser = () => {
       const lower = cleanIdent.toLowerCase();
-      const officerMatch = DEMO_OFFICERS.find(
-        o => (o.email && o.email.toLowerCase() === lower) ||
-             (o.badgeId && o.badgeId.toLowerCase() === lower) ||
-             (o.username && o.username.toLowerCase() === lower)
-      );
+      // Match officer with alias check (e.g. Kaisha01, 01kaisha, kaaysha01, 01kaaysha)
+      const officerMatch = DEMO_OFFICERS.find(o => {
+        if (o.email && o.email.toLowerCase() === lower) return true;
+        if (o.badgeId && o.badgeId.toLowerCase() === lower) return true;
+        if (o.username && o.username.toLowerCase() === lower) return true;
+        if (o.aliases && o.aliases.some(a => a.toLowerCase() === lower || a.toLowerCase().replace(/[^a-z0-9]/g, '') === strippedIdent)) return true;
+        return false;
+      });
       if (officerMatch) return officerMatch;
-      return DEMO_CITIZENS.find(
+
+      // Check registered citizens cache so newly registered citizens can log in immediately
+      const registeredCitizens = getStoredCitizens();
+      const citizenMatch = registeredCitizens.find(c => 
+        (c.email && c.email.toLowerCase() === lower) ||
+        (c.phone && c.phone.replace(/[^0-9]/g, '').endsWith(strippedIdent)) ||
+        (c.username && c.username.toLowerCase() === lower)
+      );
+      if (citizenMatch) return citizenMatch;
+
+      return DEMO_OFFICERS.filter(u => u.role === 'citizen').find(
         c => (c.email && c.email.toLowerCase() === lower) ||
              (c.badgeId && c.badgeId.toLowerCase() === lower) ||
              (c.username && c.username.toLowerCase() === lower)
@@ -208,15 +243,19 @@ export function AuthProvider({ children }) {
     };
 
     const matched = findDemoUser();
+    const pwLower = (password || '').toLowerCase().trim();
     const isAcceptedDemoPassword = !password || 
-      password === 'bbmp2026' || 
-      password === 'password123' ||
-      password === 'citizen123' ||
-      password === 'admin123' || 
-      password === 'water2026' || 
-      password === 'city2026' || 
-      password === 'citizen2026' || 
-      password === 'UrbanPulse@2026' ||
+      pwLower === 'bangalore' ||
+      pwLower === 'bengaluru' ||
+      pwLower === 'bbmp2026' || 
+      pwLower === 'password123' ||
+      pwLower === 'citizen123' ||
+      pwLower === 'admin123' || 
+      pwLower === 'water2026' || 
+      pwLower === 'city2026' || 
+      pwLower === 'citizen2026' || 
+      pwLower === 'urbanpulse@2026' ||
+      (matched?.password && (matched.password === password || matched.password === pwLower)) ||
       password.length >= 4;
 
     if (matched && isAcceptedDemoPassword) {
@@ -292,43 +331,25 @@ export function AuthProvider({ children }) {
         return { success: true, user: authUser, role: data.role };
       }
 
-      // If remote returned an error response or failed parsing
-      if (!res.ok || !data) {
-        const fallbackRole = (cleanIdent.toLowerCase().includes('admin') || cleanIdent.toLowerCase().includes('officer')) ? 'officer' : 'citizen';
-        const fallbackUser = matched || {
-          id: 'user-' + Date.now(),
-          username: cleanIdent.split('@')[0],
-          name: cleanIdent.split('@')[0],
-          email: cleanIdent.includes('@') ? cleanIdent : `${cleanIdent}@urbanpulse.gov.in`,
-          role: fallbackRole,
-          department: department || (fallbackRole === 'officer' ? 'BBMP Infrastructure' : 'Citizen Resident'),
-          token: 'resilient-token-' + Date.now()
-        };
-        setUser(fallbackUser);
-        setIsAuthenticated(true);
-        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(fallbackUser));
-        localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(fallbackUser));
-        setIsAuthModalOpen(false);
-        return { success: true, user: fallbackUser, role: fallbackUser.role };
+      // If remote returned an error response, surface the exact error to user
+      if (!res.ok) {
+        const errDetail = (data && (data.detail || data.message)) || 'Invalid credentials. Please verify your details.';
+        throw new Error(errDetail);
       }
     } catch (backendErr) {
-      // Offline / network failure resilience
-      const fallbackRole = (cleanIdent.toLowerCase().includes('admin') || cleanIdent.toLowerCase().includes('officer')) ? 'officer' : 'citizen';
-      const fallbackUser = matched || {
-        id: 'user-' + Date.now(),
-        username: cleanIdent.split('@')[0],
-        name: cleanIdent.split('@')[0],
-        email: cleanIdent.includes('@') ? cleanIdent : `${cleanIdent}@urbanpulse.gov.in`,
-        role: fallbackRole,
-        department: department || (fallbackRole === 'officer' ? 'BBMP Infrastructure' : 'Citizen Resident'),
-        token: 'resilient-token-' + Date.now()
-      };
-      setUser(fallbackUser);
-      setIsAuthenticated(true);
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(fallbackUser));
-      localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(fallbackUser));
-      setIsAuthModalOpen(false);
-      return { success: true, user: fallbackUser, role: fallbackUser.role };
+      if (backendErr.message && !backendErr.message.includes('fetch') && !backendErr.message.includes('AbortError') && !backendErr.message.includes('NetworkError')) {
+        throw backendErr;
+      }
+      // Offline / network failure resilience ONLY if user credentials matched locally stored citizen
+      if (matched && isAcceptedDemoPassword) {
+        const authUser = { ...matched, token: 'local-offline-auth-' + Date.now() };
+        setUser(authUser);
+        setIsAuthenticated(true);
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(authUser));
+        setIsAuthModalOpen(false);
+        return { success: true, user: authUser, role: matched.role };
+      }
+      throw new Error(backendErr.message || 'Unable to connect to authentication server. Please check your network.');
     }
   };
 
@@ -358,6 +379,21 @@ export function AuthProvider({ children }) {
       badgeId: cleanBadge,
       dev_otp: genOtp
     };
+
+    // Save in local registered citizens store so citizen can log in with their email/phone & password
+    saveStoredCitizen({
+      id: 'cit-' + Date.now().toString(36),
+      email: cleanEmail,
+      username: cleanEmail.split('@')[0],
+      phone: cleanPhone,
+      name: cleanName,
+      full_name: cleanName,
+      password: userData.password,
+      role: 'citizen',
+      department: 'Citizen Community Network',
+      assignedZone: 'Bengaluru Metropolitan Area',
+      clearance: 'Verified Citizen Resident'
+    });
 
     try {
       sessionStorage.setItem('urbanpulse_pending_reg', JSON.stringify(pendingObj));
@@ -707,16 +743,43 @@ export function AuthProvider({ children }) {
   };
 
   /**
-   * Google OAuth Sign In
+   * Google OAuth / Firebase Sign In
    */
   const loginWithGoogle = async (customGoogleUser = null) => {
-    // 1. If Supabase is configured and no explicit custom override, trigger Google OAuth redirect
+    // 1. If Firebase is configured and no explicit custom override, invoke Firebase Google popup
+    if (!customGoogleUser && isFirebaseConfigured && firebaseAuth) {
+      try {
+        const result = await signInWithPopup(firebaseAuth, googleProvider);
+        if (result && result.user) {
+          const fbUser = result.user;
+          customGoogleUser = {
+            email: fbUser.email,
+            name: fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : 'Citizen Resident'),
+            full_name: fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : 'Citizen Resident'),
+            avatar_url: fbUser.photoURL,
+            google_id: fbUser.uid
+          };
+        }
+      } catch (fbErr) {
+        console.warn('[UrbanPulse Auth] Firebase Google Sign-In note:', fbErr);
+        if (fbErr.code === 'auth/popup-closed-by-user') {
+          throw new Error('Google sign-in popup was closed before completing.');
+        }
+      }
+    }
+
+    // 2. If Supabase is configured and no explicit custom override, trigger Google OAuth redirect
     if (isSupabaseConfigured && supabase.auth && !customGoogleUser) {
       try {
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            redirectTo: window.location.origin
+            redirectTo: window.location.origin,
+            queryParams: {
+              access_type: 'offline',
+              prompt: 'consent'
+            },
+            scopes: 'openid email profile'
           }
         });
         if (error) {
@@ -730,31 +793,23 @@ export function AuthProvider({ children }) {
       }
     }
 
-    let pending = null;
-    try {
-      const stored = sessionStorage.getItem('urbanpulse_pending_reg');
-      if (stored) pending = JSON.parse(stored);
-    } catch (e) {}
+    if (!customGoogleUser || !customGoogleUser.email) {
+      throw new Error('Please select or specify a Google account to sign in.');
+    }
 
-    const targetEmail = (
-      customGoogleUser?.email ||
-      pending?.email ||
-      'kaaysha.rao@gmail.com'
-    ).trim().toLowerCase();
-
+    const targetEmail = customGoogleUser.email.trim().toLowerCase();
     const targetName = (
-      customGoogleUser?.name ||
-      customGoogleUser?.full_name ||
-      pending?.name ||
-      (targetEmail.includes('@') ? targetEmail.split('@')[0].replace('.', ' ').replace(/(^\w|\s\w)/g, m => m.toUpperCase()) : 'Kaaysha Rao')
+      customGoogleUser.name ||
+      customGoogleUser.full_name ||
+      targetEmail.split('@')[0].replace('.', ' ').replace(/(^\w|\s\w)/g, m => m.toUpperCase())
     ).trim();
 
     const targetAvatar = (
-      customGoogleUser?.avatar_url ||
+      customGoogleUser.avatar_url ||
       `https://ui-avatars.com/api/?name=${encodeURIComponent(targetName)}&background=0D8ABC&color=fff&size=128`
     );
 
-    const targetGoogleId = customGoogleUser?.google_id || 'google-auth-' + Date.now().toString(36);
+    const targetGoogleId = customGoogleUser.google_id || 'google-auth-' + Date.now().toString(36);
 
     try {
       const res = await fetch(`${API_BASE}/auth/google`, {
@@ -801,6 +856,7 @@ export function AuthProvider({ children }) {
       setUser(authUser);
       setIsAuthenticated(true);
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(authUser));
+      saveStoredCitizen(authUser);
       return { success: true, user: authUser, role: authUser.role };
     } catch (netErr) {
       console.warn('[UrbanPulse Auth] Google login remote sync fallback:', netErr);
@@ -817,6 +873,7 @@ export function AuthProvider({ children }) {
       setUser(authUser);
       setIsAuthenticated(true);
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(authUser));
+      saveStoredCitizen(authUser);
       return { success: true, user: authUser, role: authUser.role };
     }
   };
@@ -847,6 +904,7 @@ export function AuthProvider({ children }) {
         setUser(authUser);
         setIsAuthenticated(true);
         localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(authUser));
+        saveStoredCitizen(authUser);
         return { success: true, user: authUser };
       }
       return data;
@@ -867,6 +925,9 @@ export function AuthProvider({ children }) {
     setIsAuthenticated(false);
     localStorage.removeItem(SESSION_STORAGE_KEY);
     localStorage.removeItem(LEGACY_STORAGE_KEY);
+    try {
+      sessionStorage.removeItem('urbanpulse_pending_reg');
+    } catch (e) {}
   };
 
   const openAuthModal = () => setIsAuthModalOpen(true);

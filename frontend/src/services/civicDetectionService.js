@@ -122,8 +122,8 @@ export const analyzeFramePixels = (imgData, category) => {
       detected: false,
       box: null,
       is_unsupported: true,
-      reason: `Model support is missing for '${category}'. Model currently supports: Potholes and broken roads, Road cracks and surface damage, Waterlogging and flooding, Garbage accumulation.`,
-      feedback: `Model support is missing for this category.`
+      reason: `Automated analysis is not available for '${category}'. Video accepted for manual officer review.`,
+      feedback: `No automated analysis available — video will be reviewed by a municipal officer.`
     };
   }
 
@@ -574,16 +574,15 @@ export const validateVideoEvidence = async (fileOrBlob, category, durationSec = 
     };
   }
 
-  // 2. Check model support for this category
+  // 2. Check model support for this category — unsupported categories pass for manual officer review
   if (normCat === 'unsupported') {
     return {
-      valid: false,
-      is_valid: false,
-      verdict: 'rejected',
-      error: 'Model support missing.',
-      reason: `Model support is missing for '${category}'. Model currently supports: Potholes and broken roads, Road cracks and surface damage, Waterlogging and flooding, Garbage accumulation.`,
-      guidance: 'Please select one of the supported civic issue categories.',
-      action: 'record_again'
+      valid: true,
+      is_valid: true,
+      verdict: 'needs_review',
+      reason: `Video evidence accepted for manual review. Automated analysis is not available for '${category}'; a municipal officer will inspect the footage.`,
+      guidance: 'Your video will be reviewed by a municipal officer.',
+      action: 'submit'
     };
   }
 

@@ -117,6 +117,7 @@ export default function FocusView({ timestamp: globalTimestamp }) {
   };
 
   // Fetch initial location list
+  // Fetch initial location list and trigger live analysis sync
   useEffect(() => {
     const fetchLocations = async () => {
       try {
@@ -125,11 +126,14 @@ export default function FocusView({ timestamp: globalTimestamp }) {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
             setLocationsList(data);
+            runFocusAnalysis(data[0].id, selectedFeatures);
+            return;
           }
         }
       } catch (e) {
         console.log("Locations fetch note:", e);
       }
+      runFocusAnalysis(selectedLocationId, selectedFeatures);
     };
     fetchLocations();
   }, []);
@@ -147,15 +151,23 @@ export default function FocusView({ timestamp: globalTimestamp }) {
         const data = await res.json();
         setFocusData(prev => ({
           ...prev,
+          ...data,
           situation: data.situation || prev.situation,
           severity: data.severity || prev.severity,
           confidence: data.confidence || prev.confidence,
           situation_summary: data.situation_summary || prev.situation_summary,
           key_issue: data.key_issue || prev.key_issue,
           key_issue_sub: data.key_issue_sub || prev.key_issue_sub,
-          attributions: data.why_result && data.why_result.length ? data.why_result : prev.attributions,
+          kpis: data.kpis || prev.kpis,
+          trends: data.trends || prev.trends,
+          trajectory: data.trajectory || prev.trajectory,
+          attributions: data.attributions || (data.why_result && data.why_result.length ? data.why_result : prev.attributions),
+          advisories: data.advisories || prev.advisories,
           impact_assessment: data.impact_assessment || prev.impact_assessment
         }));
+        if (data.timestamp) {
+          setLastUpdatedTime(data.timestamp);
+        }
       }
     } catch (e) {
       console.log("Focus analysis note:", e);
@@ -166,9 +178,6 @@ export default function FocusView({ timestamp: globalTimestamp }) {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    const now = new Date();
-    const formatted = `${now.getDate()} Oct ${now.getFullYear()}, ${now.toTimeString().split(' ')[0]}`;
-    setLastUpdatedTime(formatted);
     await runFocusAnalysis(selectedLocationId, selectedFeatures);
     setTimeout(() => {
       setIsRefreshing(false);
@@ -950,7 +959,7 @@ export default function FocusView({ timestamp: globalTimestamp }) {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#1E293B' }}>Traffic Volume <span style={{ fontSize: '0.65rem', color: '#94A3B8' }}>(veh/hr)</span></span>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#EF4444' }}>↑ 42%</span>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#EF4444' }}>{focusData.trends?.traffic_pct || '↑ 42%'}</span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'flex-start', height: 75 }}>
@@ -963,40 +972,38 @@ export default function FocusView({ timestamp: globalTimestamp }) {
 
                   {/* SVG Line / Area Chart */}
                   <div style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <svg viewBox="0 0 200 60" style={{ width: '100%', height: 60, overflow: 'visible' }}>
-                      <defs>
-                        <linearGradient id="trafficGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#EF4444" stopOpacity="0.35"/>
-                          <stop offset="100%" stopColor="#EF4444" stopOpacity="0.0"/>
-                        </linearGradient>
-                      </defs>
-                      {/* Grid horizontal guidelines */}
-                      <line x1="0" y1="5" x2="200" y2="5" stroke="#F1F5F9" strokeWidth="1"/>
-                      <line x1="0" y1="30" x2="200" y2="30" stroke="#F1F5F9" strokeWidth="1"/>
-                      <line x1="0" y1="55" x2="200" y2="55" stroke="#F1F5F9" strokeWidth="1"/>
-
-                      {/* Area Fill */}
-                      <path
-                        d="M 5 45 C 50 35, 90 20, 130 22 C 160 23, 180 18, 195 12 L 195 55 L 5 55 Z"
-                        fill="url(#trafficGradient)"
-                      />
-                      {/* Solid Line Curve */}
-                      <path
-                        d="M 5 45 C 50 35, 90 20, 130 22 C 160 23, 180 18, 195 12"
-                        fill="none"
-                        stroke="#EF4444"
-                        strokeWidth="2.2"
-                        strokeLinecap="round"
-                      />
-                    </svg>
+                    {(() => {
+                      const tv = focusData.trends?.traffic_volume || [3200, 4100, 5300, 6100, 6500];
+                      const maxV = 10000;
+                      const y0 = Math.round(55 - (tv[0] / maxV) * 48);
+                      const y1 = Math.round(55 - (tv[1] / maxV) * 48);
+                      const y2 = Math.round(55 - (tv[2] / maxV) * 48);
+                      const y3 = Math.round(55 - (tv[3] / maxV) * 48);
+                      const y4 = Math.round(55 - (tv[4] / maxV) * 48);
+                      const curvePath = `M 5 ${y0} C 45 ${y1}, 95 ${y2}, 145 ${y3} C 170 ${y3}, 185 ${y4}, 195 ${y4}`;
+                      const areaPath = `${curvePath} L 195 55 L 5 55 Z`;
+                      return (
+                        <svg viewBox="0 0 200 60" style={{ width: '100%', height: 60, overflow: 'visible' }}>
+                          <defs>
+                            <linearGradient id="trafficGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#EF4444" stopOpacity="0.35"/>
+                              <stop offset="100%" stopColor="#EF4444" stopOpacity="0.0"/>
+                            </linearGradient>
+                          </defs>
+                          <line x1="0" y1="5" x2="200" y2="5" stroke="#F1F5F9" strokeWidth="1"/>
+                          <line x1="0" y1="30" x2="200" y2="30" stroke="#F1F5F9" strokeWidth="1"/>
+                          <line x1="0" y1="55" x2="200" y2="55" stroke="#F1F5F9" strokeWidth="1"/>
+                          <path d={areaPath} fill="url(#trafficGradient)" />
+                          <path d={curvePath} fill="none" stroke="#EF4444" strokeWidth="2.2" strokeLinecap="round" />
+                        </svg>
+                      );
+                    })()}
 
                     {/* X-axis Timestamps */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: '#94A3B8', fontWeight: 500, marginTop: '2px' }}>
-                      <span>12:30</span>
-                      <span>13:00</span>
-                      <span>13:30</span>
-                      <span>14:00</span>
-                      <span>14:30</span>
+                      {(focusData.trends?.timestamps || ['12:30', '13:00', '13:30', '14:00', '14:30']).map((t, idx) => (
+                        <span key={idx}>{t}</span>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -1006,7 +1013,7 @@ export default function FocusView({ timestamp: globalTimestamp }) {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#1E293B' }}>Crowd Density <span style={{ fontSize: '0.65rem', color: '#94A3B8' }}>(people/km²)</span></span>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#2563EB' }}>↑ 22%</span>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#2563EB' }}>{focusData.trends?.crowd_pct || '↑ 22%'}</span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'flex-start', height: 75 }}>
@@ -1019,40 +1026,38 @@ export default function FocusView({ timestamp: globalTimestamp }) {
 
                   {/* SVG Line / Area Chart */}
                   <div style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <svg viewBox="0 0 200 60" style={{ width: '100%', height: 60, overflow: 'visible' }}>
-                      <defs>
-                        <linearGradient id="crowdGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#2563EB" stopOpacity="0.3"/>
-                          <stop offset="100%" stopColor="#2563EB" stopOpacity="0.0"/>
-                        </linearGradient>
-                      </defs>
-                      {/* Grid guidelines */}
-                      <line x1="0" y1="5" x2="200" y2="5" stroke="#F1F5F9" strokeWidth="1"/>
-                      <line x1="0" y1="30" x2="200" y2="30" stroke="#F1F5F9" strokeWidth="1"/>
-                      <line x1="0" y1="55" x2="200" y2="55" stroke="#F1F5F9" strokeWidth="1"/>
-
-                      {/* Area Fill */}
-                      <path
-                        d="M 5 44 C 45 38, 90 28, 130 18 C 160 22, 180 18, 195 14 L 195 55 L 5 55 Z"
-                        fill="url(#crowdGradient)"
-                      />
-                      {/* Solid Line Curve */}
-                      <path
-                        d="M 5 44 C 45 38, 90 28, 130 18 C 160 22, 180 18, 195 14"
-                        fill="none"
-                        stroke="#2563EB"
-                        strokeWidth="2.2"
-                        strokeLinecap="round"
-                      />
-                    </svg>
+                    {(() => {
+                      const cv = focusData.trends?.crowd_density || [310, 380, 440, 490, 520];
+                      const maxC = 800;
+                      const y0 = Math.round(55 - (cv[0] / maxC) * 48);
+                      const y1 = Math.round(55 - (cv[1] / maxC) * 48);
+                      const y2 = Math.round(55 - (cv[2] / maxC) * 48);
+                      const y3 = Math.round(55 - (cv[3] / maxC) * 48);
+                      const y4 = Math.round(55 - (cv[4] / maxC) * 48);
+                      const curvePath = `M 5 ${y0} C 45 ${y1}, 95 ${y2}, 145 ${y3} C 170 ${y3}, 185 ${y4}, 195 ${y4}`;
+                      const areaPath = `${curvePath} L 195 55 L 5 55 Z`;
+                      return (
+                        <svg viewBox="0 0 200 60" style={{ width: '100%', height: 60, overflow: 'visible' }}>
+                          <defs>
+                            <linearGradient id="crowdGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#2563EB" stopOpacity="0.3"/>
+                              <stop offset="100%" stopColor="#2563EB" stopOpacity="0.0"/>
+                            </linearGradient>
+                          </defs>
+                          <line x1="0" y1="5" x2="200" y2="5" stroke="#F1F5F9" strokeWidth="1"/>
+                          <line x1="0" y1="30" x2="200" y2="30" stroke="#F1F5F9" strokeWidth="1"/>
+                          <line x1="0" y1="55" x2="200" y2="55" stroke="#F1F5F9" strokeWidth="1"/>
+                          <path d={areaPath} fill="url(#crowdGradient)" />
+                          <path d={curvePath} fill="none" stroke="#2563EB" strokeWidth="2.2" strokeLinecap="round" />
+                        </svg>
+                      );
+                    })()}
 
                     {/* X-axis Timestamps */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: '#94A3B8', fontWeight: 500, marginTop: '2px' }}>
-                      <span>12:30</span>
-                      <span>13:00</span>
-                      <span>13:30</span>
-                      <span>14:00</span>
-                      <span>14:30</span>
+                      {(focusData.trends?.timestamps || ['12:30', '13:00', '13:30', '14:00', '14:30']).map((t, idx) => (
+                        <span key={idx}>{t}</span>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -1062,7 +1067,7 @@ export default function FocusView({ timestamp: globalTimestamp }) {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#1E293B' }}>Rainfall <span style={{ fontSize: '0.65rem', color: '#94A3B8' }}>(mm)</span></span>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#16A34A' }}>3.2 mm</span>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#16A34A' }}>{focusData.trends?.rainfall_mm || '3.2 mm'}</span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'flex-start', height: 75 }}>
@@ -1075,27 +1080,31 @@ export default function FocusView({ timestamp: globalTimestamp }) {
 
                   {/* SVG Bar Chart */}
                   <div style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <svg viewBox="0 0 200 60" style={{ width: '100%', height: 60, overflow: 'visible' }}>
-                      {/* Grid guidelines */}
-                      <line x1="0" y1="5" x2="200" y2="5" stroke="#F1F5F9" strokeWidth="1"/>
-                      <line x1="0" y1="30" x2="200" y2="30" stroke="#F1F5F9" strokeWidth="1"/>
-                      <line x1="0" y1="55" x2="200" y2="55" stroke="#F1F5F9" strokeWidth="1"/>
-
-                      {/* 5 Vertical Bars */}
-                      <rect x="24" y="55" width="8" height="0" fill="#10B981" rx="2" />
-                      <rect x="64" y="32" width="8" height="23" fill="#10B981" rx="2" />
-                      <rect x="104" y="20" width="8" height="35" fill="#10B981" rx="2" />
-                      <rect x="144" y="10" width="8" height="45" fill="#10B981" rx="2" />
-                      <rect x="180" y="26" width="8" height="29" fill="#10B981" rx="2" />
-                    </svg>
+                    {(() => {
+                      const rv = focusData.trends?.rainfall || [1.0, 2.4, 3.8, 3.2, 2.4];
+                      const maxR = 6.0;
+                      const xs = [24, 64, 104, 144, 180];
+                      return (
+                        <svg viewBox="0 0 200 60" style={{ width: '100%', height: 60, overflow: 'visible' }}>
+                          <line x1="0" y1="5" x2="200" y2="5" stroke="#F1F5F9" strokeWidth="1"/>
+                          <line x1="0" y1="30" x2="200" y2="30" stroke="#F1F5F9" strokeWidth="1"/>
+                          <line x1="0" y1="55" x2="200" y2="55" stroke="#F1F5F9" strokeWidth="1"/>
+                          {rv.map((r, idx) => {
+                            const h = Math.min(50, Math.max(2, (r / maxR) * 50));
+                            const y = 55 - h;
+                            return (
+                              <rect key={idx} x={xs[idx]} y={y} width="8" height={h} fill="#10B981" rx="2" />
+                            );
+                          })}
+                        </svg>
+                      );
+                    })()}
 
                     {/* X-axis Timestamps */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: '#94A3B8', fontWeight: 500, marginTop: '2px' }}>
-                      <span>12:30</span>
-                      <span>13:00</span>
-                      <span>13:30</span>
-                      <span>14:00</span>
-                      <span>14:30</span>
+                      {(focusData.trends?.timestamps || ['12:30', '13:00', '13:30', '14:00', '14:30']).map((t, idx) => (
+                        <span key={idx}>{t}</span>
+                      ))}
                     </div>
                   </div>
                 </div>

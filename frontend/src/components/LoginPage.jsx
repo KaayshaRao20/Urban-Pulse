@@ -66,9 +66,13 @@ export default function LoginPage({
   const [resetDevToken, setResetDevToken] = useState('');
 
   // Google Linking Fields
+  // Google Linking & Selection Modal Fields
   const [linkEmail, setLinkEmail] = useState('');
   const [linkGoogleId, setLinkGoogleId] = useState('');
   const [linkPassword, setLinkPassword] = useState('');
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [googleCustomEmail, setGoogleCustomEmail] = useState('');
+  const [googleCustomName, setGoogleCustomName] = useState('');
 
   // UI States
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -320,18 +324,17 @@ export default function LoginPage({
   // ---------------------------------------------------------------------------
   // 5. Google Authentication
   // ---------------------------------------------------------------------------
-  const handleGoogleSignIn = async () => {
+  const executeGoogleLogin = async (googleAccount) => {
     clearMessages();
     setIsSubmitting(true);
+    setShowGoogleModal(false);
 
     try {
-      const typedEmail = (identifier.includes('@') ? identifier.trim() : (regEmail.includes('@') ? regEmail.trim() : null));
-      const targetUser = typedEmail ? {
-        email: typedEmail,
-        name: regFullName.trim() || typedEmail.split('@')[0].replace('.', ' ').replace(/(^\w|\s\w)/g, m => m.toUpperCase())
-      } : null;
+      if (!googleAccount || !googleAccount.email) {
+        throw new Error('Please select or specify a Google account.');
+      }
 
-      const res = await loginWithGoogle(targetUser);
+      const res = await loginWithGoogle(googleAccount);
       if (res && res.redirecting) {
         return;
       }
@@ -348,6 +351,17 @@ export default function LoginPage({
       setErrorMessage(err.message || 'Google sign-in could not be completed.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = () => {
+    clearMessages();
+    const typedEmail = (identifier.includes('@') ? identifier.trim() : (regEmail.includes('@') ? regEmail.trim() : null));
+    if (typedEmail) {
+      const name = regFullName.trim() || typedEmail.split('@')[0].replace('.', ' ').replace(/(^\w|\s\w)/g, m => m.toUpperCase());
+      executeGoogleLogin({ email: typedEmail, name });
+    } else {
+      setShowGoogleModal(true);
     }
   };
 
@@ -1429,6 +1443,224 @@ export default function LoginPage({
             </defs>
           </svg>
         </div>
+
+        {/* Interactive Google OAuth Account Chooser Modal */}
+        {showGoogleModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(5px)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px'
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowGoogleModal(false);
+            }}
+          >
+            <div
+              style={{
+                background: '#FFFFFF',
+                borderRadius: '16px',
+                width: '100%',
+                maxWidth: '440px',
+                boxShadow: '0 20px 45px rgba(0, 0, 0, 0.22)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              {/* Modal Header */}
+              <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid #F1F5F9', position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                  <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.05h3.9c2.28-2.1 3.64-5.2 3.64-9.14z"/>
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.9-3.05c-1.08.72-2.45 1.16-4.03 1.16-3.1 0-5.73-2.1-6.67-4.92H1.27v3.13C3.25 21.3 7.34 24 12 24z"/>
+                    <path fill="#FBBC05" d="M5.33 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28V6.59H1.27C.46 8.21 0 10.05 0 12s.46 3.79 1.27 5.41l4.06-3.13z"/>
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.25 2.7 1.27 6.59l4.06 3.13c.94-2.82 3.57-4.97 6.67-4.97z"/>
+                  </svg>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0F172A' }}>
+                    Sign in with Google
+                  </h3>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748B' }}>
+                  Choose a Google account to continue to <strong>UrbanPulse</strong>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowGoogleModal(false)}
+                  style={{
+                    position: 'absolute',
+                    top: '20px',
+                    right: '20px',
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '1.2rem',
+                    color: '#94A3B8',
+                    cursor: 'pointer',
+                    padding: '4px'
+                  }}
+                  aria-label="Close modal"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Account List */}
+              <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {[
+                  {
+                    name: 'Priya Sharma',
+                    email: 'priya.sharma@gmail.com',
+                    badge: 'Verified Resident',
+                    bg: '#0284C7'
+                  },
+                  {
+                    name: 'Rahul Verma',
+                    email: 'rahul.verma@gmail.com',
+                    badge: 'Ward 150 Resident',
+                    bg: '#059669'
+                  },
+                  {
+                    name: 'Aarav Patel',
+                    email: 'aarav.patel@gmail.com',
+                    badge: 'Indiranagar Resident',
+                    bg: '#7C3AED'
+                  }
+                ].map((acc) => (
+                  <button
+                    key={acc.email}
+                    type="button"
+                    onClick={() => executeGoogleLogin({ email: acc.email, name: acc.name, full_name: acc.name, google_id: 'google-sub-' + acc.email.split('@')[0] })}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid #E2E8F0',
+                      background: '#FFFFFF',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#F8FAFC';
+                      e.currentTarget.style.borderColor = '#CBD5E1';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#FFFFFF';
+                      e.currentTarget.style.borderColor = '#E2E8F0';
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        background: acc.bg,
+                        color: '#FFFFFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        fontSize: '0.95rem'
+                      }}
+                    >
+                      {acc.name.charAt(0)}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#0F172A' }}>{acc.name}</div>
+                      <div style={{ fontSize: '0.76rem', color: '#64748B' }}>{acc.email}</div>
+                    </div>
+                    <span style={{ fontSize: '0.68rem', background: '#F1F5F9', color: '#475569', padding: '3px 7px', borderRadius: '4px', fontWeight: 500 }}>
+                      {acc.badge}
+                    </span>
+                  </button>
+                ))}
+
+                {/* Use Another Google Account Section */}
+                <div style={{ marginTop: '8px', paddingTop: '12px', borderTop: '1px solid #F1F5F9' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>
+                    Or use another Google account:
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="Your Full Name (e.g. Vikram Malhotra)"
+                      value={googleCustomName}
+                      onChange={(e) => setGoogleCustomName(e.target.value)}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #CBD5E1',
+                        fontSize: '0.82rem'
+                      }}
+                    />
+                    <input
+                      type="email"
+                      placeholder="Your Google Email (e.g. vikram@gmail.com)"
+                      value={googleCustomEmail}
+                      onChange={(e) => setGoogleCustomEmail(e.target.value)}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #CBD5E1',
+                        fontSize: '0.82rem'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={!googleCustomEmail.trim() || !googleCustomEmail.includes('@')}
+                      onClick={() => {
+                        const cleanEmail = googleCustomEmail.trim().toLowerCase();
+                        const name = googleCustomName.trim() || cleanEmail.split('@')[0].replace('.', ' ').replace(/(^\w|\s\w)/g, m => m.toUpperCase());
+                        executeGoogleLogin({ email: cleanEmail, name: name, full_name: name, google_id: 'google-sub-' + cleanEmail.split('@')[0] });
+                      }}
+                      style={{
+                        padding: '9px 14px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: '#2563EB',
+                        color: '#FFFFFF',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        cursor: (!googleCustomEmail.trim() || !googleCustomEmail.includes('@')) ? 'not-allowed' : 'pointer',
+                        opacity: (!googleCustomEmail.trim() || !googleCustomEmail.includes('@')) ? 0.6 : 1
+                      }}
+                    >
+                      Continue with this Google Account →
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div style={{ padding: '12px 24px', background: '#F8FAFC', borderTop: '1px solid #F1F5F9', display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowGoogleModal(false)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid #CBD5E1',
+                    background: '#FFFFFF',
+                    color: '#475569',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

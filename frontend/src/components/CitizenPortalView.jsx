@@ -175,11 +175,17 @@ export default function CitizenPortalView({
 
   useEffect(() => {
     if (user) {
-      if (user.name || user.full_name) setCitizenName(user.name || user.full_name);
-      if (user.email) setCitizenEmail(user.email);
-      if (user.phone) setCitizenPhone(user.phone);
-      if (user.zone || user.assignedZone) setWardZone(user.zone || user.assignedZone);
-      if (user.address) setLandmarkAddress(user.address);
+      setCitizenName(user.name || user.full_name || 'Citizen Resident');
+      setCitizenEmail(user.email || '');
+      setCitizenPhone(user.phone || '');
+      setWardZone(user.zone || user.assignedZone || 'East Zone (Mahadevapura / Indiranagar)');
+      setLandmarkAddress(user.address || '');
+    } else {
+      setCitizenName('Citizen Resident');
+      setCitizenEmail('');
+      setCitizenPhone('');
+      setWardZone('East Zone (Mahadevapura / Indiranagar)');
+      setLandmarkAddress('');
     }
   }, [user]);
 
@@ -335,31 +341,6 @@ export default function CitizenPortalView({
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2">
           <path d="M2 12c2.5 0 2.5-3 5-3s2.5 3 5 3 2.5-3 5-3 2.5 3 5 3" />
           <path d="M2 17c2.5 0 2.5-3 5-3s2.5 3 5 3 2.5-3 5-3 2.5 3 5 3" />
-        </svg>
-      )
-    },
-    {
-      id: 'Streetlight Failure',
-      label: t('categories.streetlight.label', 'Streetlight Failure'),
-      desc: t('categories.streetlight.desc', 'Non-working streetlights, dark stretches, flickering lamps, and damaged poles'),
-      dept: t('categories.streetlight.dept', 'BESCOM Electrical Infrastructure'),
-      icon: (
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2">
-          <path d="M9 18h6M10 22h4" />
-          <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" />
-        </svg>
-      )
-    },
-    {
-      id: 'Traffic Hazard',
-      label: t('categories.traffic.label', 'Traffic Hazard'),
-      desc: t('categories.traffic.desc', 'Broken traffic signals, fallen trees, road blockages, and missing signs'),
-      dept: t('categories.traffic.dept', 'Bengaluru Traffic Police (BTP)'),
-      icon: (
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-          <line x1="12" y1="9" x2="12" y2="13" />
-          <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
       )
     },
@@ -3799,10 +3780,10 @@ export default function CitizenPortalView({
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--card-border, #E2E8F0)', paddingTop: 8 }}>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-title, #0F172A)' }}>
-                    080-22221188
+                    1533 / 080-22221188
                   </div>
-                  <a href="tel:08022221188" style={{ background: '#2563EB', color: '#FFFFFF', padding: '6px 14px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none' }}>
-                    {t('emergency.callDispatch', 'Call Dispatch')}
+                  <a href="tel:1533" style={{ background: '#2563EB', color: '#FFFFFF', padding: '6px 14px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none' }}>
+                    {t('emergency.callDispatch', 'Call 1533')}
                   </a>
                 </div>
               </div>
@@ -4255,7 +4236,7 @@ export default function CitizenPortalView({
                       value={citizenName}
                       onChange={(e) => setCitizenName(e.target.value)}
                       className="citizen-input"
-                      placeholder="e.g. Kaaysha Rao"
+                      placeholder="e.g. Priya Sharma"
                     />
                   </div>
 

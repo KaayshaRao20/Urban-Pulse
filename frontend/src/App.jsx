@@ -200,6 +200,7 @@ function AppContent() {
         <div className="citizen-full-shell">
           <ErrorBoundary>
             <CitizenPortalView
+              key={user?.id || user?.email || 'citizen-portal'}
               isAuthenticated={isAuthenticated}
               officer={officer}
               user={user}
