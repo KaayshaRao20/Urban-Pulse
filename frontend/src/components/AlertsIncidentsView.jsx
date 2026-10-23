@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { API_BASE } from '../config/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function AlertsIncidentsView({ onCriticalCountChange }) {
+  const { user } = useAuth();
+  const currentOfficerName = user?.name || user?.full_name || 'Duty Commander (City 01)';
+
   // --- Core State ---
   const [alerts, setAlerts] = useState([]);
   const [summary, setSummary] = useState({
@@ -10,6 +14,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
     moderate: 18,
     low: 9,
     total_active: 44,
+    total_resolved: 0,
     timestamp: '20 Oct 2026 17:02:40',
     is_live: true
   });
@@ -38,6 +43,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
   }, []);
 
   // --- Filter State ---
+  const [filterStatus, setFilterStatus] = useState('active'); // 'active', 'acknowledged', 'resolved', 'all'
   const [filterType, setFilterType] = useState('all');
   const [filterSeverity, setFilterSeverity] = useState('all');
   const [filterLocation, setFilterLocation] = useState('all');
@@ -137,6 +143,17 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
   // --- Filtered and Sorted Alerts ---
   const filteredAlerts = useMemo(() => {
     return alerts.filter(alert => {
+      // Status Filter
+      if (filterStatus === 'active' && alert.status === 'Resolved') {
+        return false;
+      }
+      if (filterStatus === 'resolved' && alert.status !== 'Resolved') {
+        return false;
+      }
+      if (filterStatus === 'acknowledged' && alert.status !== 'Acknowledged') {
+        return false;
+      }
+
       // Severity Filter
       if (filterSeverity !== 'all' && alert.severity?.toLowerCase() !== filterSeverity.toLowerCase()) {
         return false;
@@ -175,7 +192,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
       // Default: Latest First (matches seeded order)
       return 0;
     });
-  }, [alerts, filterSeverity, filterType, filterLocation, searchQuery, sortBy]);
+  }, [alerts, filterStatus, filterSeverity, filterType, filterLocation, searchQuery, sortBy]);
 
   // Selected Alert Object
   const selectedAlert = useMemo(() => {
@@ -193,11 +210,12 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
       const res = await fetch(`${API_BASE}/alerts/${alertId}/acknowledge`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user: 'Admin (Kaaysha Rao)' })
+        body: JSON.stringify({ user: currentOfficerName })
       });
       if (res.ok) {
         const data = await res.json();
         setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, ...data.alert } : a));
+        fetchAlertsData(false);
         showToast('Alert acknowledged successfully.');
       }
     } catch (e) {
@@ -210,12 +228,13 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
       const res = await fetch(`${API_BASE}/alerts/${alertId}/resolve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user: 'Admin (Kaaysha Rao)' })
+        body: JSON.stringify({ user: currentOfficerName })
       });
       if (res.ok) {
         const data = await res.json();
         setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, ...data.alert } : a));
-        showToast('Alert marked as resolved and closed.');
+        fetchAlertsData(false);
+        showToast(`Alert #${alertId} marked as resolved and closed.`);
       }
     } catch (e) {
       showToast('Failed to resolve alert.');
@@ -277,7 +296,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user: 'Admin (Kaaysha Rao)',
+          user: currentOfficerName,
           comment: commentText.trim()
         })
       });
@@ -735,6 +754,28 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
 
         {/* Header Right Filters & Toggle Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Status Filter */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            style={{
+              padding: '6px 12px',
+              border: '1px solid #CBD5E1',
+              borderRadius: '8px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              color: filterStatus === 'resolved' ? '#047857' : (filterStatus === 'acknowledged' ? '#1D4ED8' : '#0F172A'),
+              background: filterStatus === 'resolved' ? '#ECFDF5' : (filterStatus === 'acknowledged' ? '#EFF6FF' : '#F8FAFC'),
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="active">Active Incidents ({summary.total_active || 0})</option>
+            <option value="acknowledged">Acknowledged</option>
+            <option value="resolved">Resolved / Closed ({summary.total_resolved || 0})</option>
+            <option value="all">All Incidents</option>
+          </select>
+
           {/* Type Filter */}
           <select
             value={filterType}
@@ -836,6 +877,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
           {/* Filter Adjustment Button */}
           <button
             onClick={() => {
+              setFilterStatus('active');
               setFilterType('all');
               setFilterSeverity('all');
               setFilterLocation('all');

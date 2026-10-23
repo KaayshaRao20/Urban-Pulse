@@ -2150,7 +2150,8 @@ def sync_alerts_from_db():
                 }
                 merged_list.append(alert_dict)
             if merged_list:
-                ALERTS_DATA = merged_list
+                ALERTS_DATA.clear()
+                ALERTS_DATA.extend(merged_list)
                 print(f"[Alerts Engine] Loaded {len(merged_list)} alerts from database.")
         db.close()
         _ALERTS_INITIALIZED = True
@@ -2162,6 +2163,7 @@ def get_alerts(
     alert_type: Optional[str] = Query(None),
     severity: Optional[str] = Query(None),
     location: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
     time_range: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     sort: Optional[str] = Query("latest")
@@ -2172,6 +2174,17 @@ def get_alerts(
     """
     sync_alerts_from_db()
     results = [a for a in ALERTS_DATA if a.get("status") != "Expired"]
+
+    # Filter by Status
+    if status and status.lower() not in ["all", "all statuses"]:
+        if status.lower() in ["active", "active incidents"]:
+            results = [a for a in results if a.get("status") in ["Active", "Acknowledged"]]
+        elif status.lower() == "acknowledged":
+            results = [a for a in results if a.get("status") == "Acknowledged"]
+        elif status.lower() == "resolved":
+            results = [a for a in results if a.get("status") == "Resolved"]
+        else:
+            results = [a for a in results if a.get("status", "").lower() == status.lower()]
 
     # Filter by Severity
     if severity and severity.lower() not in ["all", "all severity"]:
@@ -2216,9 +2229,10 @@ def get_alerts(
 def get_alerts_summary():
     """
     Returns live aggregate counts for the top summary cards:
-    Critical, High, Moderate, Low, Total Active.
+    Critical, High, Moderate, Low, Total Active, Total Resolved.
     """
     active = [a for a in ALERTS_DATA if a.get("status") in ["Active", "Acknowledged"]]
+    resolved_count = len([a for a in ALERTS_DATA if a.get("status") == "Resolved"])
     critical_count = len([a for a in active if a.get("severity") == "Critical"])
     high_count = len([a for a in active if a.get("severity") == "High"])
     moderate_count = len([a for a in active if a.get("severity") == "Moderate"])
@@ -2231,6 +2245,7 @@ def get_alerts_summary():
         "moderate": moderate_count,
         "low": low_count,
         "total_active": total_active,
+        "total_resolved": resolved_count,
         "latest_critical_id": LATEST_CRITICAL_ALERT_ID,
         "latest_critical_timestamp": LATEST_CRITICAL_TIMESTAMP,
         "timestamp": datetime.now().strftime("%d %b %Y %H:%M:%S"),

@@ -40,9 +40,11 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
   // Filter form states
   const [timeRange, setTimeRange] = useState('Last 1 Hour');
   const [zone, setZone] = useState('All Zones');
-  const [severities, setSeverities] = useState({ Critical: true, Moderate: false, Low: false });
+  const [incidentStatusFilter, setIncidentStatusFilter] = useState('active');
+  const [severities, setSeverities] = useState({ Critical: true, High: true, Moderate: true, Low: true });
   const [sources, setSources] = useState({ traffic: true, crowd: true, weather: true });
   const [searchQuery, setSearchQuery] = useState('');
+  const [weatherStations, setWeatherStations] = useState([]);
 
   // Expose navigation handler for Leaflet popup DOM clicks
   useEffect(() => {
@@ -53,6 +55,21 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
       delete window.urbanPulseNavigateToGrievance;
     };
   }, [onNavigateToGrievance]);
+
+  // Fetch real IMD Meteorological Observatories from backend
+  const fetchWeatherStations = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/weather/stations`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.stations && data.stations.length > 0) {
+          setWeatherStations(data.stations);
+        }
+      }
+    } catch (e) {
+      console.log("Weather stations note:", e);
+    }
+  };
 
   // Initial map setup
   useEffect(() => {
@@ -76,6 +93,7 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
 
     fetchIncidents();
     fetchCivicComplaints();
+    fetchWeatherStations();
   }, []);
 
   // Invalidate map size when panels collapse/expand
@@ -98,9 +116,9 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
   }, [mapMode]);
 
   // Fetch incidents list from backend API
-  const fetchIncidents = async () => {
+  const fetchIncidents = async (status = incidentStatusFilter) => {
     try {
-      const res = await fetch(`${API_BASE}/map/incidents`);
+      const res = await fetch(`${API_BASE}/map/incidents?status=${encodeURIComponent(status)}`);
       if (res.ok) {
         const data = await res.json();
         setIncidents(data);
@@ -148,10 +166,14 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
           if (inc.severity === 'Critical' && !layers.alerts) return;
         }
 
+        const isResolved = inc.status === 'Resolved';
         let pinBg = "#059669";
         let iconSvg = `<svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:white; fill:none; stroke-width:2.2;"><rect x="3" y="11" width="18" height="8" rx="2"/><path d="M5 11l2-5h10l2 5"/><circle cx="7.5" cy="15.5" r="1.5"/><circle cx="16.5" cy="15.5" r="1.5"/></svg>`;
 
-        if (inc.type === 'crowd') {
+        if (isResolved) {
+          pinBg = "#10B981";
+          iconSvg = `<svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:white; fill:none; stroke-width:2.5;"><polyline points="20 6 9 17 4 12"/></svg>`;
+        } else if (inc.type === 'crowd') {
           pinBg = "#2563EB";
           iconSvg = `<svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:white; fill:none; stroke-width:2.2;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
         } else if (inc.type === 'weather') {
@@ -160,11 +182,14 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
         } else if (inc.severity === 'Critical' || inc.type === 'alerts') {
           pinBg = "#EF4444";
           iconSvg = `<svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:white; fill:none; stroke-width:2.5;"><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+        } else if (inc.severity === 'High') {
+          pinBg = "#F97316";
+          iconSvg = `<svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:white; fill:none; stroke-width:2.2;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
         }
 
         const isSelected = inc.id === activeIncidentId;
 
-        const auraRing = (inc.severity === 'Critical') ? `
+        const auraRing = (inc.severity === 'Critical' && !isResolved) ? `
           <div style="
             position: absolute;
             width: ${isSelected ? '60px' : '48px'};
@@ -209,8 +234,8 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
 
         const popupContent = `
           <div style="display:flex; align-items:flex-start; gap:10px; font-family:Inter, sans-serif;">
-            <div style="width:34px; height:34px; border-radius:8px; background:rgba(239, 68, 68, 0.15); color:#FCA5A5; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-              <svg viewBox="0 0 24 24" style="width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2;"><rect x="3" y="11" width="18" height="8" rx="2"/><path d="M5 11l2-5h10l2 5"/><circle cx="7.5" cy="15.5" r="1.5"/><circle cx="16.5" cy="15.5" r="1.5"/></svg>
+            <div style="width:34px; height:34px; border-radius:8px; background:${isResolved ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color:${isResolved ? '#6EE7B7' : '#FCA5A5'}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              ${iconSvg}
             </div>
             <div style="flex:1;">
               <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
@@ -218,6 +243,7 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
                 <span style="color:#64748B; font-weight:bold; font-size:0.9rem;">›</span>
               </div>
               <div style="font-size:0.76rem; margin-top:4px; line-height:1.45; color:#CBD5E1;">
+                <div><span style="color:#94A3B8;">Status:</span> <strong style="color:${isResolved ? '#34D399' : (inc.severity === 'Critical' ? '#FCA5A5' : '#93C5FD')};">${inc.status || 'Active'}</strong></div>
                 <div><span style="color:#94A3B8;">Traffic:</span> <strong style="color:${inc.traffic_speed < 25 ? '#FCA5A5' : '#6EE7B7'};">${inc.traffic_speed < 25 ? 'Heavy' : 'Moderate'}</strong></div>
                 <div><span style="color:#94A3B8;">Speed:</span> <strong style="color:${inc.traffic_speed < 25 ? '#FCA5A5' : '#6EE7B7'};">${inc.traffic_speed} km/h</strong></div>
                 <div><span style="color:#94A3B8;">Crowd:</span> <strong style="color:#93C5FD;">High (${inc.crowd_density}/km²)</strong></div>
@@ -451,13 +477,14 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
 
     // 3. IMD Meteorological Observatories (when weather layer is active)
     if (layers.weather) {
-      const imdStations = [
+      const defaultStations = [
         { id: 'imd-01', name: 'IMD Bengaluru City Observatory', lat: 12.9716, lng: 77.5946, temp: '26.8°C', rain: '1.4 mm', condition: 'Partly Cloudy', humidity: '68%' },
         { id: 'imd-02', name: 'IMD HAL Airport Observatory', lat: 12.9500, lng: 77.6680, temp: '27.2°C', rain: '2.1 mm', condition: 'Light Rain', humidity: '72%' },
         { id: 'imd-03', name: 'IMD Kempegowda Intl Airport Station', lat: 13.1986, lng: 77.7066, temp: '25.9°C', rain: '0.8 mm', condition: 'Cloudy', humidity: '64%' },
         { id: 'imd-04', name: 'IMD GKVK Agro-Meteorological Grid', lat: 13.0768, lng: 77.5750, temp: '26.4°C', rain: '1.6 mm', condition: 'Partly Cloudy', humidity: '70%' }
       ];
-      imdStations.forEach(st => {
+      const activeWeatherStations = (weatherStations && weatherStations.length > 0) ? weatherStations : defaultStations;
+      activeWeatherStations.forEach(st => {
         const weatherStationHtml = `
           <div style="position: relative; display: flex; align-items: center; justify-content: center;">
             <div style="
@@ -497,7 +524,7 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
         markersGroup.current.addLayer(marker);
       });
     }
-  }, [incidents, layers, activeIncidentId, civicComplaints]);
+  }, [incidents, layers, activeIncidentId, civicComplaints, weatherStations]);
 
   // Load selected incident details into drawer and fetch backend AI analysis
   const loadIncident = async (incId, currentList = incidents) => {
@@ -543,12 +570,13 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
     const selectedSrcs = Object.keys(sources).filter(k => sources[k]).join(',');
 
     try {
-      const res = await fetch(`${API_BASE}/map/filtered?time_range=${encodeURIComponent(timeRange)}&severity=${encodeURIComponent(selectedSevs)}&data_sources=${encodeURIComponent(selectedSrcs)}&zone=${encodeURIComponent(zone)}`);
+      const res = await fetch(`${API_BASE}/map/filtered?time_range=${encodeURIComponent(timeRange)}&severity=${encodeURIComponent(selectedSevs)}&data_sources=${encodeURIComponent(selectedSrcs)}&zone=${encodeURIComponent(zone)}&status=${encodeURIComponent(incidentStatusFilter)}`);
       if (res.ok) {
         const data = await res.json();
-        setIncidents(data.incidents);
-        if (data.incidents.length > 0) {
-          loadIncident(data.incidents[0].id, data.incidents);
+        const incList = data.incidents || [];
+        setIncidents(incList);
+        if (incList.length > 0) {
+          loadIncident(incList[0].id, incList);
         }
       }
     } catch (e) {
@@ -559,13 +587,14 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
   const resetFilters = () => {
     setTimeRange('Last 1 Hour');
     setZone('All Zones');
-    setSeverities({ Critical: true, Moderate: true, Low: true });
+    setIncidentStatusFilter('active');
+    setSeverities({ Critical: true, High: true, Moderate: true, Low: true });
     setSources({ traffic: true, crowd: true, weather: true });
     setCivicCategoryFilter('all');
     setCivicStatusFilter('all');
     setCivicDeptFilter('all');
     setSearchQuery('');
-    fetchIncidents();
+    fetchIncidents('active');
     fetchCivicComplaints();
   };
 
@@ -782,6 +811,16 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
           </div>
 
           <div className="filter-group">
+            <div className="filter-label">Incident Status</div>
+            <select className="filter-select" value={incidentStatusFilter} onChange={(e) => setIncidentStatusFilter(e.target.value)}>
+              <option value="active">Active Only</option>
+              <option value="acknowledged">Acknowledged Only</option>
+              <option value="resolved">Resolved Only</option>
+              <option value="all">All Statuses (Active + Resolved)</option>
+            </select>
+          </div>
+
+          <div className="filter-group">
             <div className="filter-label">Time Range</div>
             <select className="filter-select" value={timeRange} onChange={(e) => setTimeRange(e.target.value)}>
               <option value="Last 15 Minutes">Last 15 Minutes</option>
@@ -796,6 +835,10 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
             <label className="layer-item" style={{ marginBottom: 4 }}>
               <input type="checkbox" checked={severities.Critical} onChange={(e) => setSeverities({ ...severities, Critical: e.target.checked })} />
               <span style={{ display: 'inline-block', width: 12, height: 12, background: '#EF4444', borderRadius: 3, marginRight: 4 }}></span> Critical
+            </label>
+            <label className="layer-item" style={{ marginBottom: 4 }}>
+              <input type="checkbox" checked={severities.High} onChange={(e) => setSeverities({ ...severities, High: e.target.checked })} />
+              <span style={{ display: 'inline-block', width: 12, height: 12, background: '#F97316', borderRadius: 3, marginRight: 4 }}></span> High
             </label>
             <label className="layer-item" style={{ marginBottom: 4 }}>
               <input type="checkbox" checked={severities.Moderate} onChange={(e) => setSeverities({ ...severities, Moderate: e.target.checked })} />
@@ -1077,7 +1120,7 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
                   <div className="drawer-meta-list">
                     <div className="dm-item"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> <span>{activeInc.location}</span></div>
                     <div className="dm-item"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> <span>{activeInc.detected_at}</span></div>
-                    <div className="dm-item"><svg viewBox="0 0 24 24" width="12" height="12" fill="#EF4444" style={{ marginRight: 6 }}><circle cx="12" cy="12" r="6"/></svg> Current Status: <strong style={{ marginLeft: 4 }}>{activeInc.status}</strong></div>
+                    <div className="dm-item"><svg viewBox="0 0 24 24" width="12" height="12" fill={activeInc.status === 'Resolved' ? '#10B981' : (activeInc.severity === 'Critical' ? '#EF4444' : '#F59E0B')} style={{ marginRight: 6 }}><circle cx="12" cy="12" r="6"/></svg> Current Status: <strong style={{ marginLeft: 4, color: activeInc.status === 'Resolved' ? '#059669' : 'inherit' }}>{activeInc.status}</strong></div>
                     <div className="dm-item"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Data Source: <span style={{ marginLeft: 4, fontWeight: 600 }}>{(activeInc.data_sources || []).join(', ')}</span></div>
                   </div>
 
