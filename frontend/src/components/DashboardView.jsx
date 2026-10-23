@@ -986,7 +986,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
                   <circle cx="12" cy="9" r="2.5" />
                 </svg>
                 <span>Bengaluru</span>
-                <span style={{ fontSize: '0.62rem', opacity: 0.85, fontWeight: 700, letterSpacing: '0.5px' }}>IMD LIVE</span>
+                <span style={{ fontSize: '0.62rem', opacity: 0.85, fontWeight: 700, letterSpacing: '0.5px' }}>WEATHER API LIVE</span>
               </div>
             </div>
 
@@ -1106,7 +1106,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
               </svg>
             </div>
             <div className="metric-info-col">
-              <div className="metric-title-small">Weather Conditions (IMD)</div>
+              <div className="metric-title-small">Weather Conditions (Live Weather API)</div>
               <div className="metric-main-value">{weather.temp_c}°C</div>
               <div className="metric-footer-row">
                 <span className="metric-sub-label">— {weather.rainfall_mm} mm precip • {weather.humidity_pct}% RH</span>
@@ -1349,7 +1349,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
                 transition: 'all 0.15s'
               }}
             >
-              ⛅ Weather Forecasting (IMD Live)
+              ⛅ Weather Forecasting (Live Weather API)
             </button>
             <button
               type="button"
@@ -1532,7 +1532,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
             </div>
           </div>
         ) : forecastDomain === 'weather' ? (
-          /* Honest Weather Notice: Model Blocked / Live IMD API Only */
+          /* Honest Weather Notice: Model Blocked / Live Weather API Only */
           <div style={{
             background: '#F0F9FF',
             border: '1px solid #BAE6FD',
@@ -1564,11 +1564,11 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
                   </span>
                 </div>
                 <p style={{ fontSize: '0.76rem', color: '#334155', lineHeight: 1.45, margin: 0 }}>
-                  The existing weather integration (<code>https://weather.indianapi.in</code>) provides real-time Doppler observations and 7-day forward forecasts, but <strong>does not provide historical weather archives</strong>. Per scientific integrity guidelines, training an XGBoost model on synthetic or invented past weather was strictly withheld. 
-                  Below are genuine live forecasts from the IMD IndianAPI feed:
+                  The existing weather integration provides real-time Doppler observations and 7-day forward forecasts, but <strong>does not provide historical weather archives</strong>. Per scientific integrity guidelines, training an XGBoost model on synthetic or invented past weather was strictly withheld. 
+                  Below are genuine live forecasts from the Live Weather API feed:
                 </p>
 
-                {/* IMD 7-Day Live Forecast Cards */}
+                {/* 7-Day Live Weather Forecast Cards */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginTop: '12px' }}>
                   {(liveWeather?.telemetry?.daily_forecast || [
                     { day: 'Today', max_temp_c: 27, min_temp_c: 20, condition: 'Partly Cloudy' },
@@ -1580,7 +1580,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
                       <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748B' }}>{f.day}</div>
                       <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A', margin: '2px 0' }}>{f.max_temp_c}° / {f.min_temp_c}°</div>
                       <div style={{ fontSize: '0.68rem', color: '#0284C7', fontWeight: 600 }}>{f.condition}</div>
-                      <span style={{ fontSize: '0.6rem', color: '#94A3B8' }}>[IMD API FORECAST]</span>
+                      <span style={{ fontSize: '0.6rem', color: '#94A3B8' }}>[WEATHER API FORECAST]</span>
                     </div>
                   ))}
                 </div>

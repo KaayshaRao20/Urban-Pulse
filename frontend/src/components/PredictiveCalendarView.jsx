@@ -82,7 +82,7 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
       severity: 'Moderate',
       time: '15:00 – 19:30',
       location: 'Bengaluru (Citywide)',
-      description: 'IMD Doppler indicates moderate to heavy monsoon squall.',
+      description: 'Live Weather API Doppler indicates moderate to heavy monsoon squall.',
       confidence: '78%',
       impact: [
         { category: 'Road Condition', level: 'Moderate', pct: 65, color: '#F97316' }

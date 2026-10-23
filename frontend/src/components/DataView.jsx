@@ -116,6 +116,7 @@ export default function DataView() {
 
   const getSourceIcon = (id) => {
     switch (id) {
+      case 'weather_api':
       case 'weather_imd':
         return (
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">

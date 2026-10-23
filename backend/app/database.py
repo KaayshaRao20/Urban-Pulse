@@ -411,8 +411,8 @@ else:
 def create_db_engine(url: str):
     if "sqlite" in url:
         return create_engine(url, connect_args={"check_same_thread": False})
-    
-    connect_args = {}
+
+    connect_args = {"connect_timeout": 3}
     if "sslmode" not in url and "supabase" in url.lower():
         connect_args["sslmode"] = "require"
     return create_engine(
@@ -424,29 +424,28 @@ def create_db_engine(url: str):
         connect_args=connect_args
     )
 
-# Resilient Engine Initialization: try primary URL, then psycopg, then fallback to SQLite
-try:
-    engine = create_db_engine(DB_URL)
-except Exception as e:
-    print(f"[UrbanPulse Database] Primary engine initialization note ({DB_URL}): {e}")
-    fallback_success = False
-    for alt_prefix in ["postgresql+psycopg2://", "postgresql+psycopg://", "postgresql://"]:
-        try:
-            alt_url = RAW_DB_URL.replace("postgres://", alt_prefix, 1).replace("postgresql://", alt_prefix, 1)
-            engine = create_db_engine(alt_url)
-            DB_URL = alt_url
-            fallback_success = True
-            break
-        except Exception as e_driver:
-            print(f"[UrbanPulse Database] Driver prefix {alt_prefix} attempt note: {e_driver}")
-            continue
-    if not fallback_success:
-        print("[UrbanPulse Database] Engaging resilient SQLite fallback.")
-        _backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        _db_path = os.path.join(_backend_dir, "urbanpulse_dev.db")
-        DB_URL = f"sqlite:///{_db_path.replace(os.sep, '/')}"
-        engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
+def get_operational_engine():
+    global DB_URL
+    _backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    _sqlite_path = os.path.join(_backend_dir, "urbanpulse_dev.db").replace(os.sep, "/")
+    sqlite_url = f"sqlite:///{_sqlite_path}"
 
+    if "sqlite" in str(DB_URL).lower():
+        return create_db_engine(sqlite_url), sqlite_url
+
+    # PostgreSQL: Actively test connectivity with 3-second timeout
+    try:
+        test_engine = create_db_engine(DB_URL)
+        with test_engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        print(f"[UrbanPulse Database] Connected successfully to primary PostgreSQL database.")
+        return test_engine, DB_URL
+    except Exception as e:
+        print(f"[UrbanPulse Database] PostgreSQL host unreachable ({e}). Engaging operational SQLite database.")
+        DB_URL = sqlite_url
+        return create_db_engine(sqlite_url), sqlite_url
+
+engine, DB_URL = get_operational_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():

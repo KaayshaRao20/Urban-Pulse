@@ -565,7 +565,7 @@
     {
       "task": "Historical Weather Variable Forecasting",
       "status": "Blocked",
-      "reason": "Missing historical weather observation archive. The integrated weather API (IndianAPI / IMD) provides real-time current conditions and a 7-day forward forecast, but does not provide historical observations. Fabricating synthetic past weather is strictly prohibited."
+      "reason": "Missing historical weather observation archive. The integrated weather API provides real-time current conditions and a 7-day forward forecast, but does not provide historical observations. Fabricating synthetic past weather is strictly prohibited."
     },
     {
       "task": "Historical Traffic Congestion & Speed Forecasting",

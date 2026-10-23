@@ -192,7 +192,7 @@ def list_evaluated_tasks():
             "task_name": "Historical Weather -> Future Weather Variables",
             "status": "Blocked by Missing Data Dependency",
             "algorithm": "None (Model Training Withheld)",
-            "dataset": "None (IndianAPI / IMD provides current conditions and 7-day forecast only)",
+            "dataset": "None (Live Weather API provides current conditions and 7-day forecast only)",
             "metrics": "N/A — Model was not trained to avoid fabricated predictions",
             "reason": "Missing historical meteorological archive for Bengaluru. Live API forecasts are available via /api/weather/forecast.",
             "provenance": "API_FORECAST_ONLY"

@@ -143,7 +143,7 @@ def test_5_weather_stations():
         assert "condition" in st
         assert "lat" in st and "lng" in st
         print(f"Station: {st['name']} -> {st['temp']}, {st['condition']}, rain: {st.get('rain', '0 mm')}")
-    print("PASS: Dynamic IMD weather stations return live/realistic meteorological data.")
+    print("PASS: Dynamic Weather API weather stations return live/realistic meteorological data.")
 
 def test_6_data_sources_status():
     print("\n--- Test 6: Data Sources & Telemetry Health ---")

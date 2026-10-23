@@ -16,7 +16,7 @@
 
 ### Historical Weather Variable Forecasting
 - **Status:** `Blocked`
-- **Audit Finding:** Missing historical weather observation archive. The integrated weather API (IndianAPI / IMD) provides real-time current conditions and a 7-day forward forecast, but does not provide historical observations. Fabricating synthetic past weather is strictly prohibited.
+- **Audit Finding:** Missing historical weather observation archive. The integrated weather API provides real-time current conditions and a 7-day forward forecast, but does not provide historical observations. Fabricating synthetic past weather is strictly prohibited.
 
 ### Historical Traffic Congestion & Speed Forecasting
 - **Status:** `Blocked`

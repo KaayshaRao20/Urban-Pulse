@@ -779,7 +779,7 @@ export default function SettingsView() {
                   >
                     <option value="All">All Sources</option>
                     <option value="Traffic Department">Traffic Department</option>
-                    <option value="IMD">IMD</option>
+                    <option value="Weather API">Weather API</option>
                     <option value="BMTC">BMTC</option>
                     <option value="City Sensors">City Sensors</option>
                     <option value="Police Department">Police Department</option>

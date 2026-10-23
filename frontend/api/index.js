@@ -381,7 +381,7 @@ let REPORTS_STORE = [
 
 let DATASETS_STORE = [
   { id: "ds-01", name: "Bengaluru Arterial Traffic Flow & Speed Logs", records: 480200, format: "CSV", status: "Active", source: "BTP Optical Vehicle Feeds", size: "48.2 MB", updated_at: "Today, 09:30" },
-  { id: "ds-02", name: "Real-time Doppler Radar & Precipitation Stream", records: 215400, format: "JSON", status: "Active", source: "IMD Doppler Stream", size: "21.5 MB", updated_at: "Today, 10:15" },
+  { id: "ds-02", name: "Real-time Doppler Radar & Precipitation Stream", records: 215400, format: "JSON", status: "Active", source: "Live Weather API Stream", size: "21.5 MB", updated_at: "Today, 10:15" },
   { id: "ds-03", name: "BMRCL Passenger Automated Turnstile Influx", records: 340000, format: "CSV", status: "Active", source: "BMRCL Smart Gate System", size: "34.0 MB", updated_at: "Today, 11:00" },
   { id: "ds-04", name: "Municipal Grievance Redressal Audit Records", records: 204900, format: "Parquet", status: "Active", source: "UrbanPulse Citizen Portal", size: "18.4 MB", updated_at: "Today, 12:45" }
 ];
@@ -601,7 +601,7 @@ export default function handler(req, res) {
       rainfall_mm: 1.5,
       wind_speed_kmh: 14.5,
       wind_direction: "SW",
-      source: "India Meteorological Department (IMD) / IndianAPI",
+      source: "Live Weather API",
       api_key_status: "Active & Verified",
       station: "Bengaluru-city (43295)"
     });
@@ -610,7 +610,7 @@ export default function handler(req, res) {
   if (path === "weather/forecast") {
     return res.status(200).json({
       city: "Bengaluru-city",
-      source: "India Meteorological Department (IMD) / IndianAPI",
+      source: "Live Weather API",
       forecast: [
         { date: "19-Oct-2026", max_temp: 29, min_temp: 20, description: "Generally cloudy sky with Light rain" },
         { date: "20-Oct-2026", max_temp: 28, min_temp: 20, description: "Partly cloudy sky with one or two spells of rain" },
@@ -1412,7 +1412,7 @@ export default function handler(req, res) {
     if (parts[1] === "data-sources") {
       return res.status(200).json([
         { id: "src-01", name: "OpenStreetMap (OSM) Live Tile & Geospatial Stream", status: "Connected", latency: "12ms", type: "Tile Server Stream" },
-        { id: "src-02", name: "India Meteorological Dept (IMD) / IndianAPI Weather Stream", status: "Connected", latency: "18ms", type: "IMD Weather REST Feed" },
+        { id: "src-02", name: "Live Weather API Stream", status: "Connected", latency: "18ms", type: "Weather REST Feed" },
         { id: "src-03", name: "BMRCL Automated Metro Influx Count", status: "Connected", latency: "15ms", type: "MQTT Broker" },
         { id: "src-04", name: "BWSSB Subsurface Sump Hydrology", status: "Connected", latency: "9ms", type: "SCADA Telemetry" }
       ]);

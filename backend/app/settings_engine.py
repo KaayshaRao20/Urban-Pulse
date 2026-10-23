@@ -153,7 +153,7 @@ SEED_DATASETS = [
         "format": "CSV",
         "size_bytes": 9122611,
         "size_display": "8.7 MB",
-        "source": "IMD",
+        "source": "Weather API",
         "uploaded_by": "Admin",
         "upload_date": "27 Sep 2026 13:55",
         "status": "Processing",
@@ -183,8 +183,8 @@ SEED_DATASETS = [
             {"name": "latitude", "type": "float64", "null_count": 0, "unique_count": 14}
         ],
         "preview_rows": [
-            {"timestamp": "2026-09-27 13:50:00", "station_id": "IMD_HAL", "temperature_c": 28.4, "humidity_pct": 74.2, "precipitation_mm": 12.5, "wind_speed_kmh": 22.0, "storm_warning_flag": 1},
-            {"timestamp": "2026-09-27 13:50:00", "station_id": "IMD_YELAHANKA", "temperature_c": 27.8, "humidity_pct": 78.0, "precipitation_mm": 18.2, "wind_speed_kmh": 24.5, "storm_warning_flag": 1}
+            {"timestamp": "2026-09-27 13:50:00", "station_id": "WEATHER_HAL", "temperature_c": 28.4, "humidity_pct": 74.2, "precipitation_mm": 12.5, "wind_speed_kmh": 22.0, "storm_warning_flag": 1},
+            {"timestamp": "2026-09-27 13:50:00", "station_id": "WEATHER_YELAHANKA", "temperature_c": 27.8, "humidity_pct": 78.0, "precipitation_mm": 18.2, "wind_speed_kmh": 24.5, "storm_warning_flag": 1}
         ],
         "processing_logs": [
             {"time": "13:55:01", "step": "File Validation", "status": "SUCCESS", "detail": "Valid CSV format verified."},
@@ -358,7 +358,7 @@ SEED_DATASETS = [
 ]
 
 # Generate remaining 36 datasets to match the 42 total (Processed: 36, Processing: 3, Failed: 2, Warning: 1 -> 42 total)
-OTHER_SOURCES = ["Traffic Department", "IMD", "BMTC", "City Sensors", "Police Department", "Environment Dept"]
+OTHER_SOURCES = ["Traffic Department", "Weather API", "BMTC", "City Sensors", "Police Department", "Environment Dept"]
 OTHER_FORMATS = ["CSV", "XLSX", "JSON", "PARQUET"]
 for idx in range(7, 43):
     status = "Processed"
@@ -430,15 +430,15 @@ SEED_DATA_SOURCES = [
     },
     {
         "id": "src-weather-01",
-        "name": "India Meteorological Dept (IMD) / IndianAPI Weather Stream",
+        "name": "Live Weather API Stream",
         "source_type": "Weather & Atmospheric API",
-        "endpoint_url": "https://weather.indianapi.in/india/weather",
+        "endpoint_url": "https://api.open-meteo.com/v1/forecast",
         "status": "Connected",
         "last_sync": "27 Sep 2026 14:31:45",
         "last_error": None,
         "refresh_interval_sec": 30,
         "enabled": True,
-        "config_json": {"provider": "IMD & IndianAPI", "api_key": "sk-live-knNi8aM9FB1zCV3qja6LEJHysQgfp24f2HzFicjJ", "station": "Bengaluru-city (43295)", "fallback_resilience": True}
+        "config_json": {"provider": "Weather API Gateway", "station": "Bengaluru-city (43295)", "fallback_resilience": True}
     },
     {
         "id": "src-crowd-01",

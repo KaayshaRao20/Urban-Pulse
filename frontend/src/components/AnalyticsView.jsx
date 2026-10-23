@@ -1181,7 +1181,7 @@ export default function AnalyticsView() {
             </p>
           </div>
           <span style={{ fontSize: '0.72rem', fontWeight: 700, background: '#F1F5F9', color: '#475569', padding: '4px 10px', borderRadius: '8px' }}>
-            Audited Against BMRCL, IMD & BTP Data Assets
+            Audited Against BMRCL, Weather API & BTP Data Assets
           </span>
         </div>
 
@@ -1237,7 +1237,7 @@ export default function AnalyticsView() {
                   status: 'Blocked by Missing Data Dependency',
                   algorithm: 'Withheld to prevent fabrication',
                   dataset: 'IndianAPI provides current Doppler and 7-day forecast only',
-                  metrics: 'Zero historical weather archives; live IMD forecasts served'
+                  metrics: 'Zero historical weather archives; live Weather API forecasts served'
                 },
                 {
                   id: 'task-6',
