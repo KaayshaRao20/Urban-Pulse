@@ -3,21 +3,18 @@ import json
 import urllib.error
 import time
 
-BASE = 'http://127.0.0.1:8000/api/auth'
+from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
 
 def post_json(path, data):
-    url = f'{BASE}{path}'
-    body = json.dumps(data).encode('utf-8')
-    req = urllib.request.Request(url, data=body, headers={'Content-Type': 'application/json'})
+    res = client.post(f"/api/auth{path}", json=data)
     try:
-        with urllib.request.urlopen(req) as resp:
-            return resp.status, json.loads(resp.read().decode('utf-8'))
-    except urllib.error.HTTPError as e:
-        err_body = e.read().decode('utf-8')
-        try:
-            return e.code, json.loads(err_body)
-        except:
-            return e.code, {'detail': err_body}
+        data = res.json()
+    except Exception:
+        data = {"detail": res.text}
+    return res.status_code, data
 
 def run_tests():
     print('=== 1. Authority Login Test (01kaaysha) ===')
