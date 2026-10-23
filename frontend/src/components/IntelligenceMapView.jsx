@@ -22,12 +22,11 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
   const [isActionsOpen, setIsActionsOpen] = useState(true);
   const [isRelatedOpen, setIsRelatedOpen] = useState(false);
 
-  // Layer visibility state
+  // Layer visibility state (events removed as requested)
   const [layers, setLayers] = useState({
     traffic: true,
     crowd: true,
     weather: true,
-    events: false,
     alerts: true,
     complaints: true
   });
@@ -45,6 +44,23 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
   const [sources, setSources] = useState({ traffic: true, crowd: true, weather: true });
   const [searchQuery, setSearchQuery] = useState('');
   const [weatherStations, setWeatherStations] = useState([]);
+
+  // Geographic centers of Bengaluru key zones for instant map fly-to navigation
+  const ZONE_CENTERS = {
+    'Marathahalli': [12.9569, 77.7011],
+    'Whitefield': [12.9698, 77.7500],
+    'Hebbal': [13.0358, 77.5970],
+    'Indiranagar': [12.9784, 77.6408],
+    'Koramangala': [12.9352, 77.6245],
+    'Electronic City': [12.8399, 77.6770],
+    'BTM Layout': [12.9166, 77.6101],
+    'Silk Board': [12.9172, 77.6229],
+    'Majestic': [12.9767, 77.5713],
+    'Bellandur': [12.9352, 77.6953],
+    'Peenya': [13.0300, 77.5180],
+    'Jayanagar': [12.9308, 77.5838],
+    'MG Road': [12.9756, 77.6067]
+  };
 
   // Expose navigation handler for Leaflet popup DOM clicks
   useEffect(() => {
@@ -153,19 +169,83 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
     fetchCivicComplaints();
   }, [civicCategoryFilter, civicStatusFilter, civicDeptFilter]);
 
-  // Render markers when incidents or layer visibility change
+  // Dynamic reactive filtering for Telemetry Incidents
+  const filteredIncidents = incidents.filter(inc => {
+    // 1. Layer visibility check
+    if (inc.type === 'traffic' && !layers.traffic) return false;
+    if (inc.type === 'crowd' && !layers.crowd) return false;
+    if (inc.type === 'weather' && !layers.weather) return false;
+    if (inc.severity === 'Critical' && !layers.alerts && !layers[inc.type]) return false;
+
+    // 2. Incident Status filter
+    if (incidentStatusFilter === 'active' && inc.status === 'Resolved') return false;
+    if (incidentStatusFilter === 'acknowledged' && inc.status !== 'Acknowledged') return false;
+    if (incidentStatusFilter === 'resolved' && inc.status !== 'Resolved') return false;
+
+    // 3. Severity filter
+    if (severities[inc.severity] === false) return false;
+
+    // 4. Data Source filter
+    if (sources[inc.type] === false) return false;
+
+    // 5. Zone / Area filter
+    if (zone !== 'All Zones') {
+      const z = zone.toLowerCase();
+      const inLoc = (inc.location || '').toLowerCase().includes(z);
+      const inZone = (inc.zone || '').toLowerCase().includes(z);
+      const inTitle = (inc.title || '').toLowerCase().includes(z);
+      if (!inLoc && !inZone && !inTitle) return false;
+    }
+
+    // 6. Search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const inLoc = (inc.location || '').toLowerCase().includes(q);
+      const inName = (inc.name || '').toLowerCase().includes(q);
+      const inTitle = (inc.title || '').toLowerCase().includes(q);
+      if (!inLoc && !inName && !inTitle) return false;
+    }
+
+    return true;
+  });
+
+  // Dynamic reactive filtering for Citizen Civic Grievances
+  const filteredComplaints = civicComplaints.filter(comp => {
+    if (!layers.complaints) return false;
+
+    // Status filter
+    if (incidentStatusFilter === 'resolved' && comp.status !== 'Resolved') return false;
+    if (incidentStatusFilter === 'active' && comp.status === 'Resolved') return false;
+
+    // Zone filter
+    if (zone !== 'All Zones') {
+      const z = zone.toLowerCase();
+      const inLoc = (comp.landmark_address || '').toLowerCase().includes(z);
+      const inWard = (comp.ward_zone || '').toLowerCase().includes(z);
+      const inTitle = (comp.title || '').toLowerCase().includes(z);
+      if (!inLoc && !inWard && !inTitle) return false;
+    }
+
+    // Search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const inNum = (comp.ticket_number || '').toLowerCase().includes(q);
+      const inTitle = (comp.title || '').toLowerCase().includes(q);
+      const inLoc = (comp.landmark_address || '').toLowerCase().includes(q);
+      if (!inNum && !inTitle && !inLoc) return false;
+    }
+
+    return true;
+  });
+
+  // Render markers whenever filtered incidents, grievances, or layer visibility change
   useEffect(() => {
     if (!markersGroup.current) return;
     markersGroup.current.clearLayers();
 
-    // 1. Telemetry Incidents Layer
-    if (incidents.length > 0) {
-      incidents.forEach(inc => {
-        // Layer visibility filter
-        if (!layers[inc.type] && !(inc.type === 'traffic' && layers.traffic)) {
-          if (inc.severity === 'Critical' && !layers.alerts) return;
-        }
-
+    // 1. Telemetry Incidents Layer (Filtered)
+    if (filteredIncidents.length > 0) {
+      filteredIncidents.forEach(inc => {
         const isResolved = inc.status === 'Resolved';
         let pinBg = "#059669";
         let iconSvg = `<svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:white; fill:none; stroke-width:2.2;"><rect x="3" y="11" width="18" height="8" rx="2"/><path d="M5 11l2-5h10l2 5"/><circle cx="7.5" cy="15.5" r="1.5"/><circle cx="16.5" cy="15.5" r="1.5"/></svg>`;
@@ -268,9 +348,9 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
       });
     }
 
-    // 2. Citizen Civic Grievances Layer
-    if (layers.complaints && civicComplaints.length > 0) {
-      civicComplaints.forEach((comp) => {
+    // 2. Citizen Civic Grievances Layer (Filtered)
+    if (layers.complaints && filteredComplaints.length > 0) {
+      filteredComplaints.forEach((comp) => {
         const cLat = Number(comp.latitude);
         const cLng = Number(comp.longitude);
         if (isNaN(cLat) || isNaN(cLng)) return;
@@ -475,8 +555,8 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
       });
     }
 
-    // 3. Weather API Meteorological Observatories (when weather layer is active)
-    if (layers.weather) {
+    // 3. Weather API Meteorological Observatories (when weather layer and source are active)
+    if (layers.weather && sources.weather !== false) {
       const defaultStations = [
         { id: 'weather-obs-01', name: 'Bengaluru City Weather Observatory', lat: 12.9716, lng: 77.5946, temp: '26.8°C', rain: '1.4 mm', condition: 'Partly Cloudy', humidity: '68%' },
         { id: 'weather-obs-02', name: 'HAL Airport Weather Observatory', lat: 12.9500, lng: 77.6680, temp: '27.2°C', rain: '2.1 mm', condition: 'Light Rain', humidity: '72%' },
@@ -524,7 +604,7 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
         markersGroup.current.addLayer(marker);
       });
     }
-  }, [incidents, layers, activeIncidentId, civicComplaints, weatherStations]);
+  }, [filteredIncidents, filteredComplaints, weatherStations, layers.weather, sources.weather, activeIncidentId]);
 
   // Load selected incident details into drawer and fetch backend AI analysis
   const loadIncident = async (incId, currentList = incidents) => {
@@ -564,6 +644,23 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
     }
   };
 
+  // Zone change handler with auto-navigation
+  const handleZoneChange = (selectedZone) => {
+    setZone(selectedZone);
+    if (gisMapInst.current) {
+      if (selectedZone === 'All Zones') {
+        gisMapInst.current.flyTo([12.9716, 77.5946], 12, { duration: 0.8 });
+      } else if (ZONE_CENTERS[selectedZone]) {
+        gisMapInst.current.flyTo(ZONE_CENTERS[selectedZone], 14, { duration: 1.0 });
+      }
+    }
+  };
+
+  const handleIncidentStatusChange = (newStatus) => {
+    setIncidentStatusFilter(newStatus);
+    fetchIncidents(newStatus);
+  };
+
   // Filter application handler
   const applyFilters = async () => {
     const selectedSevs = Object.keys(severities).filter(k => severities[k]).join(',');
@@ -577,6 +674,14 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
         setIncidents(incList);
         if (incList.length > 0) {
           loadIncident(incList[0].id, incList);
+          if (gisMapInst.current) {
+            if (zone !== 'All Zones' && ZONE_CENTERS[zone]) {
+              gisMapInst.current.flyTo(ZONE_CENTERS[zone], 14, { duration: 1 });
+            } else if (incList.length > 1) {
+              const bounds = window.L.latLngBounds(incList.map(i => [i.lat, i.lng]));
+              gisMapInst.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+            }
+          }
         }
       }
     } catch (e) {
@@ -590,12 +695,16 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
     setIncidentStatusFilter('active');
     setSeverities({ Critical: true, High: true, Moderate: true, Low: true });
     setSources({ traffic: true, crowd: true, weather: true });
+    setLayers({ traffic: true, crowd: true, weather: true, alerts: true, complaints: true });
     setCivicCategoryFilter('all');
     setCivicStatusFilter('all');
     setCivicDeptFilter('all');
     setSearchQuery('');
     fetchIncidents('active');
     fetchCivicComplaints();
+    if (gisMapInst.current) {
+      gisMapInst.current.flyTo([12.9716, 77.5946], 12, { duration: 0.8 });
+    }
   };
 
   const activeInc = incidents.find(i => i.id === activeIncidentId) || incidents[0] || {};
@@ -679,6 +788,11 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
         </div>
 
         <div className="map-tb-right">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(5, 150, 105, 0.1)', border: '1px solid rgba(5, 150, 105, 0.3)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.74rem', fontWeight: 700, color: '#059669' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#059669', display: 'inline-block' }}></span>
+            <span>{filteredIncidents.length + filteredComplaints.length + (layers.weather && sources.weather !== false ? (weatherStations.length || 4) : 0)} Visible Points</span>
+          </div>
+
           <div className="live-badge-group">
             <span className="dot-live"></span>
             <span>Live Data</span>
@@ -716,27 +830,42 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
             <label className="layer-item">
               <input type="checkbox" checked={layers.traffic} onChange={(e) => setLayers({ ...layers, traffic: e.target.checked })} />
               <div className="layer-icon-box traffic"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="8" rx="2"/><path d="M5 11l2-5h10l2 5"/><circle cx="7.5" cy="15.5" r="1.5"/><circle cx="16.5" cy="15.5" r="1.5"/></svg></div>
-              <span>Traffic</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
+                <span>Traffic</span>
+                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#059669', background: '#ECFDF5', padding: '1px 6px', borderRadius: '8px' }}>
+                  {incidents.filter(i => i.type === 'traffic' && (incidentStatusFilter === 'all' || (incidentStatusFilter === 'resolved' ? i.status === 'Resolved' : i.status !== 'Resolved'))).length}
+                </span>
+              </div>
             </label>
             <label className="layer-item">
               <input type="checkbox" checked={layers.crowd} onChange={(e) => setLayers({ ...layers, crowd: e.target.checked })} />
               <div className="layer-icon-box crowd"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-              <span>Crowd</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
+                <span>Crowd</span>
+                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#2563EB', background: '#EFF6FF', padding: '1px 6px', borderRadius: '8px' }}>
+                  {incidents.filter(i => i.type === 'crowd' && (incidentStatusFilter === 'all' || (incidentStatusFilter === 'resolved' ? i.status === 'Resolved' : i.status !== 'Resolved'))).length}
+                </span>
+              </div>
             </label>
             <label className="layer-item">
               <input type="checkbox" checked={layers.weather} onChange={(e) => setLayers({ ...layers, weather: e.target.checked })} />
               <div className="layer-icon-box weather"><svg viewBox="0 0 24 24"><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/><path d="M8 16v3"/><path d="M12 16v3"/><path d="M16 16v3"/></svg></div>
-              <span>Weather</span>
-            </label>
-            <label className="layer-item">
-              <input type="checkbox" checked={layers.events} onChange={(e) => setLayers({ ...layers, events: e.target.checked })} />
-              <div className="layer-icon-box events"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-              <span>Events</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
+                <span>Weather</span>
+                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#0284C7', background: '#F0F9FF', padding: '1px 6px', borderRadius: '8px' }}>
+                  {(weatherStations.length || 4) + incidents.filter(i => i.type === 'weather' && (incidentStatusFilter === 'all' || (incidentStatusFilter === 'resolved' ? i.status === 'Resolved' : i.status !== 'Resolved'))).length}
+                </span>
+              </div>
             </label>
             <label className="layer-item">
               <input type="checkbox" checked={layers.alerts} onChange={(e) => setLayers({ ...layers, alerts: e.target.checked })} />
               <div className="layer-icon-box alerts"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div>
-              <span>Alerts</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
+                <span>Alerts</span>
+                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#DC2626', background: '#FEF2F2', padding: '1px 6px', borderRadius: '8px' }}>
+                  {incidents.filter(i => i.severity === 'Critical' && (incidentStatusFilter === 'all' || (incidentStatusFilter === 'resolved' ? i.status === 'Resolved' : i.status !== 'Resolved'))).length}
+                </span>
+              </div>
             </label>
             <label className="layer-item">
               <input type="checkbox" checked={layers.complaints} onChange={(e) => setLayers({ ...layers, complaints: e.target.checked })} />
@@ -750,7 +879,7 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
                 <span>Civic Grievances</span>
                 <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#D97706', background: '#FEF3C7', padding: '1px 6px', borderRadius: '8px' }}>
-                  {civicComplaints.length}
+                  {filteredComplaints.length}
                 </span>
               </div>
             </label>
@@ -812,7 +941,7 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
 
           <div className="filter-group">
             <div className="filter-label">Incident Status</div>
-            <select className="filter-select" value={incidentStatusFilter} onChange={(e) => setIncidentStatusFilter(e.target.value)}>
+            <select className="filter-select" value={incidentStatusFilter} onChange={(e) => handleIncidentStatusChange(e.target.value)}>
               <option value="active">Active Only</option>
               <option value="acknowledged">Acknowledged Only</option>
               <option value="resolved">Resolved Only</option>
@@ -834,46 +963,52 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
             <div className="filter-label">Severity</div>
             <label className="layer-item" style={{ marginBottom: 4 }}>
               <input type="checkbox" checked={severities.Critical} onChange={(e) => setSeverities({ ...severities, Critical: e.target.checked })} />
-              <span style={{ display: 'inline-block', width: 12, height: 12, background: '#EF4444', borderRadius: 3, marginRight: 4 }}></span> Critical
+              <span style={{ display: 'inline-block', width: 12, height: 12, background: '#EF4444', borderRadius: 3, marginRight: 4 }}></span> Critical ({incidents.filter(i => i.severity === 'Critical' && (incidentStatusFilter === 'all' || (incidentStatusFilter === 'resolved' ? i.status === 'Resolved' : i.status !== 'Resolved'))).length})
             </label>
             <label className="layer-item" style={{ marginBottom: 4 }}>
               <input type="checkbox" checked={severities.High} onChange={(e) => setSeverities({ ...severities, High: e.target.checked })} />
-              <span style={{ display: 'inline-block', width: 12, height: 12, background: '#F97316', borderRadius: 3, marginRight: 4 }}></span> High
+              <span style={{ display: 'inline-block', width: 12, height: 12, background: '#F97316', borderRadius: 3, marginRight: 4 }}></span> High ({incidents.filter(i => i.severity === 'High' && (incidentStatusFilter === 'all' || (incidentStatusFilter === 'resolved' ? i.status === 'Resolved' : i.status !== 'Resolved'))).length})
             </label>
             <label className="layer-item" style={{ marginBottom: 4 }}>
               <input type="checkbox" checked={severities.Moderate} onChange={(e) => setSeverities({ ...severities, Moderate: e.target.checked })} />
-              <span style={{ display: 'inline-block', width: 12, height: 12, background: '#D97706', borderRadius: 3, marginRight: 4 }}></span> Moderate
+              <span style={{ display: 'inline-block', width: 12, height: 12, background: '#D97706', borderRadius: 3, marginRight: 4 }}></span> Moderate ({incidents.filter(i => i.severity === 'Moderate' && (incidentStatusFilter === 'all' || (incidentStatusFilter === 'resolved' ? i.status === 'Resolved' : i.status !== 'Resolved'))).length})
             </label>
             <label className="layer-item">
               <input type="checkbox" checked={severities.Low} onChange={(e) => setSeverities({ ...severities, Low: e.target.checked })} />
-              <span style={{ display: 'inline-block', width: 12, height: 12, background: '#94A3B8', borderRadius: 3, marginRight: 4 }}></span> Low
+              <span style={{ display: 'inline-block', width: 12, height: 12, background: '#94A3B8', borderRadius: 3, marginRight: 4 }}></span> Low ({incidents.filter(i => i.severity === 'Low' && (incidentStatusFilter === 'all' || (incidentStatusFilter === 'resolved' ? i.status === 'Resolved' : i.status !== 'Resolved'))).length})
             </label>
           </div>
 
           <div className="filter-group">
             <div className="filter-label">Data Source</div>
             <label className="layer-item" style={{ marginBottom: 4 }}>
-              <input type="checkbox" checked={sources.traffic} onChange={(e) => setSources({ ...sources, traffic: e.target.checked })} /> Traffic
+              <input type="checkbox" checked={sources.traffic} onChange={(e) => setSources({ ...sources, traffic: e.target.checked })} /> Traffic ({incidents.filter(i => i.type === 'traffic').length})
             </label>
             <label className="layer-item" style={{ marginBottom: 4 }}>
-              <input type="checkbox" checked={sources.crowd} onChange={(e) => setSources({ ...sources, crowd: e.target.checked })} /> Crowd
+              <input type="checkbox" checked={sources.crowd} onChange={(e) => setSources({ ...sources, crowd: e.target.checked })} /> Crowd ({incidents.filter(i => i.type === 'crowd').length})
             </label>
             <label className="layer-item">
-              <input type="checkbox" checked={sources.weather} onChange={(e) => setSources({ ...sources, weather: e.target.checked })} /> Weather
+              <input type="checkbox" checked={sources.weather} onChange={(e) => setSources({ ...sources, weather: e.target.checked })} /> Weather ({(weatherStations.length || 4) + incidents.filter(i => i.type === 'weather').length})
             </label>
           </div>
 
           <div className="filter-group">
             <div className="filter-label">Zone / Area</div>
-            <select className="filter-select" value={zone} onChange={(e) => setZone(e.target.value)}>
-              <option value="All Zones">All Zones</option>
-              <option value="Marathahalli">Marathahalli</option>
-              <option value="Whitefield">Whitefield</option>
-              <option value="Hebbal">Hebbal</option>
-              <option value="Indiranagar">Indiranagar</option>
-              <option value="Koramangala">Koramangala</option>
-              <option value="Electronic City">Electronic City</option>
-              <option value="BTM Layout">BTM Layout</option>
+            <select className="filter-select" value={zone} onChange={(e) => handleZoneChange(e.target.value)}>
+              <option value="All Zones">All Zones (Full City)</option>
+              <option value="Marathahalli">Marathahalli (Outer Ring Road)</option>
+              <option value="Whitefield">Whitefield (IT Corridor)</option>
+              <option value="Hebbal">Hebbal (Airport Expressway)</option>
+              <option value="Indiranagar">Indiranagar (100ft Road)</option>
+              <option value="Koramangala">Koramangala (Sony World)</option>
+              <option value="Electronic City">Electronic City (Elevated)</option>
+              <option value="BTM Layout">BTM Layout (Ring Road)</option>
+              <option value="Silk Board">Silk Board Junction</option>
+              <option value="Majestic">Majestic Intermodal Hub</option>
+              <option value="Bellandur">Bellandur Tech Zone</option>
+              <option value="Peenya">Peenya Industrial Area</option>
+              <option value="Jayanagar">Jayanagar Commercial</option>
+              <option value="MG Road">MG Road Central</option>
             </select>
           </div>
 

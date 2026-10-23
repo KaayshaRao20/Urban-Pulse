@@ -1181,15 +1181,55 @@ BENGALURU_COORDS = {
     "airport": (13.1986, 77.7066),
     "sarjapur": (12.8600, 77.7860),
     "kadugodi": (12.9980, 77.7580),
-    "peenya": (13.0300, 77.5180)
+    "peenya": (13.0300, 77.5180),
+    "ejipura": (12.9377, 77.6277),
+    "nice road": (12.8718, 77.5106),
+    "ksr": (12.9774, 77.5682),
+    "sangolli rayanna": (12.9774, 77.5682),
+    "dairy circle": (12.9360, 77.5990),
+    "kanakapura": (12.8985, 77.5670),
+    "lalbagh": (12.9507, 77.5848),
+    "devanahalli": (13.2483, 77.7126),
+    "bommasandra": (12.8167, 77.6917),
+    "vittal mallya": (12.9719, 77.5960),
+    "old madras": (13.0010, 77.6580),
+    "kengeri": (12.9177, 77.4838),
+    "bengaluru palace": (12.9982, 77.5921),
+    "palace": (12.9982, 77.5921),
+    "jayanagar": (12.9308, 77.5838),
+    "residency": (12.9723, 77.6081),
+    "bellary": (13.0116, 77.5878),
+    "mekhri": (13.0125, 77.5880),
+    "biec": (13.0617, 77.4764),
+    "tumkur": (13.0360, 77.5050),
+    "byappanahalli": (12.9912, 77.6534),
+    "kadubeesanahalli": (12.9352, 77.6953),
+    "mahadevapura": (12.9880, 77.6990),
+    "btm": (12.9166, 77.6101),
+    "manyata": (13.0450, 77.6210),
+    "sony world": (12.9340, 77.6310),
+    "outer ring road": (12.9352, 77.6953)
 }
 
-def resolve_coords(location_name: str, fallback_lat=12.9716, fallback_lng=77.5946):
+def resolve_coords(location_name: str, item_id: str = "", fallback_lat=12.9716, fallback_lng=77.5946):
     clean = (location_name or "").lower()
+    base_lat, base_lng = fallback_lat, fallback_lng
+    matched = False
     for key, (lat, lng) in BENGALURU_COORDS.items():
         if key in clean:
-            return lat, lng
-    return fallback_lat, fallback_lng
+            base_lat, base_lng = lat, lng
+            matched = True
+            break
+            
+    # Deterministic spatial dispersion so multiple incidents along same corridor don't stack at exact pixel
+    if item_id:
+        import hashlib
+        h = int(hashlib.md5(f"{item_id}-{clean}".encode('utf-8')).hexdigest()[:6], 16)
+        offset_lat = ((h % 100) - 50) * 0.00008
+        offset_lng = (((h // 100) % 100) - 50) * 0.00008
+        return round(base_lat + offset_lat, 5), round(base_lng + offset_lng, 5)
+        
+    return base_lat, base_lng
 
 def fetch_dynamic_map_incidents(status_filter: Optional[str] = "all"):
     """
@@ -1219,7 +1259,7 @@ def fetch_dynamic_map_incidents(status_filter: Optional[str] = "all"):
             lat = a.latitude
             lng = a.longitude
             if not lat or not lng or (lat == 12.9716 and lng == 77.5946):
-                lat, lng = resolve_coords(a.location, 12.9569, 77.7011)
+                lat, lng = resolve_coords(a.location, a.id, 12.9569, 77.7011)
 
             metrics = a.telemetry_metrics or {}
             speed_val = 18 if a.severity == "Critical" else (24 if a.severity == "High" else (32 if a.severity == "Moderate" else 42))
@@ -1240,6 +1280,22 @@ def fetch_dynamic_map_incidents(status_filter: Optional[str] = "all"):
             time_display = a.time_str or datetime.now().strftime("%H:%M")
             ts = a.updated_at or a.detected_at or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+            # Map raw type into canonical traffic/crowd/weather layers
+            raw_type = (a.alert_type or "traffic").lower()
+            if raw_type in ["traffic", "road", "road_work", "utility"]:
+                canonical_type = "traffic"
+                data_sources = ["Sensors & CCTV", "Traffic Corridor Feed", "Civic Telemetry"]
+            elif raw_type in ["crowd", "transit", "event"]:
+                # Map event to crowd as requested
+                canonical_type = "crowd"
+                data_sources = ["BMRCL Metro Feed", "Station Footfall CCTV", "Civic Telemetry"]
+            elif raw_type in ["weather", "rainfall", "waterlogging"]:
+                canonical_type = "weather"
+                data_sources = ["Live Weather API", "Meteorological Radar", "Civic Telemetry"]
+            else:
+                canonical_type = "traffic"
+                data_sources = ["Sensors & CCTV", "Civic Telemetry"]
+
             is_act = a.status in ["Active", "Acknowledged"]
             incidents.append({
                 "id": a.id,
@@ -1250,12 +1306,13 @@ def fetch_dynamic_map_incidents(status_filter: Optional[str] = "all"):
                 "lat": lat,
                 "lng": lng,
                 "severity": a.severity,
-                "type": a.alert_type,
+                "type": canonical_type,
+                "raw_type": raw_type,
                 "traffic_speed": speed_val,
                 "traffic_speed_change": -62 if a.severity == "Critical" else (-20 if a.severity == "High" else 0),
                 "crowd_density": crowd_val,
                 "crowd_density_change": +25 if a.severity == "Critical" else (+10 if a.severity == "High" else 0),
-                "weather_condition": "Light Rain" if a.alert_type == "weather" else "Partly Cloudy",
+                "weather_condition": "Light Rain" if canonical_type == "weather" else "Partly Cloudy",
                 "temp_c": 24,
                 "detected_at": f"{a.detected_at} ({time_display})",
                 "timestamp": ts,
@@ -1266,7 +1323,7 @@ def fetch_dynamic_map_incidents(status_filter: Optional[str] = "all"):
                 "resolved": bool(a.resolved),
                 "assigned_to": a.assigned_to,
                 "department": a.assigned_to or "Traffic Management Division",
-                "data_sources": ["Sensors & CCTV", "Civic Telemetry"],
+                "data_sources": data_sources,
                 "alert_text": a.description or a.title,
                 "recommendation": f"Priority dispatch to {a.assigned_to or 'Municipal Response Squad'}. Acknowledge and clear bottleneck.",
                 "recommended_actions": [
@@ -1365,7 +1422,14 @@ def get_map_filtered(
 
     # 2. Zone Filter
     if zone and zone.lower() not in ["all zones", "all"]:
-        filtered = [i for i in filtered if i["zone"].lower() == zone.lower() or zone.lower() in i["location"].lower()]
+        z_clean = zone.lower()
+        filtered = [
+            i for i in filtered 
+            if z_clean in i.get("zone", "").lower() 
+            or z_clean in i.get("location", "").lower()
+            or z_clean in i.get("name", "").lower()
+            or z_clean in i.get("title", "").lower()
+        ]
 
     # 3. Severity Filter
     if severity and severity.lower() not in ["all", "all severities"]:
@@ -1373,13 +1437,16 @@ def get_map_filtered(
         if sev_list:
             filtered = [i for i in filtered if i["severity"].lower() in sev_list]
 
-    # 4. Data Sources / Category Filter
+    # 4. Data Sources Filter
     if data_sources and data_sources.lower() not in ["all", "all sources"]:
         src_list = [s.strip().lower() for s in data_sources.split(",") if s.strip()]
         if src_list:
             filtered = [
                 i for i in filtered
                 if i["type"].lower() in src_list
+                or i.get("raw_type", "").lower() in src_list
+                or (i["type"].lower() in ["road", "road_work", "utility"] and "traffic" in src_list)
+                or (i["type"].lower() in ["transit", "event"] and "crowd" in src_list)
                 or any(ds.lower().replace(" api", "") in src_list for ds in i.get("data_sources", []))
             ]
 
