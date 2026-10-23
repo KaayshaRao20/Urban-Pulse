@@ -6,6 +6,13 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
   const { user } = useAuth();
   const currentOfficerName = user?.name || user?.full_name || 'Duty Commander (City 01)';
 
+  const isAlertResolved = (alert) => {
+    if (!alert) return false;
+    return alert.resolved === true || 
+           alert.status === 'Resolved' || 
+           String(alert.status || '').toLowerCase() === 'resolved';
+  };
+
   // --- Core State ---
   const [alerts, setAlerts] = useState([]);
   const [summary, setSummary] = useState({
@@ -144,8 +151,9 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
   const filteredAlerts = useMemo(() => {
     return alerts.filter(alert => {
       // Status Filter
-      const isResolved = alert.status === 'Resolved' || alert.resolved === true || alert.status?.toLowerCase() === 'resolved';
-      if (filterStatus === 'active' && isResolved) {
+      const isResolved = isAlertResolved(alert);
+      const isCurrentSelection = selectedAlertId === alert.id;
+      if (filterStatus === 'active' && isResolved && !isCurrentSelection) {
         return false;
       }
       if (filterStatus === 'resolved' && !isResolved) {
@@ -233,7 +241,16 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
       });
       if (res.ok) {
         const data = await res.json();
-        setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, ...data.alert } : a));
+        const nowTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        const nowDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const updatedAlert = {
+          ...(data.alert || {}),
+          resolved: true,
+          status: 'Resolved',
+          resolved_at: `${nowDate}, ${nowTime}`,
+          resolved_by: currentOfficerName
+        };
+        setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, ...updatedAlert } : a));
         fetchAlertsData(false);
         showToast(`Alert #${alertId} marked as resolved and closed.`);
       }
@@ -326,7 +343,8 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
     const s = sev?.toLowerCase();
     let bg = '#FEE2E2';
     let color = '#EF4444';
-    if (s === 'high') { bg = '#FFEDD5'; color = '#F97316'; }
+    if (s === 'resolved') { bg = '#DCFCE7'; color = '#059669'; }
+    else if (s === 'high') { bg = '#FFEDD5'; color = '#F97316'; }
     else if (s === 'moderate') { bg = '#DBEAFE'; color = '#2563EB'; }
     else if (s === 'low') { bg = '#DCFCE7'; color = '#10B981'; }
 
@@ -413,8 +431,30 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
     return 'alert-triangle';
   };
 
-  // --- Severity Badge Pill ---
-  const renderSeverityPill = (sev) => {
+  // --- Severity / Status Badge Pill ---
+  const renderSeverityPill = (sev, isResolved = false) => {
+    if (isResolved) {
+      return (
+        <span style={{
+          background: '#10B981',
+          color: '#FFFFFF',
+          padding: '2.5px 12px',
+          borderRadius: '9999px',
+          fontSize: '0.72rem',
+          fontWeight: 800,
+          letterSpacing: '0.2px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          boxShadow: '0 1px 3px rgba(16, 185, 129, 0.3)'
+        }}>
+          <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="3">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Resolved
+        </span>
+      );
+    }
     const s = sev?.toLowerCase();
     if (s === 'critical') {
       return (
@@ -1281,6 +1321,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
             ) : (
               filteredAlerts.map(alert => {
                 const isSelected = selectedAlert?.id === alert.id;
+                const isResolved = isAlertResolved(alert);
                 const iconType = getIconForAlert(alert);
 
                 return (
@@ -1289,14 +1330,18 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                     onClick={() => setSelectedAlertId(alert.id)}
                     style={{
                       padding: '12px 16px',
-                      borderBottom: '1px solid #F8FAFC',
-                      borderLeft: isSelected ? '3.5px solid #EF4444' : '3.5px solid transparent',
-                      background: isSelected ? '#FEF2F2' : '#FFFFFF',
+                      borderBottom: '1px solid #F1F5F9',
+                      borderLeft: isSelected 
+                        ? (isResolved ? '3.5px solid #10B981' : '3.5px solid #EF4444') 
+                        : (isResolved ? '3.5px solid #A7F3D0' : '3.5px solid transparent'),
+                      background: isSelected 
+                        ? (isResolved ? '#F0FDF4' : '#FEF2F2') 
+                        : (isResolved ? '#F8FAFC' : '#FFFFFF'),
                       display: 'flex',
                       alignItems: 'center',
                       gap: '12px',
                       cursor: 'pointer',
-                      transition: 'background 0.15s ease'
+                      transition: 'all 0.15s ease'
                     }}
                   >
                     {/* Time */}
@@ -1304,21 +1349,43 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                       width: 42,
                       fontSize: '0.78rem',
                       fontWeight: 600,
-                      color: '#64748B',
+                      color: isResolved ? '#64748B' : '#64748B',
                       flexShrink: 0
                     }}>
                       {alert.time_str || '14:30'}
                     </div>
 
                     {/* Category Icon */}
-                    {renderCategoryIcon(iconType, alert.severity, 18)}
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                      {renderCategoryIcon(iconType, isResolved ? 'resolved' : alert.severity, 18)}
+                      {isResolved && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: -2,
+                          right: -2,
+                          width: 14,
+                          height: 14,
+                          borderRadius: '50%',
+                          background: '#10B981',
+                          color: '#FFFFFF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1.5px solid #FFFFFF'
+                        }}>
+                          <svg viewBox="0 0 24 24" width="8" height="8" fill="none" stroke="currentColor" strokeWidth="3.5">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
 
                     {/* Title & Location */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{
                         fontSize: '0.84rem',
                         fontWeight: 700,
-                        color: '#0F172A',
+                        color: isResolved ? '#334155' : '#0F172A',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis'
@@ -1337,9 +1404,21 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                       </div>
                     </div>
 
-                    {/* Severity Pill */}
-                    <div style={{ flexShrink: 0 }}>
-                      {renderSeverityPill(alert.severity)}
+                    {/* Severity / Status Pill */}
+                    <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                      {renderSeverityPill(alert.severity, isResolved)}
+                      {isResolved && (
+                        <span style={{
+                          fontSize: '0.62rem',
+                          fontWeight: 700,
+                          color: '#64748B',
+                          background: '#F1F5F9',
+                          padding: '1px 6px',
+                          borderRadius: '4px'
+                        }}>
+                          {alert.severity}
+                        </span>
+                      )}
                     </div>
 
                     {/* Right Chevron */}
@@ -1372,7 +1451,7 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
               marginBottom: '12px'
             }}>
               {/* Category Icon Badge */}
-              {renderCategoryIcon(getIconForAlert(selectedAlert), selectedAlert.severity, 24)}
+              {renderCategoryIcon(getIconForAlert(selectedAlert), isAlertResolved(selectedAlert) ? 'resolved' : selectedAlert.severity, 24)}
 
               {/* Title & Meta Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -1387,7 +1466,40 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                     {selectedAlert.title}
                   </h2>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
-                    {renderSeverityPill(selectedAlert.severity)}
+                    {isAlertResolved(selectedAlert) ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{
+                          background: '#10B981',
+                          color: '#FFFFFF',
+                          padding: '3px 12px',
+                          borderRadius: '9999px',
+                          fontSize: '0.76rem',
+                          fontWeight: 800,
+                          letterSpacing: '0.3px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          boxShadow: '0 2px 4px rgba(16, 185, 129, 0.25)'
+                        }}>
+                          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                          RESOLVED
+                        </span>
+                        <span style={{
+                          background: '#F1F5F9',
+                          color: '#64748B',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          fontSize: '0.72rem',
+                          fontWeight: 700
+                        }}>
+                          {selectedAlert.severity}
+                        </span>
+                      </div>
+                    ) : (
+                      renderSeverityPill(selectedAlert.severity)
+                    )}
                     <button
                       onClick={() => setShowKebabMenu(!showKebabMenu)}
                       title="More Options"
@@ -1460,6 +1572,58 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                 </div>
               </div>
             </div>
+
+            {/* Resolution Status Banner (When Resolved) */}
+            {isAlertResolved(selectedAlert) && (
+              <div style={{
+                background: '#ECFDF5',
+                border: '1px solid #A7F3D0',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                marginBottom: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: '50%',
+                    background: '#10B981',
+                    color: '#FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#065F46' }}>
+                      Incident Status: Resolved & Closed
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: '#047857' }}>
+                      Marked resolved by <strong>{selectedAlert.resolved_by || currentOfficerName}</strong>{selectedAlert.resolved_at ? ` on ${selectedAlert.resolved_at}` : ''}
+                    </div>
+                  </div>
+                </div>
+                <span style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 800,
+                  background: '#D1FAE5',
+                  color: '#065F46',
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  letterSpacing: '0.5px'
+                }}>
+                  CLOSED
+                </span>
+              </div>
+            )}
 
             {/* Description Text */}
             <p style={{
@@ -1567,23 +1731,24 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
               </button>
 
               {/* Resolve Button */}
-              {selectedAlert.resolved ? (
+              {isAlertResolved(selectedAlert) ? (
                 <div style={{
-                  background: '#F1F5F9',
-                  color: '#475569',
-                  border: '1px solid #CBD5E1',
+                  background: '#ECFDF5',
+                  color: '#065F46',
+                  border: '1.5px solid #10B981',
                   padding: '7px 16px',
                   borderRadius: '8px',
                   fontSize: '0.8rem',
-                  fontWeight: 700,
+                  fontWeight: 800,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px'
+                  gap: '6px',
+                  boxShadow: '0 1px 2px rgba(16, 185, 129, 0.2)'
                 }}>
-                  <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" strokeWidth="3">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="#10B981" fill="none" strokeWidth="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  Resolved
+                  <span>Resolved</span>
                 </div>
               ) : (
                 <button
@@ -1599,7 +1764,8 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px'
+                    gap: '6px',
+                    transition: 'all 0.15s ease'
                   }}
                 >
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">

@@ -2043,118 +2043,132 @@ def sync_alerts_from_db():
     """
     Syncs alerts between database and memory.
     If database is empty, seeds all INITIAL_ALERTS into database.
-    If database has records, populates in-memory store from database.
+    If database has records, populates in-memory store from database and keeps status synchronized.
     """
     global ALERTS_DATA, _ALERTS_INITIALIZED
-    if _ALERTS_INITIALIZED or not SessionLocal or not AlertModel:
+    if not SessionLocal or not AlertModel:
         return
     try:
         db = SessionLocal()
-        count = db.query(AlertModel).count()
-        if count == 0:
-            for a in INITIAL_ALERTS:
-                alert_db = AlertModel(
-                    id=a["id"],
-                    alert_type=a.get("alert_type", "traffic"),
-                    title=a.get("title", ""),
-                    description=a.get("description", ""),
-                    severity=a.get("severity", "Moderate"),
-                    status=a.get("status", "Active"),
-                    location=a.get("location", ""),
-                    location_id=a.get("location_id"),
-                    latitude=12.9716,
-                    longitude=77.5946,
-                    source=a.get("source", "Sensor Network"),
-                    camera_feed_url=a.get("camera_feed_url"),
-                    camera_feed_label=a.get("camera_feed_label"),
-                    time_str=a.get("time_str"),
-                    detected_at=a.get("timestamp", datetime.now().strftime("%d %b %Y, %H:%M")),
-                    updated_at=a.get("timestamp", datetime.now().strftime("%d %b %Y, %H:%M")),
-                    acknowledged=a.get("acknowledged", False),
-                    acknowledged_at=a.get("acknowledged_at"),
-                    acknowledged_by=a.get("acknowledged_by"),
-                    resolved=a.get("resolved", False),
-                    resolved_at=a.get("resolved_at"),
-                    resolved_by=a.get("resolved_by"),
-                    assigned_to=a.get("assigned_to"),
-                    assigned_to_id=a.get("assigned_to_id"),
-                    recipient_email=a.get("recipient_email"),
-                    assignment_status=a.get("assignment_status"),
-                    assigned_at=a.get("assigned_at"),
-                    impact_data=a.get("impact_data"),
-                    related_info=a.get("related_info"),
-                    telemetry_metrics=a.get("telemetry_metrics"),
-                    is_escalated=a.get("is_escalated", False)
-                )
-                db.add(alert_db)
-            db.commit()
-            print("[Alerts Engine] 44 Initial Alerts seeded into database.")
-        else:
-            db_alerts = db.query(AlertModel).all()
-            db_updates = db.query(AlertUpdateModel).all() if AlertUpdateModel else []
-            db_comments = db.query(AlertCommentModel).all() if AlertCommentModel else []
-            
-            updates_by_alert = {}
-            for u in db_updates:
-                updates_by_alert.setdefault(u.alert_id, []).append({
-                    "time": u.timestamp,
-                    "text": u.text,
-                    "dot": u.dot_color
-                })
-            
-            comments_by_alert = {}
-            for c in db_comments:
-                comments_by_alert.setdefault(c.alert_id, []).append({
-                    "id": c.id,
-                    "user": c.user,
-                    "comment": c.comment,
-                    "timestamp": c.timestamp
-                })
+        if not _ALERTS_INITIALIZED:
+            count = db.query(AlertModel).count()
+            if count == 0:
+                for a in INITIAL_ALERTS:
+                    alert_db = AlertModel(
+                        id=a["id"],
+                        alert_type=a.get("alert_type", "traffic"),
+                        title=a.get("title", ""),
+                        description=a.get("description", ""),
+                        severity=a.get("severity", "Moderate"),
+                        status=a.get("status", "Active"),
+                        location=a.get("location", ""),
+                        location_id=a.get("location_id"),
+                        latitude=12.9716,
+                        longitude=77.5946,
+                        source=a.get("source", "Sensor Network"),
+                        camera_feed_url=a.get("camera_feed_url"),
+                        camera_feed_label=a.get("camera_feed_label"),
+                        time_str=a.get("time_str"),
+                        detected_at=a.get("timestamp", datetime.now().strftime("%d %b %Y, %H:%M")),
+                        updated_at=a.get("timestamp", datetime.now().strftime("%d %b %Y, %H:%M")),
+                        acknowledged=a.get("acknowledged", False),
+                        acknowledged_at=a.get("acknowledged_at"),
+                        acknowledged_by=a.get("acknowledged_by"),
+                        resolved=a.get("resolved", False),
+                        resolved_at=a.get("resolved_at"),
+                        resolved_by=a.get("resolved_by"),
+                        assigned_to=a.get("assigned_to"),
+                        assigned_to_id=a.get("assigned_to_id"),
+                        recipient_email=a.get("recipient_email"),
+                        assignment_status=a.get("assignment_status"),
+                        assigned_at=a.get("assigned_at"),
+                        impact_data=a.get("impact_data"),
+                        related_info=a.get("related_info"),
+                        telemetry_metrics=a.get("telemetry_metrics"),
+                        is_escalated=a.get("is_escalated", False)
+                    )
+                    db.add(alert_db)
+                db.commit()
+                print("[Alerts Engine] 44 Initial Alerts seeded into database.")
+            else:
+                db_alerts = db.query(AlertModel).all()
+                db_updates = db.query(AlertUpdateModel).all() if AlertUpdateModel else []
+                db_comments = db.query(AlertCommentModel).all() if AlertCommentModel else []
                 
-            merged_list = []
-            for row in db_alerts:
-                init_match = next((x for x in INITIAL_ALERTS if x["id"] == row.id), {})
-                alert_dict = {
-                    **init_match,
-                    "id": row.id,
-                    "alert_type": row.alert_type,
-                    "title": row.title,
-                    "description": row.description,
-                    "severity": row.severity,
-                    "status": row.status,
-                    "location": row.location,
-                    "location_id": row.location_id,
-                    "source": row.source,
-                    "camera_feed_url": row.camera_feed_url,
-                    "camera_feed_label": row.camera_feed_label,
-                    "time_str": row.time_str,
-                    "timestamp": row.detected_at,
-                    "acknowledged": row.acknowledged,
-                    "acknowledged_at": row.acknowledged_at,
-                    "acknowledged_by": row.acknowledged_by,
-                    "resolved": row.resolved,
-                    "resolved_at": row.resolved_at,
-                    "resolved_by": row.resolved_by,
-                    "assigned_to": row.assigned_to,
-                    "assigned_to_id": row.assigned_to_id,
-                    "recipient_email": row.recipient_email,
-                    "assignment_status": row.assignment_status,
-                    "impact_data": init_match.get("impact_data") or row.impact_data or [],
-                    "affected_areas": init_match.get("affected_areas") or [],
-                    "timeline": init_match.get("timeline") or [],
-                    "related_info": {**(row.related_info or {}), **(init_match.get("related_info") or {})},
-                    "telemetry_metrics": {**(row.telemetry_metrics or {}), **(init_match.get("telemetry_metrics") or {})},
-                    "is_escalated": row.is_escalated,
-                    "live_updates": updates_by_alert.get(row.id, init_match.get("live_updates", [])),
-                    "comments": comments_by_alert.get(row.id, init_match.get("comments", []))
-                }
-                merged_list.append(alert_dict)
-            if merged_list:
-                ALERTS_DATA.clear()
-                ALERTS_DATA.extend(merged_list)
-                print(f"[Alerts Engine] Loaded {len(merged_list)} alerts from database.")
+                updates_by_alert = {}
+                for u in db_updates:
+                    updates_by_alert.setdefault(u.alert_id, []).append({
+                        "time": u.timestamp,
+                        "text": u.text,
+                        "dot": u.dot_color
+                    })
+                
+                comments_by_alert = {}
+                for c in db_comments:
+                    comments_by_alert.setdefault(c.alert_id, []).append({
+                        "id": c.id,
+                        "user": c.user,
+                        "comment": c.comment,
+                        "timestamp": c.timestamp
+                    })
+                    
+                merged_list = []
+                for row in db_alerts:
+                    init_match = next((x for x in INITIAL_ALERTS if x["id"] == row.id), {})
+                    alert_dict = {
+                        **init_match,
+                        "id": row.id,
+                        "alert_type": row.alert_type,
+                        "title": row.title,
+                        "description": row.description,
+                        "severity": row.severity,
+                        "status": row.status,
+                        "location": row.location,
+                        "location_id": row.location_id,
+                        "source": row.source,
+                        "camera_feed_url": row.camera_feed_url,
+                        "camera_feed_label": row.camera_feed_label,
+                        "time_str": row.time_str,
+                        "timestamp": row.detected_at,
+                        "acknowledged": row.acknowledged,
+                        "acknowledged_at": row.acknowledged_at,
+                        "acknowledged_by": row.acknowledged_by,
+                        "resolved": row.resolved,
+                        "resolved_at": row.resolved_at,
+                        "resolved_by": row.resolved_by,
+                        "assigned_to": row.assigned_to,
+                        "assigned_to_id": row.assigned_to_id,
+                        "recipient_email": row.recipient_email,
+                        "assignment_status": row.assignment_status,
+                        "impact_data": init_match.get("impact_data") or row.impact_data or [],
+                        "affected_areas": init_match.get("affected_areas") or [],
+                        "timeline": init_match.get("timeline") or [],
+                        "related_info": {**(row.related_info or {}), **(init_match.get("related_info") or {})},
+                        "telemetry_metrics": {**(row.telemetry_metrics or {}), **(init_match.get("telemetry_metrics") or {})},
+                        "is_escalated": row.is_escalated,
+                        "live_updates": updates_by_alert.get(row.id, init_match.get("live_updates", [])),
+                        "comments": comments_by_alert.get(row.id, init_match.get("comments", []))
+                    }
+                    merged_list.append(alert_dict)
+                if merged_list:
+                    ALERTS_DATA.clear()
+                    ALERTS_DATA.extend(merged_list)
+                    print(f"[Alerts Engine] Loaded {len(merged_list)} alerts from database.")
+            _ALERTS_INITIALIZED = True
+        else:
+            # Continuous synchronization of mutable status/resolved fields from database
+            db_statuses = db.query(AlertModel.id, AlertModel.status, AlertModel.resolved, AlertModel.resolved_at, AlertModel.resolved_by).all()
+            status_map = {row.id: row for row in db_statuses}
+            for a in ALERTS_DATA:
+                r = status_map.get(a["id"])
+                if r:
+                    a["status"] = r.status
+                    a["resolved"] = bool(r.resolved)
+                    if r.resolved_at:
+                        a["resolved_at"] = r.resolved_at
+                    if r.resolved_by:
+                        a["resolved_by"] = r.resolved_by
         db.close()
-        _ALERTS_INITIALIZED = True
     except Exception as e:
         print(f"[Alerts Engine] Notice syncing alerts from database: {e}")
 
@@ -2231,6 +2245,7 @@ def get_alerts_summary():
     Returns live aggregate counts for the top summary cards:
     Critical, High, Moderate, Low, Total Active, Total Resolved.
     """
+    sync_alerts_from_db()
     active = [a for a in ALERTS_DATA if a.get("status") in ["Active", "Acknowledged"]]
     resolved_count = len([a for a in ALERTS_DATA if a.get("status") == "Resolved"])
     critical_count = len([a for a in active if a.get("severity") == "Critical"])
