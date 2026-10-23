@@ -80,7 +80,7 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                         "y": round((fy / height) * 100, 1),
                         "width": round((fw / width) * 100, 1),
                         "height": round((fh / height) * 100, 1),
-                        "label": "SIMULATED: FACE CLOSE-UP"
+                        "label": "PERSONAL FACE CLOSE-UP"
                     }
 
         return None
@@ -163,8 +163,9 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                         "height": round((h / height) * 100, 1),
                         "raw_area": area,
                         "confidence": round(conf, 2),
-                        "label": "SIMULATED: POTHOLE DEFECT",
-                        "simulated": True
+                        "label": "POTHOLE DEFECT",
+                        "simulated": False,
+                        "detector": "opencv_computer_vision"
                     })
 
         if pothole_boxes:
@@ -174,7 +175,8 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                 "detected": True,
                 "confidence": best["confidence"],
                 "box": best,
-                "simulated": True,
+                "simulated": False,
+                "detector": "opencv_computer_vision",
                 "reason": "Potential road damage detected. Review the evidence before submitting."
             }
 
@@ -246,15 +248,17 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
             return {
                 "detected": True,
                 "confidence": round(conf, 2),
-                "simulated": True,
+                "simulated": False,
+                "detector": "opencv_computer_vision",
                 "box": {
                     "x": round((x / width) * 100, 1),
                     "y": round((y / height) * 100, 1),
                     "width": round((w / width) * 100, 1),
                     "height": round((h / height) * 100, 1),
                     "confidence": round(conf, 2),
-                    "label": "SIMULATED: ROAD CRACK DEFECT",
-                    "simulated": True
+                    "label": "ROAD CRACK DEFECT",
+                    "simulated": False,
+                    "detector": "opencv_computer_vision"
                 },
                 "reason": "Potential road crack damage detected. Review the evidence before submitting."
             }
@@ -316,15 +320,17 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                     "detected": True,
                     "confidence": conf,
                     "is_daytime": False,
-                    "simulated": True,
+                    "simulated": False,
+                    "detector": "opencv_computer_vision",
                     "box": {
                         "x": round((x / width) * 100, 1),
                         "y": round((y / height) * 100, 1),
                         "width": round((max(w, int(width * 0.18)) / width) * 100, 1),
                         "height": round((h / height) * 100, 1),
                         "confidence": conf,
-                        "label": "SIMULATED: DARK STREETLIGHT INFRASTRUCTURE",
-                        "simulated": True
+                        "label": "DARK STREETLIGHT INFRASTRUCTURE",
+                        "simulated": False,
+                        "detector": "opencv_computer_vision"
                     },
                     "reason": "Non-operational streetlight infrastructure detected in low-light conditions. You can submit this report."
                 }
@@ -370,14 +376,16 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                         "width": round((w / width) * 100, 1),
                         "height": round((h / height) * 100, 1),
                         "confidence": round(conf, 2),
-                        "label": "SIMULATED: WATERLOGGING / ACCUMULATION",
-                        "simulated": True
+                        "label": "WATERLOGGING / FLOODING",
+                        "simulated": False,
+                        "detector": "opencv_computer_vision"
                     }
                     return {
                         "detected": True,
                         "confidence": round(conf, 2),
                         "box": box,
-                        "simulated": True,
+                        "simulated": False,
+                        "detector": "opencv_computer_vision",
                         "reason": "Potential waterlogging or flooding detected. Review the evidence before submitting."
                     }
 
@@ -425,8 +433,9 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                         "height": round((h / height) * 100, 1),
                         "raw_area": area,
                         "confidence": round(conf, 2),
-                        "label": "SIMULATED: GARBAGE ACCUMULATION",
-                        "simulated": True
+                        "label": "GARBAGE ACCUMULATION",
+                        "simulated": False,
+                        "detector": "opencv_computer_vision"
                     })
 
         if garbage_candidates:
@@ -435,7 +444,8 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                 "detected": True,
                 "confidence": best["confidence"],
                 "box": best,
-                "simulated": True,
+                "simulated": False,
+                "detector": "opencv_computer_vision",
                 "reason": "Potential garbage accumulation detected. Review the evidence before submitting."
             }
 
@@ -448,23 +458,17 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
 
     def detect_general_civic_hazard(self, frame: np.ndarray, gray: np.ndarray, hsv: np.ndarray, category: str) -> Dict[str, Any]:
         """
-        Detects general civic hazard, fallen tree, traffic obstruction, or public infrastructure issue.
+        Reports honest model availability for categories without dedicated vision weights.
+        Does not pretend to detect unsupported classes with canned boxes.
         """
-        box = {
-            "x": 25.0,
-            "y": 30.0,
-            "width": 50.0,
-            "height": 45.0,
-            "label": f"SIMULATED: {category.upper()[:24]}",
-            "confidence": 0.85,
-            "simulated": True
-        }
         return {
-            "detected": True,
-            "confidence": 0.85,
-            "box": box,
-            "simulated": True,
-            "reason": "Civic defect visual evidence detected. You can submit this report."
+            "detected": False,
+            "confidence": 0.0,
+            "box": None,
+            "simulated": False,
+            "is_unsupported": True,
+            "detector": "opencv_computer_vision",
+            "reason": f"Computer vision model support is currently pending for '{category}'. Please submit with clear footage for manual officer evaluation."
         }
 
     def detect_frame(self, frame: np.ndarray, category: str) -> Dict[str, Any]:
@@ -670,14 +674,15 @@ class MultiFrameVideoValidator:
                     "confidence": round(best_confidence, 2),
                     "error": None,
                     "primary_box": best_box,
-                    "simulated": True,
+                    "simulated": False,
+                    "detector": "opencv_computer_vision",
                     "frames_analyzed": frames_analyzed,
                     "frames_with_defect": len(detections),
                     "features": [
                         f"Road defect verified across {len(detections)}/{frames_analyzed} sampled frames",
-                        f"Simulated confidence: {best_confidence*100:.0f}%",
+                        f"Vision confidence: {best_confidence*100:.0f}%",
                         f"Category: {category}",
-                        "Testing Phase: Simulated Detection Model"
+                        "Engine: OpenCV Computer Vision"
                     ],
                     "reason": succ_msg,
                     "guidance": "Defect confirmed! You can proceed to submit your geotagged report."
@@ -717,7 +722,8 @@ class MultiFrameVideoValidator:
                 "confidence": round(max(0.48, best_confidence), 2),
                 "error": None,
                 "primary_box": best_box,
-                "simulated": True,
+                "simulated": False,
+                "detector": "opencv_computer_vision",
                 "frames_analyzed": frames_analyzed,
                 "reason": "The issue could not be confirmed. Please record a clearer view or submit for review.",
                 "guidance": "You may submit this report for physical officer inspection, or record again closer to the defect for clearer evidence.",
@@ -739,14 +745,15 @@ class MultiFrameVideoValidator:
                     "confidence": round(best_confidence, 2),
                     "error": None,
                     "primary_box": best_box,
-                    "simulated": True,
+                    "simulated": False,
+                    "detector": "opencv_computer_vision",
                     "frames_analyzed": frames_analyzed,
                     "frames_with_defect": len(detections),
                     "features": [
                         f"Water accumulation verified across {len(detections)}/{frames_analyzed} frames",
-                        f"Simulated confidence: {best_confidence*100:.0f}%",
+                        f"Vision confidence: {best_confidence*100:.0f}%",
                         f"Category: {category}",
-                        "Testing Phase: Simulated Detection Model"
+                        "Engine: OpenCV Computer Vision"
                     ],
                     "reason": "Potential waterlogging or flooding detected. Review the evidence before submitting.",
                     "guidance": "Defect confirmed! You can proceed to submit your geotagged report."
@@ -772,7 +779,8 @@ class MultiFrameVideoValidator:
                 "confidence": round(max(0.48, best_confidence), 2),
                 "error": None,
                 "primary_box": best_box,
-                "simulated": True,
+                "simulated": False,
+                "detector": "opencv_computer_vision",
                 "frames_analyzed": frames_analyzed,
                 "reason": "The issue could not be confirmed. Please record a clearer view or submit for review.",
                 "guidance": "You may submit this report for physical officer inspection, or record again closer to the defect for clearer evidence.",
@@ -794,14 +802,15 @@ class MultiFrameVideoValidator:
                     "confidence": round(best_confidence, 2),
                     "error": None,
                     "primary_box": best_box,
-                    "simulated": True,
+                    "simulated": False,
+                    "detector": "opencv_computer_vision",
                     "frames_analyzed": frames_analyzed,
                     "frames_with_defect": len(detections),
                     "features": [
                         f"Solid waste accumulation verified across {len(detections)}/{frames_analyzed} frames",
-                        f"Simulated confidence: {best_confidence*100:.0f}%",
+                        f"Vision confidence: {best_confidence*100:.0f}%",
                         f"Category: {category}",
-                        "Testing Phase: Simulated Detection Model"
+                        "Engine: OpenCV Computer Vision"
                     ],
                     "reason": "Potential garbage accumulation detected. Review the evidence before submitting.",
                     "guidance": "Defect confirmed! You can proceed to submit your geotagged report."
@@ -827,7 +836,8 @@ class MultiFrameVideoValidator:
                 "confidence": round(max(0.48, best_confidence), 2),
                 "error": None,
                 "primary_box": best_box,
-                "simulated": True,
+                "simulated": False,
+                "detector": "opencv_computer_vision",
                 "frames_analyzed": frames_analyzed,
                 "reason": "The issue could not be confirmed. Please record a clearer view or submit for review.",
                 "guidance": "You may submit this report for physical officer inspection, or record again closer to the defect for clearer evidence.",
@@ -862,14 +872,15 @@ class MultiFrameVideoValidator:
                     "confidence": round(best_confidence, 2),
                     "error": None,
                     "primary_box": best_box,
-                    "simulated": True,
+                    "simulated": False,
+                    "detector": "opencv_computer_vision",
                     "frames_analyzed": frames_analyzed,
                     "frames_with_defect": len(detections),
                     "features": [
                         f"Dark streetlight infrastructure verified across {len(detections)}/{frames_analyzed} frames",
-                        f"Simulated confidence: {best_confidence*100:.0f}%",
+                        f"Vision confidence: {best_confidence*100:.0f}%",
                         f"Category: {category}",
-                        "Testing Phase: Simulated Detection Model"
+                        "Engine: OpenCV Computer Vision"
                     ],
                     "reason": "Non-operational streetlight infrastructure detected in low-light conditions. You can submit this report.",
                     "guidance": "Defect confirmed! You can proceed to submit your geotagged report."
@@ -887,36 +898,16 @@ class MultiFrameVideoValidator:
                 "frames_analyzed": frames_analyzed
             }
 
-        # 5. General Civic Hazard / Traffic Obstruction
-        if detection_ratio >= 0.20 and best_box is not None:
-            return {
-                "is_valid": True,
-                "verdict": "verified",
-                "category_match": True,
-                "confidence": round(best_confidence, 2),
-                "error": None,
-                "primary_box": best_box,
-                "simulated": True,
-                "frames_analyzed": frames_analyzed,
-                "frames_with_defect": len(detections),
-                "features": [
-                    f"Defect verified across {len(detections)}/{frames_analyzed} sampled frames",
-                    f"Simulated confidence: {best_confidence*100:.0f}%",
-                    f"Category: {category}",
-                    "Testing Phase: Simulated Detection Model"
-                ],
-                "reason": "Civic defect visual evidence detected. You can submit this report.",
-                "guidance": "Defect confirmed! You can proceed to submit your geotagged report."
-            }
-
+        # 5. Unsupported Categories - Honest distinction
         return {
             "is_valid": False,
             "verdict": "rejected",
             "category_match": False,
-            "confidence": 0.12,
-            "error": "The video does not appear to show the selected civic issue.",
-            "reason": "The video does not appear to show the selected civic issue. Please record the reported issue again.",
-            "guidance": f"Please point the camera directly at the {category.lower()} issue and ensure good lighting.",
+            "is_unsupported": True,
+            "confidence": 0.0,
+            "error": f"Automated CV model is currently unavailable for '{category}'.",
+            "reason": f"Computer vision model support is currently pending for '{category}'. Please submit with clear evidence for manual municipal inspection.",
+            "guidance": "You may submit this report for physical officer review.",
             "action": "record_again",
             "frames_analyzed": frames_analyzed
         }

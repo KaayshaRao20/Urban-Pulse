@@ -279,15 +279,16 @@ export default function LoginPage({
     setIsSubmitting(true);
 
     try {
-      // If the citizen entered an email in identifier or registration email, use that
       const typedEmail = (identifier.includes('@') ? identifier.trim() : (regEmail.includes('@') ? regEmail.trim() : null));
-      const typedName = regFullName.trim() || (typedEmail ? typedEmail.split('@')[0].replace('.', ' ').replace(/(^\w|\s\w)/g, m => m.toUpperCase()) : 'Kaaysha Rao');
-      const targetUser = {
-        email: typedEmail || 'kaaysha.rao@gmail.com',
-        name: typedName
-      };
+      const targetUser = typedEmail ? {
+        email: typedEmail,
+        name: regFullName.trim() || typedEmail.split('@')[0].replace('.', ' ').replace(/(^\w|\s\w)/g, m => m.toUpperCase())
+      } : null;
 
       const res = await loginWithGoogle(targetUser);
+      if (res && res.redirecting) {
+        return;
+      }
       if (res && res.requires_linking) {
         setLinkEmail(res.email);
         setLinkGoogleId(res.google_id || '');

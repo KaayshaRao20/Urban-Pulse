@@ -4,7 +4,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import LanguageSelector from './LanguageSelector';
 import { API_BASE } from '../config/api';
-import { detectRealtimeFrame, validateVideoEvidence, TEST_SCENARIOS } from '../services/civicDetectionService';
+import { detectRealtimeFrame, validateVideoEvidence } from '../services/civicDetectionService';
 
 // Popular Bengaluru landmark locations for instant geocode matching
 const BENGALURU_PRESET_LOCATIONS = [
@@ -90,7 +90,6 @@ export default function CitizenPortalView({
   const [realtimeFeedback, setRealtimeFeedback] = useState('');
   const [cvValidationLoading, setCvValidationLoading] = useState(false);
   const [videoValidationResult, setVideoValidationResult] = useState(null);
-  const [testScenario, setTestScenario] = useState('auto');
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -101,6 +100,29 @@ export default function CitizenPortalView({
   const nativeVideoInputRef = useRef(null);
   const detectionAnimRef = useRef(null);
   const detectionCanvasRef = useRef(null);
+
+  // Reliable video element attachment to prevent black screen preview
+  const attachVideoRef = useCallback((node) => {
+    videoRef.current = node;
+    if (node && streamRef.current) {
+      if (node.srcObject !== streamRef.current) {
+        node.srcObject = streamRef.current;
+      }
+      node.play().catch(err => {
+        console.warn('Video element play notice:', err);
+      });
+    }
+  }, []);
+
+  // Ensure live video stream is bound immediately whenever camera modal becomes visible
+  useEffect(() => {
+    if (isCameraOpen && videoRef.current && streamRef.current) {
+      if (videoRef.current.srcObject !== streamRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+      }
+      videoRef.current.play().catch(e => console.warn('Video playback sync notice:', e));
+    }
+  }, [isCameraOpen]);
 
   // Form Submission
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -662,7 +684,7 @@ export default function CitizenPortalView({
 
       setIsAnalyzingFrame(true);
       try {
-        const analysis = detectRealtimeFrame(videoRef.current, category, testScenario);
+        const analysis = detectRealtimeFrame(videoRef.current, category);
         if (analysis) {
           if (analysis.feedback) setRealtimeFeedback(analysis.feedback);
           if (analysis.detected && analysis.box) {
@@ -697,10 +719,10 @@ export default function CitizenPortalView({
     setCvValidationLoading(true);
     try {
       // 1. In-browser modular civic detection & quality analysis
-      const clientResult = await validateVideoEvidence(fileOrBlob, category, durationSec, testScenario);
+      const clientResult = await validateVideoEvidence(fileOrBlob, category, durationSec);
 
-      // If simulated scenario (non-auto) or client rejected, return client result immediately
-      if (testScenario !== 'auto' || !clientResult.valid) {
+      // If client rejected, return client result immediately
+      if (!clientResult.valid) {
         setVideoValidationResult(clientResult);
         return clientResult;
       }
@@ -2303,9 +2325,9 @@ export default function CitizenPortalView({
                         </div>
                       )}
 
-                      {/* Interactive Civic Detection Test Scenario Switcher */}
+                      {/* Active Computer Vision Live Inspection Indicator */}
                       <div style={{
-                        padding: '10px 14px',
+                        padding: '8px 12px',
                         borderRadius: 10,
                         background: isDark ? 'rgba(30, 41, 59, 0.7)' : '#F1F5F9',
                         border: '1px solid var(--card-border-subtle, #CBD5E1)',
@@ -2317,47 +2339,24 @@ export default function CitizenPortalView({
                         marginBottom: 10
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: '0.82rem' }}>🔬</span>
+                          <span style={{ fontSize: '0.82rem' }}>📷</span>
                           <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-title, #0F172A)' }}>
-                            Detection Testing Mode:
+                            Civic Computer Vision:
                           </span>
                           <span style={{
                             fontSize: '0.64rem',
                             fontWeight: 700,
                             padding: '2px 6px',
                             borderRadius: 4,
-                            background: '#DBEAFE',
-                            color: '#1E40AF'
+                            background: '#EFF6FF',
+                            color: '#1D4ED8',
+                            border: '1px solid #BFDBFE'
                           }}>
-                            SIMULATED
+                            ACTIVE INFERENCE
                           </span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <label htmlFor="test-scenario-select" style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 600 }}>
-                            Scenario:
-                          </label>
-                          <select
-                            id="test-scenario-select"
-                            value={testScenario}
-                            onChange={(e) => {
-                              setTestScenario(e.target.value);
-                              setVideoValidationError('');
-                            }}
-                            style={{
-                              fontSize: '0.74rem',
-                              fontWeight: 600,
-                              padding: '4px 8px',
-                              borderRadius: 6,
-                              border: '1px solid #94A3B8',
-                              background: isDark ? '#1E293B' : '#FFFFFF',
-                              color: 'var(--text-title, #0F172A)',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {TEST_SCENARIOS.map(sc => (
-                              <option key={sc.id} value={sc.id}>{sc.label}</option>
-                            ))}
-                          </select>
+                        <div style={{ fontSize: '0.70rem', color: '#64748B', fontWeight: 600 }}>
+                          Real-time pixel analysis for {category}
                         </div>
                       </div>
 
@@ -2632,7 +2631,7 @@ export default function CitizenPortalView({
                               color: '#065F46'
                             }}>
                               <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <span>✓ EVIDENCE VERIFIED: {videoValidationResult.category || category} (Simulated Model)</span>
+                                <span>✓ EVIDENCE VERIFIED: {videoValidationResult.category || category}</span>
                                 <span style={{ background: '#059669', color: '#FFFFFF', padding: '1px 6px', borderRadius: 4, fontSize: '0.66rem' }}>
                                   {Math.round((videoValidationResult.confidence || 0.88) * 100)}% Confidence
                                 </span>
@@ -2686,7 +2685,7 @@ export default function CitizenPortalView({
                                   borderRadius: 4,
                                   whiteSpace: 'nowrap'
                                 }}>
-                                  {videoValidationResult.primary_box.label || `SIMULATED: ${category.toUpperCase()} DETECTED`}
+                                  {videoValidationResult.primary_box.label || `${(videoValidationResult.category || category).toUpperCase()} DEFECT`}
                                 </div>
                               </div>
                             )}
@@ -4681,29 +4680,17 @@ export default function CitizenPortalView({
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <select
-                    value={testScenario}
-                    onChange={(e) => setTestScenario(e.target.value)}
-                    disabled={isRecording}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.16)',
-                      border: '1px solid rgba(255, 255, 255, 0.25)',
-                      borderRadius: 6,
-                      padding: '4px 8px',
-                      color: '#FFFFFF',
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                      cursor: isRecording ? 'not-allowed' : 'pointer',
-                      outline: 'none'
-                    }}
-                    title="Simulate detection scenario for testing"
-                  >
-                    {TEST_SCENARIOS.map(sc => (
-                      <option key={sc.id} value={sc.id} style={{ background: '#0F172A', color: '#FFFFFF' }}>
-                        {sc.label}
-                      </option>
-                    ))}
-                  </select>
+                  <span style={{
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    borderRadius: 6,
+                    padding: '4px 8px',
+                    color: '#6EE7B7',
+                    fontSize: '0.70rem',
+                    fontWeight: 600
+                  }}>
+                    ● LIVE CV ANALYZER
+                  </span>
 
                   <button
                     type="button"
@@ -4736,7 +4723,7 @@ export default function CitizenPortalView({
                   <button
                     type="button"
                     onClick={stopLiveCamera}
-                    title="Close camera"
+                    title="Close Camera"
                     style={{
                       background: 'rgba(255, 255, 255, 0.12)',
                       border: 'none',
@@ -4765,7 +4752,7 @@ export default function CitizenPortalView({
                 overflow: 'hidden'
               }}>
                 <video
-                  ref={videoRef}
+                  ref={attachVideoRef}
                   autoPlay
                   playsInline
                   muted

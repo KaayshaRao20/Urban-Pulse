@@ -62,6 +62,21 @@ function AppContent() {
     }
   }, [isAuthenticated, user]);
 
+  // Support direct URL query parameter linking (?portal=authority or ?mode=authority)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const portalParam = params.get('portal') || params.get('mode');
+      if (portalParam === 'authority') {
+        setUnauthView('auth');
+        setAuthInitialMode('login');
+        setAuthInitialType('authority');
+      }
+    } catch (e) {
+      console.warn('URL param parse error:', e);
+    }
+  }, []);
+
   const consecutiveFailuresRef = useRef(0);
 
   const fetchTelemetry = async () => {
