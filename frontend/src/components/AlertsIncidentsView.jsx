@@ -144,10 +144,11 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
   const filteredAlerts = useMemo(() => {
     return alerts.filter(alert => {
       // Status Filter
-      if (filterStatus === 'active' && alert.status === 'Resolved') {
+      const isResolved = alert.status === 'Resolved' || alert.resolved === true || alert.status?.toLowerCase() === 'resolved';
+      if (filterStatus === 'active' && isResolved) {
         return false;
       }
-      if (filterStatus === 'resolved' && alert.status !== 'Resolved') {
+      if (filterStatus === 'resolved' && !isResolved) {
         return false;
       }
       if (filterStatus === 'acknowledged' && alert.status !== 'Acknowledged') {
@@ -706,12 +707,12 @@ export default function AlertsIncidentsView({ onCriticalCountChange }) {
               fontSize: '0.82rem',
               fontWeight: 800
             }}>
-              K
+              {(currentOfficerName || 'A').charAt(0).toUpperCase()}
             </div>
             <div style={{ textAlign: 'left', lineHeight: 1.1 }}>
-              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0F172A' }}>Kaaysha Rao</div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0F172A' }}>{currentOfficerName}</div>
               <div style={{ fontSize: '0.68rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: 2 }}>
-                Admin
+                {user?.role ? user.role.toUpperCase() : 'Authority Admin'}
                 <svg viewBox="0 0 24 24" width="10" height="10" stroke="currentColor" fill="none" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
               </div>
             </div>
