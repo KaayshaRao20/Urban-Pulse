@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import LanguageSelector from './LanguageSelector';
 import { API_BASE } from '../config/api';
 import { detectRealtimeFrame, validateVideoEvidence } from '../services/civicDetectionService';
+import { generateDemoRoadVideo, createLiveDemoRoadStream } from '../services/demoRoadVideoService';
 
 // Popular Bengaluru landmark locations for instant geocode matching
 const BENGALURU_PRESET_LOCATIONS = [
@@ -90,9 +91,12 @@ export default function CitizenPortalView({
   const [realtimeFeedback, setRealtimeFeedback] = useState('');
   const [cvValidationLoading, setCvValidationLoading] = useState(false);
   const [videoValidationResult, setVideoValidationResult] = useState(null);
+  const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
+  const [isDemoCameraFeed, setIsDemoCameraFeed] = useState(false);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const demoStreamControllerRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
@@ -815,6 +819,11 @@ export default function CitizenPortalView({
       stopLiveRecording();
     }
     stopObjectDetection();
+    if (demoStreamControllerRef.current) {
+      demoStreamControllerRef.current.stop();
+      demoStreamControllerRef.current = null;
+    }
+    setIsDemoCameraFeed(false);
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -828,14 +837,82 @@ export default function CitizenPortalView({
 
   // Switch camera facing mode (environment rear vs user front)
   const toggleCameraFacing = () => {
+    if (isDemoCameraFeed) {
+      showToast('Camera facing toggle is disabled during demo road feed.');
+      return;
+    }
     const nextFacing = cameraFacing === 'environment' ? 'user' : 'environment';
     setCameraFacing(nextFacing);
     startLiveCamera(nextFacing);
   };
 
+  // Toggle animated demo road defect stream inside camera viewfinder
+  const toggleDemoCameraFeed = () => {
+    if (isRecording) return;
+    if (isDemoCameraFeed) {
+      // Revert to device webcam / camera
+      if (demoStreamControllerRef.current) {
+        demoStreamControllerRef.current.stop();
+        demoStreamControllerRef.current = null;
+      }
+      setIsDemoCameraFeed(false);
+      if (videoRef.current && streamRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+        videoRef.current.play().catch(e => console.warn(e));
+      }
+      showToast('Switched back to device camera.');
+    } else {
+      // Switch to animated demo road defect stream
+      const demo = createLiveDemoRoadStream(category);
+      demoStreamControllerRef.current = demo;
+      setIsDemoCameraFeed(true);
+      if (videoRef.current && demo.stream) {
+        videoRef.current.srcObject = demo.stream;
+        videoRef.current.play().catch(e => console.warn(e));
+      }
+      showToast('Active: Demo Road Camera Feed with AI Detection.');
+    }
+  };
+
+  // One-click demo road defect video loader for indoor testing without outdoor road
+  const handleLoadDemoRoadVideo = async (targetCategory = category) => {
+    setIsGeneratingDemo(true);
+    setCvValidationLoading(true);
+    setVideoValidationError('');
+    showToast(`Generating demo road defect video for ${targetCategory}...`);
+    try {
+      const result = await generateDemoRoadVideo(targetCategory, 2.5);
+      const url = URL.createObjectURL(result.blob);
+      setRecordedVideoFile(result.file);
+      setRecordedVideoUrl(url);
+      setVideoValidationResult(result.validationResult);
+      if (targetCategory !== category) {
+        setCategory(targetCategory);
+      }
+      // Guarantee verified device GPS coordinates for demo testing
+      if (!gpsVerified || latitude === null) {
+        setLatitude(12.9352);
+        setLongitude(77.6953);
+        setGpsVerified(true);
+        setGpsStatus('detected');
+        setGpsFeedback('Verified GPS locked for demo test: 12.93520, 77.69530');
+      }
+      showToast(`✓ Demo Road Defect loaded & verified! (${Math.round(result.validationResult.confidence * 100)}% confidence)`);
+    } catch (err) {
+      console.error('Demo video generation error:', err);
+      showToast('Notice: Could not generate synthetic video.');
+    } finally {
+      setIsGeneratingDemo(false);
+      setCvValidationLoading(false);
+    }
+  };
+
   // Start live video recording using MediaRecorder API
   const startLiveRecording = () => {
-    if (!streamRef.current) return;
+    const activeStream = (isDemoCameraFeed && demoStreamControllerRef.current?.stream)
+      ? demoStreamControllerRef.current.stream
+      : streamRef.current;
+    if (!activeStream) return;
     setVideoValidationError('');
     setRecordingSeconds(0);
     recordingSecondsRef.current = 0;
@@ -849,7 +926,7 @@ export default function CitizenPortalView({
 
     try {
       const options = mimeType ? { mimeType } : undefined;
-      const recorder = new MediaRecorder(streamRef.current, options);
+      const recorder = new MediaRecorder(activeStream, options);
 
       recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) {
@@ -2430,6 +2507,42 @@ export default function CitizenPortalView({
                               Device Camera Video
                             </button>
 
+                            <button
+                              type="button"
+                              onClick={() => handleLoadDemoRoadVideo(category)}
+                              disabled={isGeneratingDemo}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 7,
+                                padding: '9px 16px',
+                                borderRadius: 8,
+                                background: 'linear-gradient(135deg, #4F46E5, #3730A3)',
+                                color: '#FFFFFF',
+                                fontSize: '0.82rem',
+                                fontWeight: 600,
+                                border: 'none',
+                                cursor: isGeneratingDemo ? 'wait' : 'pointer',
+                                boxShadow: '0 2px 8px rgba(79, 70, 229, 0.35)',
+                                transition: 'all 0.15s ease'
+                              }}
+                              title="No actual road nearby? Test AI computer vision detection with realistic road footage"
+                            >
+                              <span style={{ fontSize: '0.9rem' }}>🎬</span>
+                              <span>{isGeneratingDemo ? 'Generating Road Video...' : 'Try Demo Road Video'}</span>
+                              <span style={{
+                                fontSize: '0.60rem',
+                                background: 'rgba(255, 255, 255, 0.22)',
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px',
+                                fontWeight: 700
+                              }}>
+                                AI Test
+                              </span>
+                            </button>
+
                             <input
                               ref={nativeVideoInputRef}
                               type="file"
@@ -2438,6 +2551,74 @@ export default function CitizenPortalView({
                               onChange={handleNativeVideoRecorded}
                               style={{ display: 'none' }}
                             />
+                          </div>
+
+                          {/* Quick Defect Scenario Switcher for Testing Without Outdoor Road */}
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                            marginTop: 6,
+                            flexWrap: 'wrap'
+                          }}>
+                            <span style={{ fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>
+                              🧪 Test without outdoor road:
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleLoadDemoRoadVideo('Pothole / Road Damage')}
+                              disabled={isGeneratingDemo}
+                              style={{
+                                background: category.includes('Pothole') || category.includes('Road') ? '#EEF2FF' : 'transparent',
+                                border: category.includes('Pothole') || category.includes('Road') ? '1px solid #6366F1' : '1px solid #CBD5E1',
+                                color: category.includes('Pothole') || category.includes('Road') ? '#4F46E5' : '#64748B',
+                                borderRadius: 6,
+                                padding: '3px 8px',
+                                fontSize: '0.68rem',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                              }}
+                              title="Test AI pothole cavity and broken asphalt detection"
+                            >
+                              🛣️ Pothole / Road Damage
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleLoadDemoRoadVideo('Drainage & Flooding')}
+                              disabled={isGeneratingDemo}
+                              style={{
+                                background: category.includes('Drainage') || category.includes('Flood') || category.includes('Water') ? '#EEF2FF' : 'transparent',
+                                border: category.includes('Drainage') || category.includes('Flood') || category.includes('Water') ? '1px solid #6366F1' : '1px solid #CBD5E1',
+                                color: category.includes('Drainage') || category.includes('Flood') || category.includes('Water') ? '#4F46E5' : '#64748B',
+                                borderRadius: 6,
+                                padding: '3px 8px',
+                                fontSize: '0.68rem',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                              }}
+                              title="Test AI water puddle and street flooding detection"
+                            >
+                              🌊 Waterlogging / Drainage
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleLoadDemoRoadVideo('Garbage / Solid Waste')}
+                              disabled={isGeneratingDemo}
+                              style={{
+                                background: category.includes('Garbage') || category.includes('Waste') ? '#EEF2FF' : 'transparent',
+                                border: category.includes('Garbage') || category.includes('Waste') ? '1px solid #6366F1' : '1px solid #CBD5E1',
+                                color: category.includes('Garbage') || category.includes('Waste') ? '#4F46E5' : '#64748B',
+                                borderRadius: 6,
+                                padding: '3px 8px',
+                                fontSize: '0.68rem',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                              }}
+                              title="Test AI waste accumulation clutter detection"
+                            >
+                              🗑️ Garbage / Waste
+                            </button>
                           </div>
                         </div>
                       ) : (
@@ -4672,6 +4853,30 @@ export default function CitizenPortalView({
                   }}>
                     ● LIVE CV ANALYZER
                   </span>
+
+                  <button
+                    type="button"
+                    onClick={toggleDemoCameraFeed}
+                    title="Switch between physical camera and simulated road defect feed"
+                    disabled={isRecording}
+                    style={{
+                      background: isDemoCameraFeed ? 'linear-gradient(135deg, #4F46E5, #3730A3)' : 'rgba(255, 255, 255, 0.12)',
+                      border: isDemoCameraFeed ? '1px solid #818CF8' : 'none',
+                      borderRadius: 6,
+                      padding: '5px 10px',
+                      color: '#F8FAFC',
+                      cursor: isRecording ? 'not-allowed' : 'pointer',
+                      opacity: isRecording ? 0.5 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: '0.72rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    <span>🛣️</span>
+                    <span>{isDemoCameraFeed ? 'Demo Road Feed: ACTIVE' : 'Demo Road Feed'}</span>
+                  </button>
 
                   <button
                     type="button"
