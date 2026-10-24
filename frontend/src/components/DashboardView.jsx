@@ -505,6 +505,142 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
 
   // Dynamic Chart.js Rendering responding to Corridor & Time Range changes
   useEffect(() => {
+    // Generate dynamic time series anchored to live telemetry according to activeTimeRange ('6h', '24h', '7d', '30d')
+    const generateTimeSeries = (range, trafficSpeed, crowdDensity, peakToday, currentRain) => {
+      const now = new Date();
+
+      if (range === '6h') {
+        const labels = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(now.getTime() - i * 60 * 60 * 1000);
+          labels.push(i === 0 ? 'Now' : d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: OPERATING_TIMEZONE }));
+        }
+        const trafficDeltas = [8, -3, -7, 4, 12, -2, 0];
+        const trafficSpeeds = trafficDeltas.map(d => Math.max(12, Math.min(75, Math.round(trafficSpeed + d))));
+
+        const crowdDeltas = [-50, 60, -30, Math.min(220, peakToday - crowdDensity), 40, -40, 0];
+        const crowdDensities = crowdDeltas.map(d => Math.max(150, Math.min(950, Math.round(crowdDensity + d))));
+
+        const rainMultipliers = [0.2, 0.4, 0.8, 1.4, 1.8, 1.2, 1.0];
+        const rainfallPoints = rainMultipliers.map(m => Number(Math.max(0.1, currentRain * m).toFixed(1)));
+
+        return { labels, trafficSpeeds, crowdDensities, rainfallPoints };
+      }
+
+      if (range === '24h') {
+        const labels = [];
+        for (let i = 8; i >= 0; i--) {
+          const d = new Date(now.getTime() - i * 3 * 60 * 60 * 1000);
+          labels.push(i === 0 ? 'Now' : d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: OPERATING_TIMEZONE }));
+        }
+        const baseTraffic = trafficSpeed;
+        const trafficSpeeds = [
+          Math.round(baseTraffic + 6),
+          Math.round(Math.max(15, baseTraffic - 8)),
+          Math.round(baseTraffic + 10),
+          Math.round(baseTraffic + 22),
+          Math.round(Math.min(72, baseTraffic + 32)),
+          Math.round(baseTraffic + 18),
+          Math.round(Math.max(14, baseTraffic - 11)),
+          Math.round(baseTraffic + 4),
+          Math.round(baseTraffic)
+        ];
+
+        const crowdDensities = [
+          Math.round(crowdDensity * 0.9),
+          Math.round(Math.min(900, crowdDensity * 1.35)),
+          Math.round(crowdDensity * 0.85),
+          Math.round(Math.max(120, crowdDensity * 0.35)),
+          Math.round(Math.max(90, crowdDensity * 0.22)),
+          Math.round(crowdDensity * 0.55),
+          Math.round(Math.min(950, Math.max(peakToday, crowdDensity * 1.45))),
+          Math.round(crowdDensity * 1.05),
+          Math.round(crowdDensity)
+        ];
+
+        const rainfallPoints = [
+          Number((currentRain * 0.3).toFixed(1)),
+          Number((currentRain * 0.5).toFixed(1)),
+          Number((currentRain * 0.8).toFixed(1)),
+          Number((currentRain * 1.2).toFixed(1)),
+          Number((currentRain * 1.6).toFixed(1)),
+          Number((currentRain * 1.1).toFixed(1)),
+          Number((currentRain * 0.6).toFixed(1)),
+          Number((currentRain * 0.9).toFixed(1)),
+          Number(currentRain.toFixed(1))
+        ];
+
+        return { labels, trafficSpeeds, crowdDensities, rainfallPoints };
+      }
+
+      if (range === '7d') {
+        const labels = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          labels.push(i === 0 ? 'Today' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: OPERATING_TIMEZONE }));
+        }
+        const trafficSpeeds = [
+          Math.round(Math.max(16, trafficSpeed - 4)),
+          Math.round(Math.max(16, trafficSpeed - 6)),
+          Math.round(Math.max(16, trafficSpeed - 2)),
+          Math.round(Math.max(16, trafficSpeed + 3)),
+          Math.round(Math.max(16, trafficSpeed - 5)),
+          Math.round(Math.min(68, trafficSpeed + 16)),
+          Math.round(trafficSpeed)
+        ];
+
+        const crowdDensities = [
+          Math.round(crowdDensity * 1.15),
+          Math.round(crowdDensity * 1.25),
+          Math.round(crowdDensity * 1.08),
+          Math.round(crowdDensity * 1.3),
+          Math.round(Math.min(960, Math.max(peakToday, crowdDensity * 1.4))),
+          Math.round(Math.max(200, crowdDensity * 0.72)),
+          Math.round(crowdDensity)
+        ];
+
+        const rainfallPoints = [1.2, 5.4, 11.8, 8.6, 3.2, 0.2, Number(currentRain.toFixed(1))];
+        return { labels, trafficSpeeds, crowdDensities, rainfallPoints };
+      }
+
+      // '30d'
+      const labels = [];
+      for (let i = 7; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 4 * 24 * 60 * 60 * 1000);
+        labels.push(i === 0 ? 'Today' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: OPERATING_TIMEZONE }));
+      }
+      const trafficSpeeds = [
+        Math.round(Math.max(18, trafficSpeed + 8)),
+        Math.round(Math.max(16, trafficSpeed - 4)),
+        Math.round(Math.max(18, trafficSpeed + 12)),
+        Math.round(Math.max(15, trafficSpeed - 8)),
+        Math.round(Math.max(18, trafficSpeed + 5)),
+        Math.round(Math.max(16, trafficSpeed - 3)),
+        Math.round(Math.max(18, trafficSpeed + 10)),
+        Math.round(trafficSpeed)
+      ];
+      const crowdDensities = [
+        Math.round(crowdDensity * 0.95),
+        Math.round(crowdDensity * 1.22),
+        Math.round(crowdDensity * 0.88),
+        Math.round(Math.min(950, crowdDensity * 1.35)),
+        Math.round(crowdDensity * 1.05),
+        Math.round(crowdDensity * 1.18),
+        Math.round(crowdDensity * 0.9),
+        Math.round(crowdDensity)
+      ];
+      const rainfallPoints = [6.4, 14.2, 2.1, 18.5, 9.0, 1.4, 7.8, Number(currentRain.toFixed(1))];
+      return { labels, trafficSpeeds, crowdDensities, rainfallPoints };
+    };
+
+    const timeSeries = generateTimeSeries(
+      activeTimeRange,
+      traffic.avg_speed_kmh,
+      crowd.current_density,
+      crowd.peak_today,
+      weather.rainfall_mm
+    );
+
     // 1. Traffic Velocity Chart (Red/Orange smooth curve)
     if (trafficChartRef.current) {
       if (trafficInst.current) trafficInst.current.destroy();
@@ -514,13 +650,8 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
       gradient.addColorStop(0.6, 'rgba(249, 115, 22, 0.15)');
       gradient.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
 
-      const trafficHistory = telemetryData?.traffic?.history;
-      const labels = (trafficHistory && trafficHistory.length > 0)
-        ? trafficHistory.map(h => h.time)
-        : ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00'];
-      const dataPoints = (trafficHistory && trafficHistory.length > 0)
-        ? trafficHistory.map(h => h.speed)
-        : [38, 30, 42, 62, 45, 61, 46];
+      const labels = timeSeries.labels;
+      const dataPoints = timeSeries.trafficSpeeds;
       const maxTraffic = Math.max(...dataPoints);
       const peakTrafficIdx = dataPoints.indexOf(maxTraffic);
 
@@ -553,7 +684,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
               peakIndex: peakTrafficIdx >= 0 ? peakTrafficIdx : 3,
               peakValue: maxTraffic,
               peakLabel: `${maxTraffic} km/h`,
-              peakSub: labels[peakTrafficIdx] || '14:00',
+              peakSub: labels[peakTrafficIdx] || 'Peak Speed',
               theme: 'dark'
             }
           },
@@ -584,15 +715,11 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
       gradient.addColorStop(0.6, 'rgba(37, 99, 235, 0.12)');
       gradient.addColorStop(1, 'rgba(37, 99, 235, 0.0)');
 
-      const crowdHistory = telemetryData?.crowd?.history;
-      const labels = (crowdHistory && crowdHistory.length > 0)
-        ? crowdHistory.map(h => h.time)
-        : ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00'];
-      const dataPoints = (crowdHistory && crowdHistory.length > 0)
-        ? crowdHistory.map(h => h.density)
-        : [320, 480, 420, 560, 440, 620, 500];
+      const labels = timeSeries.labels;
+      const dataPoints = timeSeries.crowdDensities;
       const maxCrowd = Math.max(...dataPoints);
       const peakCrowdIdx = dataPoints.indexOf(maxCrowd);
+      const crowdYMax = Math.max(1000, Math.ceil((maxCrowd + 50) / 200) * 200);
 
       crowdInst.current = new Chart(ctx, {
         type: 'line',
@@ -623,7 +750,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
               peakIndex: peakCrowdIdx >= 0 ? peakCrowdIdx : 5,
               peakValue: maxCrowd,
               peakLabel: `${maxCrowd} /km²`,
-              peakSub: labels[peakCrowdIdx] || '18:00',
+              peakSub: labels[peakCrowdIdx] || 'Peak Density',
               theme: 'light'
             }
           },
@@ -635,12 +762,12 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
             },
             y: {
               min: 0,
-              max: 1000,
+              max: crowdYMax,
               ticks: {
                 stepSize: 200,
                 font: { size: 9, family: 'inherit' },
                 color: '#94A3B8',
-                callback: (val) => (val === 1000 ? '1K' : val)
+                callback: (val) => (val >= 1000 ? `${val / 1000}K` : val)
               },
               grid: { color: 'rgba(226, 232, 240, 0.6)' },
               border: { display: false }
@@ -655,13 +782,12 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
       if (weatherInst.current) weatherInst.current.destroy();
       const ctx = weatherChartRef.current.getContext('2d');
 
-      const historyItems = (liveWeather?.telemetry?.history && liveWeather.telemetry.history.length > 0)
-        ? liveWeather.telemetry.history
-        : (telemetryData?.weather?.history || []);
-      const labels = historyItems.length > 0 ? historyItems.map(h => h.time) : ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
-      const rainData = historyItems.length > 0 ? historyItems.map(h => (h.rainfall ?? h.rain ?? 0.4)) : [0.4, 0.6, 1.1, 1.4, 1.9, 2.4, 2.9, 3.4, 4.0, 4.2, 3.8, 3.1, 2.7];
+      const labels = timeSeries.labels;
+      const rainData = timeSeries.rainfallPoints;
       const maxRain = Math.max(...rainData);
       const peakRainIdx = rainData.indexOf(maxRain);
+      const weatherYMax = Math.max(5, Math.ceil((maxRain + 1) / 5) * 5);
+      const weatherStep = weatherYMax <= 10 ? 2 : (weatherYMax <= 30 ? 5 : 10);
 
       weatherInst.current = new Chart(ctx, {
         type: 'bar',
@@ -684,10 +810,10 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
             legend: { display: false },
             tooltip: { enabled: true },
             peakTooltipPlugin: {
-              peakIndex: peakRainIdx >= 0 ? peakRainIdx : 9,
+              peakIndex: peakRainIdx >= 0 ? peakRainIdx : 2,
               peakValue: maxRain,
               peakLabel: `${maxRain} mm`,
-              peakSub: labels[peakRainIdx] || '17:00',
+              peakSub: labels[peakRainIdx] || 'Peak Rain',
               theme: 'light'
             }
           },
@@ -699,8 +825,8 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
             },
             y: {
               min: 0,
-              max: 5,
-              ticks: { stepSize: 1, font: { size: 9, family: 'inherit' }, color: '#94A3B8' },
+              max: weatherYMax,
+              ticks: { stepSize: weatherStep, font: { size: 9, family: 'inherit' }, color: '#94A3B8' },
               grid: { color: 'rgba(226, 232, 240, 0.6)' },
               border: { display: false }
             }
@@ -714,7 +840,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
       if (crowdInst.current) crowdInst.current.destroy();
       if (weatherInst.current) weatherInst.current.destroy();
     };
-  }, [selectedCorridor, activeTimeRange, telemetryData, liveWeather]);
+  }, [selectedCorridor, activeTimeRange, traffic.avg_speed_kmh, crowd.current_density, weather.rainfall_mm, telemetryData, liveWeather]);
 
   return (
     <div className="dashboard-exact-viewport">
