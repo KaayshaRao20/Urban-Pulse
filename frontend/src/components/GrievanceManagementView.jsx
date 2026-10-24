@@ -1683,59 +1683,76 @@ export default function GrievanceManagementView({ initialTicketId }) {
                     </div>
 
                     {/* Card 3: Risk Assessment */}
-                    <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 800, color: '#0F172A' }}>
-                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="#EF4444" fill="none" strokeWidth="2.2">
-                          <circle cx="12" cy="12" r="3"></circle>
-                          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                        </svg>
-                        <span>Risk Assessment</span>
-                      </div>
+                    {(() => {
+                      const complaintScore = parseFloat(currentComplaint.risk_score ?? 9.2);
+                      const complaintRiskColor = getRiskColor(complaintScore);
+                      const complaintRiskLabel = complaintScore >= 8.5
+                        ? 'Critical Risk'
+                        : (complaintScore >= 7.0
+                            ? 'High Risk'
+                            : (complaintScore >= 5.0
+                                ? 'Medium Risk'
+                                : 'Low Risk'));
 
-                      {/* Radial Gauge and Progress Bars Side-by-Side */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                        {/* Radial Gauge Circle */}
-                        <div style={{
-                          width: '90px',
-                          height: '90px',
-                          borderRadius: '50%',
-                          border: '6px solid #EF4444',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0
-                        }}>
-                          <span style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0F172A', lineHeight: 1 }}>
-                            {currentComplaint.risk_score ? currentComplaint.risk_score.toFixed(1) : '9.2'}
-                          </span>
-                          <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#EF4444', textTransform: 'uppercase', marginTop: '2px' }}>
-                            High Risk
-                          </span>
-                        </div>
+                      return (
+                        <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 800, color: '#0F172A' }}>
+                            <svg viewBox="0 0 24 24" width="16" height="16" stroke={complaintRiskColor} fill="none" strokeWidth="2.2">
+                              <circle cx="12" cy="12" r="3"></circle>
+                              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                            </svg>
+                            <span>Risk Assessment</span>
+                          </div>
 
-                        {/* Progress Bars */}
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.68rem' }}>
-                          {[
-                            { label: 'Public Safety Risk', val: currentComplaint.risk_breakdown?.public_safety || 9.0, color: '#EF4444' },
-                            { label: 'Traffic Exposure', val: currentComplaint.risk_breakdown?.traffic_exposure || 8.5, color: '#F97316' },
-                            { label: 'Severity (Size/Depth)', val: currentComplaint.risk_breakdown?.severity || 9.2, color: '#EF4444' },
-                            { label: 'Weather Impact', val: currentComplaint.risk_breakdown?.weather_impact || 7.0, color: '#F59E0B' },
-                            { label: 'Proximity to Sensitive Area', val: currentComplaint.risk_breakdown?.proximity || 6.8, color: '#F59E0B' }
-                          ].map((item, idx) => (
-                            <div key={idx}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px', color: '#475569', fontWeight: 600 }}>
-                                <span>{item.label}</span>
-                                <span style={{ fontWeight: 800, color: item.color }}>{item.val.toFixed(1)}</span>
-                              </div>
-                              <div style={{ width: '100%', height: '5px', background: '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ width: `${item.val * 10}%`, height: '100%', background: item.color, borderRadius: '3px' }}></div>
-                              </div>
+                          {/* Radial Gauge and Progress Bars Side-by-Side */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                            {/* Radial Gauge Circle */}
+                            <div style={{
+                              width: '90px',
+                              height: '90px',
+                              borderRadius: '50%',
+                              border: `6px solid ${complaintRiskColor}`,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0
+                            }}>
+                              <span style={{ fontSize: '1.45rem', fontWeight: 900, color: '#0F172A', lineHeight: 1 }}>
+                                {complaintScore.toFixed(1)}
+                              </span>
+                              <span style={{ fontSize: '0.62rem', fontWeight: 800, color: complaintRiskColor, textTransform: 'uppercase', marginTop: '2px' }}>
+                                {complaintRiskLabel}
+                              </span>
                             </div>
-                          ))}
+
+                            {/* Progress Bars */}
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.68rem' }}>
+                              {[
+                                { label: 'Public Safety Risk', val: currentComplaint.risk_breakdown?.public_safety ?? (complaintScore >= 7 ? 9.0 : complaintScore) },
+                                { label: 'Traffic Exposure', val: currentComplaint.risk_breakdown?.traffic_exposure ?? (complaintScore >= 7 ? 8.5 : Math.min(10, complaintScore + 0.4)) },
+                                { label: 'Severity (Size/Depth)', val: currentComplaint.risk_breakdown?.severity ?? (complaintScore >= 7 ? 9.2 : complaintScore) },
+                                { label: 'Weather Impact', val: currentComplaint.risk_breakdown?.weather_impact ?? (complaintScore >= 7 ? 7.0 : Math.max(1, complaintScore - 0.3)) },
+                                { label: 'Proximity to Sensitive Area', val: currentComplaint.risk_breakdown?.proximity ?? (complaintScore >= 7 ? 6.8 : complaintScore) }
+                              ].map((item, idx) => {
+                                const barColor = getRiskColor(item.val);
+                                return (
+                                  <div key={idx}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px', color: '#475569', fontWeight: 600 }}>
+                                      <span>{item.label}</span>
+                                      <span style={{ fontWeight: 800, color: barColor }}>{item.val.toFixed(1)}</span>
+                                    </div>
+                                    <div style={{ width: '100%', height: '5px', background: '#E2E8F0', borderRadius: '3px', overflow: 'hidden' }}>
+                                      <div style={{ width: `${Math.min(100, item.val * 10)}%`, height: '100%', background: barColor, borderRadius: '3px' }}></div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Middle Row: AI Recommendations */}
