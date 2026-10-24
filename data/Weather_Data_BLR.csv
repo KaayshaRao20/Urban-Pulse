@@ -1,0 +1,3 @@
+timestamp,station_id,temperature_c,humidity_pct,precipitation_mm,wind_speed_kmh,storm_warning_flag
+2026-09-27 13:50:00,IMD_HAL,28.4,74.2,12.5,22.0,1
+2026-09-27 13:50:00,IMD_YELAHANKA,27.8,78.0,18.2,24.5,1

@@ -1,0 +1,6 @@
+timestamp,corridor_id,traffic_volume,avg_speed_kmh,congestion_index,signal_delay_sec,weather_condition,incident_flag
+2026-09-27 14:00:00,Marathahalli,3420,14.2,0.88,145,Overcast,1
+2026-09-27 14:05:00,Whitefield,2890,22.4,0.64,85,Light Rain,0
+2026-09-27 14:10:00,MG Road,3150,18.0,0.76,110,Clear,0
+2026-09-27 14:15:00,Koramangala,2980,19.5,0.71,95,Clear,0
+2026-09-27 14:20:00,Electronic City,2450,32.1,0.42,45,Clear,0
