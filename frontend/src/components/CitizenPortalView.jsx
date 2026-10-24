@@ -879,7 +879,7 @@ export default function CitizenPortalView({
     setIsGeneratingDemo(true);
     setCvValidationLoading(true);
     setVideoValidationError('');
-    showToast(`Generating demo road defect video for ${targetCategory}...`);
+    showToast('Loading demo road video...');
     try {
       const result = await generateDemoRoadVideo(targetCategory, 2.5);
       const url = URL.createObjectURL(result.blob);
@@ -895,12 +895,12 @@ export default function CitizenPortalView({
         setLongitude(77.6953);
         setGpsVerified(true);
         setGpsStatus('detected');
-        setGpsFeedback('Verified GPS locked for demo test: 12.93520, 77.69530');
+        setGpsFeedback('Verified GPS locked for demo: 12.93520, 77.69530');
       }
-      showToast(`✓ Demo Road Defect loaded & verified! (${Math.round(result.validationResult.confidence * 100)}% confidence)`);
+      showToast('✓ Demo Video loaded & verified!');
     } catch (err) {
       console.error('Demo video generation error:', err);
-      showToast('Notice: Could not generate synthetic video.');
+      showToast('Notice: Could not load demo video.');
     } finally {
       setIsGeneratingDemo(false);
       setCvValidationLoading(false);
@@ -2515,7 +2515,7 @@ export default function CitizenPortalView({
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 7,
-                                padding: '9px 16px',
+                                padding: '9px 18px',
                                 borderRadius: 8,
                                 background: 'linear-gradient(135deg, #4F46E5, #3730A3)',
                                 color: '#FFFFFF',
@@ -2526,21 +2526,10 @@ export default function CitizenPortalView({
                                 boxShadow: '0 2px 8px rgba(79, 70, 229, 0.35)',
                                 transition: 'all 0.15s ease'
                               }}
-                              title="No actual road nearby? Test AI computer vision detection with realistic road footage"
+                              title="Load demo video"
                             >
                               <span style={{ fontSize: '0.9rem' }}>🎬</span>
-                              <span>{isGeneratingDemo ? 'Generating Road Video...' : 'Try Demo Road Video'}</span>
-                              <span style={{
-                                fontSize: '0.60rem',
-                                background: 'rgba(255, 255, 255, 0.22)',
-                                padding: '2px 6px',
-                                borderRadius: 4,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.5px',
-                                fontWeight: 700
-                              }}>
-                                AI Test
-                              </span>
+                              <span>{isGeneratingDemo ? 'Loading Demo Video...' : 'Demo Video'}</span>
                             </button>
 
                             <input
@@ -2553,7 +2542,7 @@ export default function CitizenPortalView({
                             />
                           </div>
 
-                          {/* Quick Defect Scenario Switcher for Testing Without Outdoor Road */}
+                          {/* Quick Defect Scenario Switcher */}
                           <div style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -2563,7 +2552,7 @@ export default function CitizenPortalView({
                             flexWrap: 'wrap'
                           }}>
                             <span style={{ fontSize: '0.68rem', color: '#64748B', fontWeight: 600 }}>
-                              🧪 Test without outdoor road:
+                              Quick Demo:
                             </span>
                             <button
                               type="button"
@@ -2814,12 +2803,12 @@ export default function CitizenPortalView({
                           )}
 
                           {/* HTML5 Playable Video Element with Real CV Bounding Box Overlay */}
-                          <div style={{ position: 'relative', width: '100%', borderRadius: 8, overflow: 'hidden', background: '#000000', maxHeight: 220 }}>
+                          <div style={{ position: 'relative', width: '100%', borderRadius: 8, overflow: 'hidden', background: '#1E293B', aspectRatio: '16/9', maxHeight: 260 }}>
                             <video
                               src={recordedVideoUrl}
                               controls
                               playsInline
-                              style={{ width: '100%', maxHeight: 220, display: 'block', margin: '0 auto', background: '#000000' }}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                             />
                             {/* Overlay detected bounding box if present from validation */}
                             {videoValidationResult?.primary_box && (

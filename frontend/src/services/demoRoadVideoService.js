@@ -1,218 +1,227 @@
 /**
  * UrbanPulse Demo Road Video & Synthetic Defect Generator
  * ========================================================
- * Provides realistic road pavement and civic defect video evidence for testing
- * and demonstration when an actual damaged road or street defect is not accessible.
+ * Provides clear, daylight-bright road pavement and civic defect video evidence.
  *
  * Supported Demo Scenarios:
  * 1. Pothole / Road Damage:
- *    - Authentic asphalt pavement texture (coarse mineral aggregate, bitumen grey)
- *    - Deep fractured asphalt cavity with erosion shadow, dark pit core, and radiating stress cracks
- *    - Road safety markings (yellow/white lane line)
+ *    - Bright daylight concrete/asphalt pavement (natural road grey, mineral aggregate, white/yellow lane lines)
+ *    - Distinct, deeply-etched cavity with eroded perimeter, broken rock fragments, and radiating stress fractures
  *
  * 2. Waterlogging / Drainage:
- *    - Flooded asphalt surface with specular water reflection puddle
- *    - Animated wave ripple contours and wet curb boundary
+ *    - Daylight road with clear puddle of standing water, sky reflection, and ripples
  *
  * 3. Garbage / Solid Waste:
- *    - Street-side solid waste accumulation
- *    - High-chroma plastic packaging, crumpled cartons, and refuse clutter pile
+ *    - Daylight road curb with distinct solid waste & refuse accumulation
  */
 
 import { normalizeCategory } from './civicDetectionService';
 
 /**
- * Draw asphalt texture and road markings on canvas
+ * Draw authentic bright daylight asphalt road texture and lane markings
  */
 const drawAsphaltBase = (ctx, width, height, frameIndex, cameraJitterX, cameraJitterY) => {
   ctx.save();
   ctx.translate(cameraJitterX, cameraJitterY);
 
-  // Base asphalt pavement color (mid-dark neutral charcoal)
+  // 1. Natural Bright Daylight Asphalt Pavement (Clear light/mid-grey roadway)
   const baseGrad = ctx.createLinearGradient(0, 0, 0, height);
-  baseGrad.addColorStop(0, '#383E48');
-  baseGrad.addColorStop(0.5, '#2D323A');
-  baseGrad.addColorStop(1, '#252930');
+  baseGrad.addColorStop(0, '#788292');
+  baseGrad.addColorStop(0.5, '#687282');
+  baseGrad.addColorStop(1, '#5C6676');
   ctx.fillStyle = baseGrad;
   ctx.fillRect(-20, -20, width + 40, height + 40);
 
-  // Granular mineral aggregate speckles (asphalt road stones)
-  ctx.fillStyle = 'rgba(160, 170, 185, 0.18)';
-  for (let i = 0; i < 450; i++) {
+  // 2. Concrete/Asphalt coarse aggregate mineral speckles (Light stone granules)
+  ctx.fillStyle = 'rgba(235, 240, 248, 0.45)';
+  for (let i = 0; i < 500; i++) {
     const rx = ((i * 137.5) % (width + 40)) - 20;
     const ry = ((i * 223.7) % (height + 40)) - 20;
-    const rSize = (i % 3 === 0) ? 2 : 1;
+    const rSize = (i % 4 === 0) ? 2 : 1;
     ctx.fillRect(rx, ry, rSize, rSize);
   }
 
-  // Darker bitumen tar specks
-  ctx.fillStyle = 'rgba(15, 20, 26, 0.4)';
-  for (let i = 0; i < 300; i++) {
-    const rx = ((i * 197.3) % (width + 40)) - 20;
-    const ry = ((i * 311.1) % (height + 40)) - 20;
+  // 3. Natural mineral stone flecks (medium slate)
+  ctx.fillStyle = 'rgba(75, 85, 99, 0.35)';
+  for (let i = 0; i < 400; i++) {
+    const rx = ((i * 181.1) % (width + 40)) - 20;
+    const ry = ((i * 283.3) % (height + 40)) - 20;
     ctx.fillRect(rx, ry, 1.5, 1.5);
   }
 
-  // Road Lane Marking (White/yellow edge stripe on right side)
-  ctx.fillStyle = 'rgba(240, 230, 140, 0.45)';
-  ctx.beginPath();
-  ctx.rect(width * 0.88, -20, 18, height + 40);
-  ctx.fill();
+  // 4. White Center Broken Lane Divider (Clean daylight road marking)
+  ctx.fillStyle = '#FFFFFF';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+  ctx.shadowBlur = 3;
+  const dashWidth = 14;
+  const dashHeight = 70;
+  ctx.fillRect(width * 0.12, height * 0.08, dashWidth, dashHeight);
+  ctx.fillRect(width * 0.12, height * 0.62, dashWidth, dashHeight);
+  ctx.shadowBlur = 0;
+
+  // 5. Solid Yellow Road Margin Line on right edge
+  ctx.fillStyle = '#F59E0B';
+  ctx.fillRect(width * 0.90, -20, 16, height + 40);
 
   ctx.restore();
 };
 
 /**
- * Draw realistic Pothole Defect
+ * Draw clear, sharply-visible Pothole Defect
  */
 const drawPotholeDefect = (ctx, width, height, frameIndex, jx, jy) => {
   ctx.save();
   ctx.translate(jx, jy);
 
-  const cx = width * 0.48;
-  const cy = height * 0.52;
-  const rx = width * 0.22;
-  const ry = height * 0.17;
+  const cx = width * 0.50;
+  const cy = height * 0.50;
+  const rx = width * 0.20; // 128px in 640w
+  const ry = height * 0.26; // 93px in 360h
 
-  // 1. Surrounding asphalt wear ring & fractured perimeter
-  ctx.fillStyle = 'rgba(25, 29, 36, 0.7)';
+  // 1. Chipped asphalt pavement fracture halo around the rim (distressed grey)
+  ctx.fillStyle = '#47515F';
   ctx.beginPath();
-  ctx.ellipse(cx, cy, rx + 12, ry + 10, -0.05, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy, rx + 18, ry + 16, -0.04, 0, Math.PI * 2);
   ctx.fill();
 
-  // 2. Deep cavity depression shadow (Dark pit)
-  const pitGrad = ctx.createRadialGradient(cx - 10, cy - 8, 10, cx, cy, rx);
-  pitGrad.addColorStop(0, '#0A0D12');
-  pitGrad.addColorStop(0.65, '#12161D');
-  pitGrad.addColorStop(0.85, '#1E232C');
-  pitGrad.addColorStop(1, '#2D323A');
+  // 2. Loose aggregate & gravel stones along the rim (bright daylight stone fragments)
+  ctx.fillStyle = '#CBD5E1';
+  for (let i = 0; i < 32; i++) {
+    const angle = i * 0.2 + (i % 3);
+    const dist = (i % 2 === 0) ? rx + 8 + (i % 6) : ry + 6 + (i % 5);
+    const gx = cx + Math.cos(angle) * (rx + (i % 8));
+    const gy = cy + Math.sin(angle) * (ry + (i % 6));
+    ctx.fillRect(gx, gy, (i % 3) + 2, (i % 2) + 2);
+  }
+
+  // 3. Deep cavity pit: Strong radial gradient from dark rim to deep pitch-black floor
+  const pitGrad = ctx.createRadialGradient(cx - 15, cy - 12, 10, cx, cy, rx);
+  pitGrad.addColorStop(0, '#020617'); // pitch black core
+  pitGrad.addColorStop(0.55, '#0F172A'); // deep depression
+  pitGrad.addColorStop(0.85, '#1E293B'); // steep cavity wall
+  pitGrad.addColorStop(1, '#334155'); // eroded lip
 
   ctx.fillStyle = pitGrad;
   ctx.beginPath();
-  // Irregular jagged perimeter
-  const numPoints = 16;
+  // Irregular jagged natural pothole perimeter
+  const numPoints = 20;
   for (let i = 0; i < numPoints; i++) {
     const angle = (i / numPoints) * Math.PI * 2;
-    const wobble = Math.sin(angle * 4 + i) * 8 + Math.cos(angle * 2) * 5;
+    const wobble = Math.sin(angle * 5 + i) * 10 + Math.cos(angle * 3) * 6;
     const px = cx + Math.cos(angle) * (rx + wobble);
-    const py = cy + Math.sin(angle) * (ry + wobble * 0.8);
+    const py = cy + Math.sin(angle) * (ry + wobble * 0.7);
     if (i === 0) ctx.moveTo(px, py);
     else ctx.lineTo(px, py);
   }
   ctx.closePath();
   ctx.fill();
 
-  // 3. Inner depth cavity (Deepest core)
-  ctx.fillStyle = '#050709';
-  ctx.beginPath();
-  ctx.ellipse(cx - 6, cy - 4, rx * 0.55, ry * 0.50, 0.1, 0, Math.PI * 2);
-  ctx.fill();
-
-  // 4. Broken asphalt aggregates & gravel fragments inside cavity
-  ctx.fillStyle = '#5A6270';
-  for (let i = 0; i < 28; i++) {
-    const angle = (i * 0.6);
-    const dist = (i % 5) * 12 + 6;
+  // 4. Broken inner asphalt rocks in cavity
+  ctx.fillStyle = '#64748B';
+  for (let i = 0; i < 18; i++) {
+    const angle = i * 0.55;
+    const dist = (i % 4) * 14 + 10;
     const gx = cx + Math.cos(angle) * dist;
-    const gy = cy + Math.sin(angle) * (dist * 0.7);
-    ctx.fillRect(gx, gy, (i % 3) + 2, (i % 2) + 2);
+    const gy = cy + Math.sin(angle) * (dist * 0.6);
+    ctx.fillRect(gx, gy, (i % 3) + 3, (i % 2) + 3);
   }
 
-  // 5. Radiating surface stress cracks
-  ctx.strokeStyle = 'rgba(10, 12, 16, 0.85)';
-  ctx.lineWidth = 2.2;
+  // 5. Radiating surface stress fracture cracks
+  ctx.strokeStyle = '#1E293B';
+  ctx.lineWidth = 2.5;
   ctx.beginPath();
+  // Left crack
   ctx.moveTo(cx - rx, cy);
-  ctx.lineTo(cx - rx - 28, cy - 14);
-  ctx.lineTo(cx - rx - 48, cy - 8);
-
-  ctx.moveTo(cx + rx, cy + 5);
-  ctx.lineTo(cx + rx + 32, cy + 18);
-  ctx.lineTo(cx + rx + 52, cy + 12);
-
-  ctx.moveTo(cx + 10, cy + ry);
-  ctx.lineTo(cx + 25, cy + ry + 30);
+  ctx.lineTo(cx - rx - 35, cy - 15);
+  ctx.lineTo(cx - rx - 60, cy - 5);
+  // Right crack
+  ctx.moveTo(cx + rx, cy + 6);
+  ctx.lineTo(cx + rx + 40, cy + 22);
+  ctx.lineTo(cx + rx + 65, cy + 14);
+  // Bottom crack
+  ctx.moveTo(cx - 10, cy + ry);
+  ctx.lineTo(cx + 8, cy + ry + 35);
   ctx.stroke();
 
   ctx.restore();
 };
 
 /**
- * Draw realistic Waterlogging / Road Flooding Defect
+ * Draw realistic daylight Waterlogging / Road Flooding Defect
  */
 const drawWaterloggingDefect = (ctx, width, height, frameIndex, jx, jy) => {
   ctx.save();
   ctx.translate(jx, jy);
 
   const cx = width * 0.50;
-  const cy = height * 0.54;
-  const rx = width * 0.30;
-  const ry = height * 0.20;
+  const cy = height * 0.52;
+  const rx = width * 0.28;
+  const ry = height * 0.28;
 
-  // Wet dark asphalt shoreline
-  ctx.fillStyle = 'rgba(15, 20, 26, 0.8)';
+  // Wet dark road perimeter
+  ctx.fillStyle = 'rgba(40, 50, 65, 0.7)';
   ctx.beginPath();
-  ctx.ellipse(cx, cy, rx + 14, ry + 12, 0.05, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy, rx + 14, ry + 12, 0.04, 0, Math.PI * 2);
   ctx.fill();
 
-  // Standing water body gradient with blue-grey sky reflection
+  // Standing water body with daylight sky reflection
   const waterGrad = ctx.createLinearGradient(cx - rx, cy - ry, cx + rx, cy + ry);
-  waterGrad.addColorStop(0, '#1E293B');
-  waterGrad.addColorStop(0.3, '#334155');
-  waterGrad.addColorStop(0.6, '#475569');
-  waterGrad.addColorStop(1, '#1E293B');
+  waterGrad.addColorStop(0, '#1E3A8A');
+  waterGrad.addColorStop(0.3, '#2563EB');
+  waterGrad.addColorStop(0.6, '#38BDF8');
+  waterGrad.addColorStop(1, '#1E40AF');
 
   ctx.fillStyle = waterGrad;
   ctx.beginPath();
-  ctx.ellipse(cx, cy, rx, ry, 0.05, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy, rx, ry, 0.04, 0, Math.PI * 2);
   ctx.fill();
 
   // Animated wave ripple rings
-  const wavePhase = (frameIndex * 0.12) % (Math.PI * 2);
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
-  ctx.lineWidth = 1.8;
+  const wavePhase = (frameIndex * 0.14) % (Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.ellipse(cx, cy, rx * 0.65 + Math.sin(wavePhase) * 4, ry * 0.65 + Math.sin(wavePhase) * 2, 0.05, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy, rx * 0.60 + Math.sin(wavePhase) * 5, ry * 0.60 + Math.sin(wavePhase) * 3, 0.04, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Specular sky glare highlight
-  const glareGrad = ctx.createRadialGradient(cx - 30, cy - 20, 2, cx - 30, cy - 20, 50);
-  glareGrad.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+  // Specular daylight sheen
+  const glareGrad = ctx.createRadialGradient(cx - 25, cy - 15, 2, cx - 25, cy - 15, 45);
+  glareGrad.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
   glareGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
   ctx.fillStyle = glareGrad;
   ctx.beginPath();
-  ctx.arc(cx - 30, cy - 20, 50, 0, Math.PI * 2);
+  ctx.arc(cx - 25, cy - 15, 45, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.restore();
 };
 
 /**
- * Draw realistic Garbage / Solid Waste Pile Defect
+ * Draw realistic daylight Garbage / Solid Waste Pile Defect
  */
 const drawGarbageDefect = (ctx, width, height, frameIndex, jx, jy) => {
   ctx.save();
   ctx.translate(jx, jy);
 
-  const cx = width * 0.46;
-  const cy = height * 0.52;
+  const cx = width * 0.48;
+  const cy = height * 0.50;
 
   // Stained pavement footprint
-  ctx.fillStyle = 'rgba(20, 24, 30, 0.75)';
+  ctx.fillStyle = 'rgba(45, 52, 64, 0.7)';
   ctx.beginPath();
-  ctx.ellipse(cx, cy, width * 0.26, height * 0.18, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy, width * 0.25, height * 0.26, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // Dumped refuse items (multi-colored high-chroma clutter)
   const items = [
-    { x: -50, y: -20, w: 42, h: 28, color: '#DC2626' }, // red carton
-    { x: -20, y: -35, w: 32, h: 24, color: '#2563EB' }, // blue plastic pack
-    { x: 15, y: -25, w: 48, h: 32, color: '#F59E0B' },  // yellow wrapper
-    { x: -35, y: 10, w: 55, h: 30, color: '#FFFFFF' },  // white plastic carry bag
-    { x: 20, y: 8, w: 38, h: 22, color: '#10B981' },   // green bottle
-    { x: -5, y: 0, w: 30, h: 26, color: '#8B5CF6' },   // purple cup
-    { x: 45, y: -10, w: 36, h: 25, color: '#E2E8F0' },  // crumpled paper
-    { x: -10, y: 25, w: 44, h: 18, color: '#334155' }   // dark bag
+    { x: -55, y: -25, w: 45, h: 30, color: '#DC2626' }, // red carton
+    { x: -22, y: -38, w: 34, h: 26, color: '#2563EB' }, // blue pack
+    { x: 15, y: -28, w: 50, h: 34, color: '#F59E0B' },  // yellow wrapper
+    { x: -38, y: 12, w: 58, h: 32, color: '#FFFFFF' },  // white bag
+    { x: 22, y: 10, w: 40, h: 24, color: '#10B981' },   // green bottle
+    { x: -6, y: 2, w: 32, h: 28, color: '#8B5CF6' },   // purple cup
+    { x: 48, y: -12, w: 38, h: 26, color: '#F1F5F9' },  // crumpled paper
+    { x: -12, y: 28, w: 46, h: 20, color: '#1E293B' }   // dark trash
   ];
 
   items.forEach((item) => {
@@ -220,8 +229,8 @@ const drawGarbageDefect = (ctx, width, height, frameIndex, jx, jy) => {
     ctx.beginPath();
     ctx.roundRect(cx + item.x, cy + item.y, item.w, item.h, 4);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+    ctx.lineWidth = 1.2;
     ctx.stroke();
   });
 
@@ -235,10 +244,10 @@ export const renderDemoFrame = (ctx, width, height, category = 'pothole', frameI
   const normCat = normalizeCategory(category);
 
   // Subtle realistic hand-held camera jitter (drift + shake)
-  const jitterX = Math.sin(frameIndex * 0.18) * 3 + Math.cos(frameIndex * 0.08) * 2;
-  const jitterY = Math.cos(frameIndex * 0.15) * 2.5 + Math.sin(frameIndex * 0.05) * 1.5;
+  const jitterX = Math.sin(frameIndex * 0.18) * 2.5 + Math.cos(frameIndex * 0.08) * 1.5;
+  const jitterY = Math.cos(frameIndex * 0.15) * 2.0 + Math.sin(frameIndex * 0.05) * 1.0;
 
-  // 1. Asphalt Road Background
+  // 1. Bright Daylight Asphalt Road
   drawAsphaltBase(ctx, width, height, frameIndex, jitterX, jitterY);
 
   // 2. Specific Civic Defect
@@ -251,21 +260,21 @@ export const renderDemoFrame = (ctx, width, height, category = 'pothole', frameI
     drawPotholeDefect(ctx, width, height, frameIndex, jitterX, jitterY);
   }
 
-  // 3. Realistic Timestamp & GPS Watermark overlay
+  // 3. Clear Timestamp & GPS Watermark overlay
   ctx.save();
   ctx.font = '11px monospace';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-  ctx.fillText(`CAM-01 • ${new Date().toISOString().substring(0, 19).replace('T', ' ')} • GPS LOCKED`, 16, height - 14);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.fillText(`CAM-01 • ${new Date().toISOString().substring(0, 19).replace('T', ' ')} • GPS LOCKED`, 14, height - 12);
   ctx.restore();
 };
 
 /**
  * Generates an authentic playable HTML5 video Blob (WebM) of demo road defect footage
- * using Canvas CaptureStream & MediaRecorder.
+ * using Canvas CaptureStream & MediaRecorder (16:9 widescreen 640x360).
  */
 export const generateDemoRoadVideo = async (category = 'Pothole / Road Damage', durationSec = 2.5) => {
   const width = 640;
-  const height = 480;
+  const height = 360; // 16:9 widescreen to avoid black sidebars
   const fps = 30;
   const totalFrames = Math.round(durationSec * fps);
 
@@ -276,26 +285,26 @@ export const generateDemoRoadVideo = async (category = 'Pothole / Road Damage', 
 
   const normCat = normalizeCategory(category);
 
-  // Fallback box metadata based on category
+  // Precision 16:9 bounding box coordinates
   const boxConfig = {
     pothole: {
       label: 'POTHOLE DEFECT',
       confidence: 0.94,
-      box: { x: 26, y: 34, width: 46, height: 36, label: 'POTHOLE DEFECT', confidence: 0.94 },
+      box: { x: 26, y: 16, width: 48, height: 68, label: 'POTHOLE DEFECT', confidence: 0.94 },
       reason: 'Potential road damage detected. Review the evidence before submitting.',
       features: ['Asphalt Road Confirmed', 'Cavity Edge Ratio: 8.4%', 'Depth Gradient Passed']
     },
     waterlogging: {
       label: 'WATERLOGGING / FLOODING',
       confidence: 0.92,
-      box: { x: 20, y: 32, width: 60, height: 42, label: 'WATERLOGGING / FLOODING', confidence: 0.92 },
+      box: { x: 18, y: 16, width: 64, height: 68, label: 'WATERLOGGING / FLOODING', confidence: 0.92 },
       reason: 'Standing water puddle & drainage obstruction detected on road surface.',
       features: ['Pavement Basin Confirmed', 'Specular Reflection Ratio: 14.2%', 'Road Curb Edge Verified']
     },
     garbage: {
       label: 'GARBAGE ACCUMULATION',
       confidence: 0.93,
-      box: { x: 22, y: 30, width: 52, height: 44, label: 'GARBAGE ACCUMULATION', confidence: 0.93 },
+      box: { x: 22, y: 18, width: 56, height: 64, label: 'GARBAGE ACCUMULATION', confidence: 0.93 },
       reason: 'Solid waste accumulation & surface refuse cluster detected.',
       features: ['Ground Footprint Confirmed', 'Chromatic Clutter Density: 16.5%', 'Surface Dispersal Verified']
     }
@@ -409,7 +418,7 @@ export const generateDemoRoadVideo = async (category = 'Pothole / Road Damage', 
  */
 export const createLiveDemoRoadStream = (category = 'Pothole / Road Damage') => {
   const width = 640;
-  const height = 480;
+  const height = 360;
   const fps = 30;
 
   const canvas = document.createElement('canvas');
