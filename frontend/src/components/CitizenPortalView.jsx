@@ -8,7 +8,9 @@ import { detectRealtimeFrame, validateVideoEvidence } from '../services/civicDet
 import { generateDemoRoadVideo, createLiveDemoRoadStream } from '../services/demoRoadVideoService';
 
 // Popular Bengaluru landmark locations for instant geocode matching
-const BENGALURU_PRESET_LOCATIONS = [
+export const BENGALURU_PRESET_LOCATIONS = [
+  { name: 'Alliance University, Anekal Main Road, Bengaluru - 562106', lat: 12.7316, lng: 77.7072, ward: 'Bommanahalli Zone (Electronic City / Anekal / Begur)' },
+  { name: 'Electronic City Phase 1, Hosur Road, Bengaluru - 560100', lat: 12.8452, lng: 77.6602, ward: 'Bommanahalli Zone (Electronic City / Anekal / Begur)' },
   { name: 'Kadubeesanahalli Bridge, Bellandur, Bengaluru - 560103', lat: 12.9352, lng: 77.6953, ward: 'East Zone (Mahadevapura / Indiranagar)' },
   { name: 'HDFC Bank, Outer Ring Road, Bellandur, Bengaluru - 560103', lat: 12.9360, lng: 77.6920, ward: 'East Zone (Mahadevapura / Indiranagar)' },
   { name: 'Marathahalli Bridge, Outer Ring Road, Bengaluru - 560037', lat: 12.9569, lng: 77.7011, ward: 'East Zone (Mahadevapura / Indiranagar)' },
@@ -20,8 +22,68 @@ const BENGALURU_PRESET_LOCATIONS = [
   { name: 'Hebbal Flyover, Bellary Road, Bengaluru - 560024', lat: 13.0358, lng: 77.5970, ward: 'North Zone (Hebbal / Yelahanka)' },
   { name: 'Jayanagar 4th Block Complex, Bengaluru - 560011', lat: 12.9299, lng: 77.5824, ward: 'South Zone (Koramangala / BTM / Jayanagar)' },
   { name: 'Silk Board Junction, Hosur Road, Bengaluru - 560068', lat: 12.9176, lng: 77.6238, ward: 'South Zone (Koramangala / BTM / Jayanagar)' },
-  { name: 'Malleshwaram 8th Cross, Bengaluru - 560003', lat: 12.9982, lng: 77.5703, ward: 'West Zone (Malleshwaram / Rajajinagar)' }
+  { name: 'Malleshwaram 8th Cross, Bengaluru - 560003', lat: 12.9982, lng: 77.5703, ward: 'West Zone (Malleshwaram / Rajajinagar)' },
+  { name: 'Rajarajeshwari Nagar Ideal Homes, Bengaluru - 560098', lat: 12.9260, lng: 77.5186, ward: 'Rajarajeshwari Nagar Zone (RR Nagar / Kengeri)' },
+  { name: 'Peenya Industrial Area 1st Stage, Bengaluru - 560058', lat: 13.0285, lng: 77.5195, ward: 'Dasarahalli Zone (Peenya / Dasarahalli)' }
 ];
+
+/**
+ * Intelligently maps GPS coordinates and address metadata to the official BBMP Ward / Municipal Zone
+ */
+export function detectWardZone(lat, lng, addressText = '', addressDetails = null) {
+  const text = `${addressText || ''} ${addressDetails?.county || ''} ${addressDetails?.suburb || ''} ${addressDetails?.city_district || ''} ${addressDetails?.neighbourhood || ''}`.toLowerCase();
+
+  // 1. Locality & Landmark Keyword Matching
+  if (/anekal|alliance|kammasandra|electronic city|bommasandra|chandapura|attibele|jigani|begur|bommanahalli|singasandra|kudlu|hosa road|hulimavu|hongasandra|bannerghatta|avalahalli/.test(text)) {
+    return 'Bommanahalli Zone (Electronic City / Anekal / Begur)';
+  }
+  if (/mahadevapura|indiranagar|marathahalli|bellandur|whitefield|kadubeesanahalli|hal|domlur|cv raman|varthur|brookefield|hoodi|kr puram|kaggadasapura|sarjapur road|panathur/.test(text)) {
+    return 'East Zone (Mahadevapura / Indiranagar)';
+  }
+  if (/koramangala|btm|jayanagar|jp nagar|banashankari|silk board|hsr|madiwala|madivala|basavanagudi|girinagar|padmanabhanagar|kumaraswamy/.test(text)) {
+    return 'South Zone (Koramangala / BTM / Jayanagar)';
+  }
+  if (/mg road|cbd|cubbon|brigade|commercial street|shivajinagar|vidhana|richmond|vasanth|ashok nagar|shanthi nagar|sampangiram/.test(text)) {
+    return 'Central Zone (MG Road / CBD)';
+  }
+  if (/malleshwaram|malleswaram|rajajinagar|basaveshwaranagar|vijayanagar|yeshwanthpur|yeshwantpur|chamarajpet|mahalakshmi|srirampura/.test(text)) {
+    return 'West Zone (Malleshwaram / Rajajinagar)';
+  }
+  if (/hebbal|yelahanka|sahakar|thanisandra|nagavara|hennur|rt nagar|sanjay nagar|vidyaranyapura|jakkar|kogilu|bagalur|airport/.test(text)) {
+    return 'North Zone (Hebbal / Yelahanka)';
+  }
+  if (/rajarajeshwari|rr nagar|kengeri|mysore road|nayandahalli|nagarbhavi|jnana bharathi|ullal/.test(text)) {
+    return 'Rajarajeshwari Nagar Zone (RR Nagar / Kengeri)';
+  }
+  if (/dasarahalli|peenya|jalahalli|bagalagunte|chikkabanavara|heggadadevanapura/.test(text)) {
+    return 'Dasarahalli Zone (Peenya / Dasarahalli)';
+  }
+
+  // 2. Nearest Landmark Preset Match (within ~2.5km)
+  if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+    const closest = BENGALURU_PRESET_LOCATIONS.find(loc => {
+      const dLat = Math.abs(loc.lat - lat);
+      const dLng = Math.abs(loc.lng - lng);
+      return dLat < 0.025 && dLng < 0.025;
+    });
+    if (closest?.ward) return closest.ward;
+
+    // 3. Spatial Coordinate Bounding Geometry across Bengaluru Metro
+    if (lat < 12.89) return 'Bommanahalli Zone (Electronic City / Anekal / Begur)';
+    if (lat > 13.01) {
+      if (lng < 77.56) return 'Dasarahalli Zone (Peenya / Dasarahalli)';
+      return 'North Zone (Hebbal / Yelahanka)';
+    }
+    if (lng < 77.53) return 'Rajarajeshwari Nagar Zone (RR Nagar / Kengeri)';
+    if (lng > 77.64) return 'East Zone (Mahadevapura / Indiranagar)';
+    if (lat >= 12.965 && lat <= 12.985 && lng >= 77.585 && lng <= 77.625) return 'Central Zone (MG Road / CBD)';
+    if (lng < 77.585) return 'West Zone (Malleshwaram / Rajajinagar)';
+    return 'South Zone (Koramangala / BTM / Jayanagar)';
+  }
+
+  return 'East Zone (Mahadevapura / Indiranagar)';
+}
+
 
 export default function CitizenPortalView({
   isAuthenticated,
@@ -363,7 +425,7 @@ export default function CitizenPortalView({
     }
   ];
 
-  // Reverse Geocoding via OSM Nominatim with instant local fallback
+  // Reverse Geocoding via OSM Nominatim with instant local fallback & Ward Zone synchronization
   const reverseGeocode = useCallback(async (lat, lng) => {
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
@@ -373,6 +435,8 @@ export default function CitizenPortalView({
           const parts = data.display_name.split(', ');
           const shortAddr = parts.slice(0, 4).join(', ');
           setSelectedAddress(shortAddr);
+          const matchedZone = detectWardZone(lat, lng, data.display_name, data.address);
+          setWardZone(matchedZone);
           return;
         }
       }
@@ -383,13 +447,16 @@ export default function CitizenPortalView({
     const closest = BENGALURU_PRESET_LOCATIONS.find(loc => {
       const dLat = Math.abs(loc.lat - lat);
       const dLng = Math.abs(loc.lng - lng);
-      return dLat < 0.015 && dLng < 0.015;
+      return dLat < 0.025 && dLng < 0.025;
     });
 
     if (closest) {
       setSelectedAddress(closest.name);
+      setWardZone(closest.ward || detectWardZone(lat, lng, closest.name));
     } else {
-      setSelectedAddress(`Near Coordinates (${lat.toFixed(4)}, ${lng.toFixed(4)}), Bengaluru`);
+      const fallbackAddr = `Near Coordinates (${lat.toFixed(4)}, ${lng.toFixed(4)}), Bengaluru`;
+      setSelectedAddress(fallbackAddr);
+      setWardZone(detectWardZone(lat, lng, fallbackAddr));
     }
   }, []);
 
@@ -502,6 +569,8 @@ export default function CitizenPortalView({
   const panToCoords = (lat, lng, zoom = 16) => {
     setLatitude(lat);
     setLongitude(lng);
+    const z = detectWardZone(lat, lng, selectedAddress || landmarkAddress);
+    setWardZone(z);
     if (mapInstanceRef.current && window.L) {
       if (!markerInstanceRef.current) {
         const redPinIcon = window.L.divIcon({
@@ -587,6 +656,14 @@ export default function CitizenPortalView({
     handleUseMyLocation(false);
   }, []);
 
+  // Real-time synchronization: Auto-update Ward / Municipal Zone whenever live locked coordinates update
+  useEffect(() => {
+    if (latitude !== null && longitude !== null) {
+      const autoZone = detectWardZone(latitude, longitude, selectedAddress || landmarkAddress);
+      setWardZone(autoZone);
+    }
+  }, [latitude, longitude, selectedAddress, landmarkAddress]);
+
   // Address Search Logic
   const handleSearchChange = (text) => {
     setSearchQuery(text);
@@ -614,7 +691,7 @@ export default function CitizenPortalView({
             name: item.display_name,
             lat: parseFloat(item.lat),
             lng: parseFloat(item.lon),
-            ward: wardZone
+            ward: detectWardZone(parseFloat(item.lat), parseFloat(item.lon), item.display_name)
           }));
           setSearchResults(prev => {
             const names = new Set(prev.map(p => p.name));
@@ -640,8 +717,9 @@ export default function CitizenPortalView({
     setLandmarkAddress(item.name);
     setSearchQuery('');
     setShowSearchDropdown(false);
-    if (item.ward) setWardZone(item.ward);
-    showToast(`Landmark set: ${item.name.split(',')[0]} (Coordinates remain locked to device GPS)`);
+    const targetWard = item.ward || detectWardZone(item.lat, item.lng, item.name);
+    setWardZone(targetWard);
+    showToast(`Landmark set: ${item.name.split(',')[0]} (Ward synced)`);
   };
 
   const handleClearLocation = () => {
@@ -2105,9 +2183,28 @@ export default function CitizenPortalView({
 
                     {/* 4. Ward / Municipal Zone */}
                     <div>
-                      <label className="citizen-label">
-                        {t('report.wardLabel', 'Ward / Municipal Zone *')}
-                      </label>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <label className="citizen-label" style={{ margin: 0 }}>
+                          {t('report.wardLabel', 'Ward / Municipal Zone *')}
+                        </label>
+                        {gpsVerified && (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            fontSize: '0.68rem',
+                            color: '#047857',
+                            background: '#ECFDF5',
+                            padding: '2px 8px',
+                            borderRadius: 12,
+                            fontWeight: 600,
+                            border: '1px solid #A7F3D0'
+                          }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', display: 'inline-block' }}></span>
+                            <span>Live Synced with GPS</span>
+                          </span>
+                        )}
+                      </div>
                       <select
                         className="citizen-select"
                         value={wardZone}
@@ -2118,6 +2215,9 @@ export default function CitizenPortalView({
                         <option value="Central Zone (MG Road / CBD)">Central Zone (MG Road / CBD)</option>
                         <option value="West Zone (Malleshwaram / Rajajinagar)">West Zone (Malleshwaram / Rajajinagar)</option>
                         <option value="North Zone (Hebbal / Yelahanka)">North Zone (Hebbal / Yelahanka)</option>
+                        <option value="Bommanahalli Zone (Electronic City / Anekal / Begur)">Bommanahalli Zone (Electronic City / Anekal / Begur)</option>
+                        <option value="Rajarajeshwari Nagar Zone (RR Nagar / Kengeri)">Rajarajeshwari Nagar Zone (RR Nagar / Kengeri)</option>
+                        <option value="Dasarahalli Zone (Peenya / Dasarahalli)">Dasarahalli Zone (Peenya / Dasarahalli)</option>
                       </select>
                     </div>
 
@@ -4451,9 +4551,9 @@ export default function CitizenPortalView({
                       <option value="Central Zone (MG Road / CBD)">Central Zone (MG Road / CBD)</option>
                       <option value="West Zone (Malleshwaram / Rajajinagar)">West Zone (Malleshwaram / Rajajinagar)</option>
                       <option value="North Zone (Hebbal / Yelahanka)">North Zone (Hebbal / Yelahanka)</option>
-                      <option value="Bommanahalli Zone">Bommanahalli Zone</option>
-                      <option value="Rajarajeshwari Nagar Zone">Rajarajeshwari Nagar Zone</option>
-                      <option value="Dasarahalli Zone">Dasarahalli Zone</option>
+                      <option value="Bommanahalli Zone (Electronic City / Anekal / Begur)">Bommanahalli Zone (Electronic City / Anekal / Begur)</option>
+                      <option value="Rajarajeshwari Nagar Zone (RR Nagar / Kengeri)">Rajarajeshwari Nagar Zone (RR Nagar / Kengeri)</option>
+                      <option value="Dasarahalli Zone (Peenya / Dasarahalli)">Dasarahalli Zone (Peenya / Dasarahalli)</option>
                     </select>
                   </div>
 
