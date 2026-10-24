@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from '../config/api';
+import PredictiveIntelligencePanel from './PredictiveIntelligencePanel';
 
-export default function DataView() {
+export default function DataView({ onNavigate }) {
   const [dataStatus, setDataStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -878,6 +879,11 @@ export default function DataView() {
           </table>
         </div>
       </div>
+
+      {/* ===================================================================== */}
+      {/* 6. MULTI-HORIZON PREDICTIVE INTELLIGENCE & MODEL PROVENANCE AUDIT   */}
+      {/* ===================================================================== */}
+      <PredictiveIntelligencePanel onNavigate={onNavigate} />
 
     </div>
   );

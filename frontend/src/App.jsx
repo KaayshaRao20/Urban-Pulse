@@ -296,7 +296,7 @@ function AppContent() {
               {activeView === 'simulation' && <SimulationView timestamp={timestamp} />}
               {activeView === 'focus' && <FocusView timestamp={timestamp} />}
               {activeView === 'reports' && <ReportsView />}
-              {activeView === 'data' && <DataView />}
+              {activeView === 'data' && <DataView onNavigate={setActiveView} />}
               {activeView === 'settings' && <SettingsView />}
             </ErrorBoundary>
           </main>
