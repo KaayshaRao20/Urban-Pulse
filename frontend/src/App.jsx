@@ -1,27 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import Sidebar from './components/Sidebar';
-import DashboardView from './components/DashboardView';
-import IntelligenceMapView from './components/IntelligenceMapView';
-import SimulationView from './components/SimulationView';
-import FocusView from './components/FocusView';
-import PredictiveCalendarView from './components/PredictiveCalendarView';
-import AlertsIncidentsView from './components/AlertsIncidentsView';
-import ReportsView from './components/ReportsView';
-import DataView from './components/DataView';
-import SettingsView from './components/SettingsView';
-import AnalyticsView from './components/AnalyticsView';
-import CitizenPortalView from './components/CitizenPortalView';
-import GrievanceManagementView from './components/GrievanceManagementView';
 import OfficerAuthModal from './components/OfficerAuthModal';
-
-import LoginPage from './components/LoginPage';
-import LandingPage from './components/LandingPage';
 import ErrorBoundary from './components/ErrorBoundary';
-
 import { API_BASE } from './config/api';
+
+// Code-split heavy views so the initial bundle is tiny and loads instantly
+const DashboardView = lazy(() => import('./components/DashboardView'));
+const IntelligenceMapView = lazy(() => import('./components/IntelligenceMapView'));
+const SimulationView = lazy(() => import('./components/SimulationView'));
+const FocusView = lazy(() => import('./components/FocusView'));
+const PredictiveCalendarView = lazy(() => import('./components/PredictiveCalendarView'));
+const AlertsIncidentsView = lazy(() => import('./components/AlertsIncidentsView'));
+const ReportsView = lazy(() => import('./components/ReportsView'));
+const DataView = lazy(() => import('./components/DataView'));
+const SettingsView = lazy(() => import('./components/SettingsView'));
+const AnalyticsView = lazy(() => import('./components/AnalyticsView'));
+const CitizenPortalView = lazy(() => import('./components/CitizenPortalView'));
+const GrievanceManagementView = lazy(() => import('./components/GrievanceManagementView'));
+const LoginPage = lazy(() => import('./components/LoginPage'));
+const LandingPage = lazy(() => import('./components/LandingPage'));
+
+const ViewLoader = () => (
+  <div style={{ height: '100%', width: '100%', minHeight: '320px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent' }}>
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ width: 34, height: 34, border: '3px solid #E2E8F0', borderTopColor: '#2563EB', borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 10px' }} />
+      <span style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: 600, letterSpacing: '0.3px' }}>Loading UrbanPulse...</span>
+    </div>
+  </div>
+);
 
 function AppContent() {
   const {
@@ -103,10 +112,15 @@ function AppContent() {
   };
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     fetchTelemetry();
-    const interval = setInterval(fetchTelemetry, 4000);
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchTelemetry();
+      }
+    }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isAuthenticated]);
 
   const handleNavigateToGrievance = (ticketId) => {
     setSelectedGrievanceId(ticketId);
@@ -167,18 +181,22 @@ function AppContent() {
     if (unauthView === 'landing') {
       return (
         <ErrorBoundary>
-          <LandingPage onNavigateToAuth={handleNavigateToAuth} />
+          <Suspense fallback={<ViewLoader />}>
+            <LandingPage onNavigateToAuth={handleNavigateToAuth} />
+          </Suspense>
         </ErrorBoundary>
       );
     }
     return (
       <ErrorBoundary>
-        <LoginPage
-          onAuthSuccess={handleAuthSuccess}
-          onBackToLanding={handleBackToLanding}
-          initialMode={authInitialMode}
-          initialType={authInitialType}
-        />
+        <Suspense fallback={<ViewLoader />}>
+          <LoginPage
+            onAuthSuccess={handleAuthSuccess}
+            onBackToLanding={handleBackToLanding}
+            initialMode={authInitialMode}
+            initialType={authInitialType}
+          />
+        </Suspense>
       </ErrorBoundary>
     );
   }
@@ -199,13 +217,15 @@ function AppContent() {
       {user?.role === 'citizen' ? (
         <div className="citizen-full-shell">
           <ErrorBoundary>
-            <CitizenPortalView
-              key={user?.id || user?.email || 'citizen-portal'}
-              isAuthenticated={isAuthenticated}
-              officer={officer}
-              user={user}
-              onLogout={handleLogout}
-            />
+            <Suspense fallback={<ViewLoader />}>
+              <CitizenPortalView
+                key={user?.id || user?.email || 'citizen-portal'}
+                isAuthenticated={isAuthenticated}
+                officer={officer}
+                user={user}
+                onLogout={handleLogout}
+              />
+            </Suspense>
           </ErrorBoundary>
         </div>
       ) : (
@@ -270,34 +290,36 @@ function AppContent() {
 
           <main className="workspace-area">
             <ErrorBoundary>
-              {activeView === 'dashboard' && (
-                <DashboardView
-                  telemetryData={telemetryData}
-                  onNavigate={setActiveView}
-                  onRefresh={fetchTelemetry}
-                />
-              )}
-              {activeView === 'map' && (
-                <IntelligenceMapView
-                  timestamp={timestamp}
-                  onNavigateToGrievance={handleNavigateToGrievance}
-                />
-              )}
-              {activeView === 'grievances' && (
-                <GrievanceManagementView
-                  initialTicketId={selectedGrievanceId}
-                />
-              )}
-              {activeView === 'alerts' && (
-                <AlertsIncidentsView onCriticalCountChange={setCriticalAlertsCount} />
-              )}
-              {activeView === 'analytics' && <AnalyticsView />}
-              {activeView === 'predictive_calendar' && <PredictiveCalendarView timestamp={timestamp} />}
-              {activeView === 'simulation' && <SimulationView timestamp={timestamp} />}
-              {activeView === 'focus' && <FocusView timestamp={timestamp} />}
-              {activeView === 'reports' && <ReportsView />}
-              {activeView === 'data' && <DataView onNavigate={setActiveView} />}
-              {activeView === 'settings' && <SettingsView />}
+              <Suspense fallback={<ViewLoader />}>
+                {activeView === 'dashboard' && (
+                  <DashboardView
+                    telemetryData={telemetryData}
+                    onNavigate={setActiveView}
+                    onRefresh={fetchTelemetry}
+                  />
+                )}
+                {activeView === 'map' && (
+                  <IntelligenceMapView
+                    timestamp={timestamp}
+                    onNavigateToGrievance={handleNavigateToGrievance}
+                  />
+                )}
+                {activeView === 'grievances' && (
+                  <GrievanceManagementView
+                    initialTicketId={selectedGrievanceId}
+                  />
+                )}
+                {activeView === 'alerts' && (
+                  <AlertsIncidentsView onCriticalCountChange={setCriticalAlertsCount} />
+                )}
+                {activeView === 'analytics' && <AnalyticsView />}
+                {activeView === 'predictive_calendar' && <PredictiveCalendarView timestamp={timestamp} />}
+                {activeView === 'simulation' && <SimulationView timestamp={timestamp} />}
+                {activeView === 'focus' && <FocusView timestamp={timestamp} />}
+                {activeView === 'reports' && <ReportsView />}
+                {activeView === 'data' && <DataView onNavigate={setActiveView} />}
+                {activeView === 'settings' && <SettingsView />}
+              </Suspense>
             </ErrorBoundary>
           </main>
 

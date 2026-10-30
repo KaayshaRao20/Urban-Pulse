@@ -40,6 +40,52 @@ export const calculateCurrentTime = (date = new Date(), timeZone = OPERATING_TIM
   };
 };
 
+// Self-contained live clock leaf components so DashboardView doesn't re-render every second
+const DashboardLiveClock = React.memo(function DashboardLiveClock() {
+  const [timeState, setTimeState] = useState(() => calculateCurrentTime(new Date()));
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeState(calculateCurrentTime(new Date()));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="date-time-text">
+      <div className="date-label">{timeState.dateStr}</div>
+      <div className="time-label">{timeState.timeStr}</div>
+    </div>
+  );
+});
+
+const DashboardLiveGreeting = React.memo(function DashboardLiveGreeting({ officerDisplayName }) {
+  const [greeting, setGreeting] = useState(() => getTimeAwareGreeting(new Date()));
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setGreeting(getTimeAwareGreeting(new Date()));
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <h1 className="hero-greeting-title">
+      {greeting || 'Good Day'}, <span className="greeting-highlight">{officerDisplayName}</span>
+    </h1>
+  );
+});
+
+const DashboardLiveStreamTime = React.memo(function DashboardLiveStreamTime() {
+  const [liveStr, setLiveStr] = useState(() => calculateCurrentTime(new Date()).liveStreamStr);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLiveStr(calculateCurrentTime(new Date()).liveStreamStr);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return <div className="live-stream-time">{liveStr}</div>;
+});
+
 export default function DashboardView({ telemetryData, onNavigate, onRefresh }) {
   const authContext = useAuth ? useAuth() : null;
   const user = authContext?.user || null;
@@ -52,7 +98,6 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
   const searchInputRef = useRef(null);
   const searchContainerRef = useRef(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [currentTime, setCurrentTime] = useState(() => calculateCurrentTime(new Date()));
 
   // Global Ctrl+K / Cmd+K and Escape keyboard listeners
   useEffect(() => {
@@ -80,16 +125,6 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Keep live clock & greeting strictly in sync with Asia/Kolkata timezone
-  useEffect(() => {
-    const updateClock = () => {
-      setCurrentTime(calculateCurrentTime(new Date()));
-    };
-    updateClock();
-    const timer = setInterval(updateClock, 1000);
-    return () => clearInterval(timer);
   }, []);
 
   // Civic Grievance Metrics State
@@ -642,146 +677,167 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
     );
 
     // 1. Traffic Velocity Chart (Red/Orange smooth curve)
+    // 1. Traffic Velocity Chart (Red/Orange smooth curve)
     if (trafficChartRef.current) {
-      if (trafficInst.current) trafficInst.current.destroy();
-      const ctx = trafficChartRef.current.getContext('2d');
-      const gradient = ctx.createLinearGradient(0, 0, 0, 160);
-      gradient.addColorStop(0, 'rgba(239, 68, 68, 0.35)');
-      gradient.addColorStop(0.6, 'rgba(249, 115, 22, 0.15)');
-      gradient.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
-
       const labels = timeSeries.labels;
       const dataPoints = timeSeries.trafficSpeeds;
       const maxTraffic = Math.max(...dataPoints);
       const peakTrafficIdx = dataPoints.indexOf(maxTraffic);
 
-      trafficInst.current = new Chart(ctx, {
-        type: 'line',
-        plugins: [peakTooltipPlugin],
-        data: {
-          labels,
-          datasets: [{
-            data: dataPoints,
-            borderColor: '#EF4444',
-            backgroundColor: gradient,
-            fill: true,
-            tension: 0.45,
-            borderWidth: 2.5,
-            pointRadius: (context) => (context.dataIndex === peakTrafficIdx ? 5 : 3.5),
-            pointBackgroundColor: '#EF4444',
-            pointBorderColor: '#FFFFFF',
-            pointBorderWidth: 2,
-            pointHoverRadius: 6
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: { enabled: true },
-            peakTooltipPlugin: {
-              peakIndex: peakTrafficIdx >= 0 ? peakTrafficIdx : 3,
-              peakValue: maxTraffic,
-              peakLabel: `${maxTraffic} km/h`,
-              peakSub: labels[peakTrafficIdx] || 'Peak Speed',
-              theme: 'dark'
-            }
+      if (trafficInst.current) {
+        trafficInst.current.data.labels = labels;
+        trafficInst.current.data.datasets[0].data = dataPoints;
+        if (trafficInst.current.options.plugins?.peakTooltipPlugin) {
+          trafficInst.current.options.plugins.peakTooltipPlugin.peakIndex = peakTrafficIdx >= 0 ? peakTrafficIdx : 3;
+          trafficInst.current.options.plugins.peakTooltipPlugin.peakValue = maxTraffic;
+          trafficInst.current.options.plugins.peakTooltipPlugin.peakLabel = `${maxTraffic} km/h`;
+          trafficInst.current.options.plugins.peakTooltipPlugin.peakSub = labels[peakTrafficIdx] || 'Peak Speed';
+        }
+        trafficInst.current.update('none');
+      } else {
+        const ctx = trafficChartRef.current.getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 160);
+        gradient.addColorStop(0, 'rgba(239, 68, 68, 0.35)');
+        gradient.addColorStop(0.6, 'rgba(249, 115, 22, 0.15)');
+        gradient.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
+
+        trafficInst.current = new Chart(ctx, {
+          type: 'line',
+          plugins: [peakTooltipPlugin],
+          data: {
+            labels,
+            datasets: [{
+              data: dataPoints,
+              borderColor: '#EF4444',
+              backgroundColor: gradient,
+              fill: true,
+              tension: 0.45,
+              borderWidth: 2.5,
+              pointRadius: (context) => (context.dataIndex === peakTrafficIdx ? 5 : 3.5),
+              pointBackgroundColor: '#EF4444',
+              pointBorderColor: '#FFFFFF',
+              pointBorderWidth: 2,
+              pointHoverRadius: 6
+            }]
           },
-          scales: {
-            x: {
-              grid: { display: false },
-              ticks: { font: { size: 9, family: 'inherit' }, color: '#94A3B8' },
-              border: { display: false }
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { enabled: true },
+              peakTooltipPlugin: {
+                peakIndex: peakTrafficIdx >= 0 ? peakTrafficIdx : 3,
+                peakValue: maxTraffic,
+                peakLabel: `${maxTraffic} km/h`,
+                peakSub: labels[peakTrafficIdx] || 'Peak Speed',
+                theme: 'dark'
+              }
             },
-            y: {
-              min: 0,
-              max: 80,
-              ticks: { stepSize: 20, font: { size: 9, family: 'inherit' }, color: '#94A3B8' },
-              grid: { color: 'rgba(226, 232, 240, 0.6)' },
-              border: { display: false }
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { font: { size: 9, family: 'inherit' }, color: '#94A3B8' },
+                border: { display: false }
+              },
+              y: {
+                min: 0,
+                max: 80,
+                ticks: { stepSize: 20, font: { size: 9, family: 'inherit' }, color: '#94A3B8' },
+                grid: { color: 'rgba(226, 232, 240, 0.6)' },
+                border: { display: false }
+              }
             }
           }
-        }
-      });
+        });
+      }
     }
 
     // 2. Crowd Density Trend Chart (Blue smooth curve)
     if (crowdChartRef.current) {
-      if (crowdInst.current) crowdInst.current.destroy();
-      const ctx = crowdChartRef.current.getContext('2d');
-      const gradient = ctx.createLinearGradient(0, 0, 0, 160);
-      gradient.addColorStop(0, 'rgba(37, 99, 235, 0.35)');
-      gradient.addColorStop(0.6, 'rgba(37, 99, 235, 0.12)');
-      gradient.addColorStop(1, 'rgba(37, 99, 235, 0.0)');
-
       const labels = timeSeries.labels;
       const dataPoints = timeSeries.crowdDensities;
       const maxCrowd = Math.max(...dataPoints);
       const peakCrowdIdx = dataPoints.indexOf(maxCrowd);
       const crowdYMax = Math.max(1000, Math.ceil((maxCrowd + 50) / 200) * 200);
 
-      crowdInst.current = new Chart(ctx, {
-        type: 'line',
-        plugins: [peakTooltipPlugin],
-        data: {
-          labels,
-          datasets: [{
-            data: dataPoints,
-            borderColor: '#2563EB',
-            backgroundColor: gradient,
-            fill: true,
-            tension: 0.45,
-            borderWidth: 2.5,
-            pointRadius: (context) => (context.dataIndex === peakCrowdIdx ? 5 : 3.5),
-            pointBackgroundColor: '#2563EB',
-            pointBorderColor: '#FFFFFF',
-            pointBorderWidth: 2,
-            pointHoverRadius: 6
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: { enabled: true },
-            peakTooltipPlugin: {
-              peakIndex: peakCrowdIdx >= 0 ? peakCrowdIdx : 5,
-              peakValue: maxCrowd,
-              peakLabel: `${maxCrowd} /km²`,
-              peakSub: labels[peakCrowdIdx] || 'Peak Density',
-              theme: 'light'
-            }
+      if (crowdInst.current) {
+        crowdInst.current.data.labels = labels;
+        crowdInst.current.data.datasets[0].data = dataPoints;
+        crowdInst.current.options.scales.y.max = crowdYMax;
+        if (crowdInst.current.options.plugins?.peakTooltipPlugin) {
+          crowdInst.current.options.plugins.peakTooltipPlugin.peakIndex = peakCrowdIdx >= 0 ? peakCrowdIdx : 5;
+          crowdInst.current.options.plugins.peakTooltipPlugin.peakValue = maxCrowd;
+          crowdInst.current.options.plugins.peakTooltipPlugin.peakLabel = `${maxCrowd} /km²`;
+          crowdInst.current.options.plugins.peakTooltipPlugin.peakSub = labels[peakCrowdIdx] || 'Peak Density';
+        }
+        crowdInst.current.update('none');
+      } else {
+        const ctx = crowdChartRef.current.getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 160);
+        gradient.addColorStop(0, 'rgba(37, 99, 235, 0.35)');
+        gradient.addColorStop(0.6, 'rgba(37, 99, 235, 0.12)');
+        gradient.addColorStop(1, 'rgba(37, 99, 235, 0.0)');
+
+        crowdInst.current = new Chart(ctx, {
+          type: 'line',
+          plugins: [peakTooltipPlugin],
+          data: {
+            labels,
+            datasets: [{
+              data: dataPoints,
+              borderColor: '#2563EB',
+              backgroundColor: gradient,
+              fill: true,
+              tension: 0.45,
+              borderWidth: 2.5,
+              pointRadius: (context) => (context.dataIndex === peakCrowdIdx ? 5 : 3.5),
+              pointBackgroundColor: '#2563EB',
+              pointBorderColor: '#FFFFFF',
+              pointBorderWidth: 2,
+              pointHoverRadius: 6
+            }]
           },
-          scales: {
-            x: {
-              grid: { display: false },
-              ticks: { font: { size: 9, family: 'inherit' }, color: '#94A3B8' },
-              border: { display: false }
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { enabled: true },
+              peakTooltipPlugin: {
+                peakIndex: peakCrowdIdx >= 0 ? peakCrowdIdx : 5,
+                peakValue: maxCrowd,
+                peakLabel: `${maxCrowd} /km²`,
+                peakSub: labels[peakCrowdIdx] || 'Peak Density',
+                theme: 'light'
+              }
             },
-            y: {
-              min: 0,
-              max: crowdYMax,
-              ticks: {
-                stepSize: 200,
-                font: { size: 9, family: 'inherit' },
-                color: '#94A3B8',
-                callback: (val) => (val >= 1000 ? `${val / 1000}K` : val)
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { font: { size: 9, family: 'inherit' }, color: '#94A3B8' },
+                border: { display: false }
               },
-              grid: { color: 'rgba(226, 232, 240, 0.6)' },
-              border: { display: false }
+              y: {
+                min: 0,
+                max: crowdYMax,
+                ticks: {
+                  stepSize: 200,
+                  font: { size: 9, family: 'inherit' },
+                  color: '#94A3B8',
+                  callback: (val) => (val >= 1000 ? `${val / 1000}K` : val)
+                },
+                grid: { color: 'rgba(226, 232, 240, 0.6)' },
+                border: { display: false }
+              }
             }
           }
-        }
-      });
+        });
+      }
     }
 
     // 3. Weather & Rain Feed Chart (Vertical cyan-blue bars)
     if (weatherChartRef.current) {
-      if (weatherInst.current) weatherInst.current.destroy();
-      const ctx = weatherChartRef.current.getContext('2d');
-
       const labels = timeSeries.labels;
       const rainData = timeSeries.rainfallPoints;
       const maxRain = Math.max(...rainData);
@@ -789,58 +845,91 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
       const weatherYMax = Math.max(5, Math.ceil((maxRain + 1) / 5) * 5);
       const weatherStep = weatherYMax <= 10 ? 2 : (weatherYMax <= 30 ? 5 : 10);
 
-      weatherInst.current = new Chart(ctx, {
-        type: 'bar',
-        plugins: [peakTooltipPlugin],
-        data: {
-          labels,
-          datasets: [{
-            data: rainData,
-            backgroundColor: '#0284C7',
-            hoverBackgroundColor: '#0369A1',
-            borderRadius: 4,
-            borderSkipped: false,
-            barPercentage: 0.62
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: { enabled: true },
-            peakTooltipPlugin: {
-              peakIndex: peakRainIdx >= 0 ? peakRainIdx : 2,
-              peakValue: maxRain,
-              peakLabel: `${maxRain} mm`,
-              peakSub: labels[peakRainIdx] || 'Peak Rain',
-              theme: 'light'
-            }
+      if (weatherInst.current) {
+        weatherInst.current.data.labels = labels;
+        weatherInst.current.data.datasets[0].data = rainData;
+        weatherInst.current.options.scales.y.max = weatherYMax;
+        weatherInst.current.options.scales.y.ticks.stepSize = weatherStep;
+        if (weatherInst.current.options.plugins?.peakTooltipPlugin) {
+          weatherInst.current.options.plugins.peakTooltipPlugin.peakIndex = peakRainIdx >= 0 ? peakRainIdx : 2;
+          weatherInst.current.options.plugins.peakTooltipPlugin.peakValue = maxRain;
+          weatherInst.current.options.plugins.peakTooltipPlugin.peakLabel = `${maxRain} mm`;
+          weatherInst.current.options.plugins.peakTooltipPlugin.peakSub = labels[peakRainIdx] || 'Peak Rain';
+        }
+        weatherInst.current.update('none');
+      } else {
+        const ctx = weatherChartRef.current.getContext('2d');
+
+        weatherInst.current = new Chart(ctx, {
+          type: 'bar',
+          plugins: [peakTooltipPlugin],
+          data: {
+            labels,
+            datasets: [{
+              data: rainData,
+              backgroundColor: '#0284C7',
+              hoverBackgroundColor: '#0369A1',
+              borderRadius: 4,
+              borderSkipped: false,
+              barPercentage: 0.62
+            }]
           },
-          scales: {
-            x: {
-              grid: { display: false },
-              ticks: { font: { size: 8, family: 'inherit' }, color: '#94A3B8' },
-              border: { display: false }
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { enabled: true },
+              peakTooltipPlugin: {
+                peakIndex: peakRainIdx >= 0 ? peakRainIdx : 2,
+                peakValue: maxRain,
+                peakLabel: `${maxRain} mm`,
+                peakSub: labels[peakRainIdx] || 'Peak Rain',
+                theme: 'light'
+              }
             },
-            y: {
-              min: 0,
-              max: weatherYMax,
-              ticks: { stepSize: weatherStep, font: { size: 9, family: 'inherit' }, color: '#94A3B8' },
-              grid: { color: 'rgba(226, 232, 240, 0.6)' },
-              border: { display: false }
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { font: { size: 8, family: 'inherit' }, color: '#94A3B8' },
+                border: { display: false }
+              },
+              y: {
+                min: 0,
+                max: weatherYMax,
+                ticks: { stepSize: weatherStep, font: { size: 9, family: 'inherit' }, color: '#94A3B8' },
+                grid: { color: 'rgba(226, 232, 240, 0.6)' },
+                border: { display: false }
+              }
             }
           }
-        }
-      });
+        });
+      }
     }
 
     return () => {
-      if (trafficInst.current) trafficInst.current.destroy();
-      if (crowdInst.current) crowdInst.current.destroy();
-      if (weatherInst.current) weatherInst.current.destroy();
+      // Intentionally keep chart instances alive for in-place updates;
+      // destruction happens when DashboardView unmounts
     };
-  }, [selectedCorridor, activeTimeRange, traffic.avg_speed_kmh, crowd.current_density, weather.rainfall_mm, telemetryData, liveWeather]);
+  }, [selectedCorridor, activeTimeRange, traffic.avg_speed_kmh, crowd.current_density, weather.rainfall_mm, liveWeather?.temp_c, liveWeather?.condition]);
+
+  // Clean up all charts only on unmount
+  useEffect(() => {
+    return () => {
+      if (trafficInst.current) {
+        trafficInst.current.destroy();
+        trafficInst.current = null;
+      }
+      if (crowdInst.current) {
+        crowdInst.current.destroy();
+        crowdInst.current = null;
+      }
+      if (weatherInst.current) {
+        weatherInst.current.destroy();
+        weatherInst.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div className="dashboard-exact-viewport">
@@ -1022,10 +1111,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
                 <line x1="8" y1="2" x2="8" y2="6" />
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
-              <div className="date-time-text">
-                <div className="date-label">{currentTime.dateStr}</div>
-                <div className="time-label">{currentTime.timeStr}</div>
-              </div>
+              <DashboardLiveClock />
             </div>
 
             <div className="command-user-avatar-wrap" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1042,9 +1128,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
         {/* HERO GREETING & RIGHT WIDGETS */}
         <div className="hero-banner-content">
           <div className="hero-greeting-box">
-            <h1 className="hero-greeting-title">
-              {currentTime.greeting || 'Good Day'}, <span className="greeting-highlight">{officerDisplayName}</span>
-            </h1>
+            <DashboardLiveGreeting officerDisplayName={officerDisplayName} />
             <p className="hero-greeting-sub">Here's what's happening in your city today.</p>
           </div>
 
@@ -1090,7 +1174,7 @@ export default function DashboardView({ telemetryData, onNavigate, onRefresh }) 
               </div>
               <div className="live-stream-text">
                 <div className="live-stream-badge-title">LIVE STREAM</div>
-                <div className="live-stream-time">{currentTime.liveStreamStr}</div>
+                <DashboardLiveStreamTime />
               </div>
             </div>
           </div>

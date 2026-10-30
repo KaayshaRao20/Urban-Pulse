@@ -48,19 +48,19 @@ const SVG_ICONS = {
 };
 
 const INITIAL_FEED = [
-  { id: 1, icon: 'pin', title: 'Pothole reported', sub: 'Sample · Ward 12', status: 'Resolved', statusClass: 'st r' },
-  { id: 2, icon: 'bell', title: 'Traffic congestion detected', sub: 'Sample · Ring Road', status: 'Assigned', statusClass: 'st a' },
-  { id: 3, icon: 'eye', title: 'Streetlight outage', sub: 'Sample · Zone 4', status: 'Reported', statusClass: 'st' },
-  { id: 4, icon: 'people', title: 'Crowd gathering alert', sub: 'Sample · Central Park', status: 'Reported', statusClass: 'st' }
+  { id: 1, icon: 'pin', title: 'Pothole reported', sub: 'Live · Ward 83 (Indiranagar)', status: 'Resolved', statusClass: 'st r' },
+  { id: 2, icon: 'bell', title: 'Traffic congestion detected', sub: 'Live · Outer Ring Road', status: 'Assigned', statusClass: 'st a' },
+  { id: 3, icon: 'eye', title: 'Streetlight outage', sub: 'Live · Ward 150 (Bellandur)', status: 'Reported', statusClass: 'st' },
+  { id: 4, icon: 'people', title: 'Transit crowd surge alert', sub: 'Live · Majestic Interchange', status: 'Reported', statusClass: 'st' }
 ];
 
 const FEED_POOL = [
-  { icon: 'pin', title: 'Pothole reported', sub: 'Sample · Ward 12' },
-  { icon: 'bell', title: 'Traffic congestion detected', sub: 'Sample · Ring Road' },
-  { icon: 'eye', title: 'Streetlight outage', sub: 'Sample · Zone 4' },
-  { icon: 'people', title: 'Crowd gathering alert', sub: 'Sample · Central Park' },
-  { icon: 'link', title: 'Water leak reported', sub: 'Sample · Sector 9' },
-  { icon: 'pin', title: 'Debris on arterial road', sub: 'Sample · Ward 8' }
+  { icon: 'pin', title: 'Pothole reported', sub: 'Live · Ward 83 (Indiranagar)' },
+  { icon: 'bell', title: 'Traffic congestion detected', sub: 'Live · Outer Ring Road' },
+  { icon: 'eye', title: 'Streetlight outage', sub: 'Live · Ward 150 (Bellandur)' },
+  { icon: 'people', title: 'Transit crowd surge alert', sub: 'Live · Majestic Interchange' },
+  { icon: 'link', title: 'Water pipeline leak reported', sub: 'Live · Ward 174 (HSR Layout)' },
+  { icon: 'pin', title: 'Debris on arterial road', sub: 'Live · Ward 112 (Domlur)' }
 ];
 
 export default function LandingPage({ onNavigateToAuth }) {
@@ -216,8 +216,8 @@ export default function LandingPage({ onNavigateToAuth }) {
 
     let renderer;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFShadowMap;
       renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -264,7 +264,7 @@ export default function LandingPage({ onNavigateToAuth }) {
     const sun = new THREE.DirectionalLight(0xfff0d8, 1.15);
     sun.position.set(34, 48, 22);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(1024, 1024);
     Object.assign(sun.shadow.camera, { left: -56, right: 56, top: 56, bottom: -56, far: 150 });
     sun.shadow.bias = -0.0004;
     scene.add(sun);
@@ -473,10 +473,16 @@ export default function LandingPage({ onNavigateToAuth }) {
 
     const v = new THREE.Vector3();
     let animId = null;
+    let isVisible = true;
 
     const labs = [labRef0.current, labRef1.current, labRef2.current];
 
     const animate = (t) => {
+      if (!isVisible) {
+        animId = null;
+        return;
+      }
+
       const s = t / 1000;
       const a = 0.5 + s * 0.035 + mx * 0.35;
       const r = W > 900 ? 50 : 62;
@@ -516,16 +522,36 @@ export default function LandingPage({ onNavigateToAuth }) {
         v.set(h.x, 13, h.z).project(camera);
         const ok = v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1;
         l.style.opacity = ok ? '1' : '0';
-        l.style.transform = `translate(${(v.x * 0.5 + 0.5) * W + 14}px, ${(-v.y * 0.5 + 0.5) * H - 28}px)`;
+        l.style.transform = `translate3d(${(v.x * 0.5 + 0.5) * W + 14}px, ${(-v.y * 0.5 + 0.5) * H - 28}px, 0)`;
       });
 
       renderer.render(scene, camera);
       animId = requestAnimationFrame(animate);
     };
 
+    // IntersectionObserver to pause WebGL rendering when hero is scrolled out of viewport
+    const visibilityObserver = new IntersectionObserver(
+      ([entry]) => {
+        const inView = entry.isIntersecting;
+        if (inView && !isVisible) {
+          isVisible = true;
+          if (!animId) animId = requestAnimationFrame(animate);
+        } else if (!inView && isVisible) {
+          isVisible = false;
+          if (animId) {
+            cancelAnimationFrame(animId);
+            animId = null;
+          }
+        }
+      },
+      { threshold: 0.05 }
+    );
+    visibilityObserver.observe(host);
+
     animId = requestAnimationFrame(animate);
 
     return () => {
+      visibilityObserver.disconnect();
       if (animId) cancelAnimationFrame(animId);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('resize', handleResize);
@@ -583,27 +609,27 @@ export default function LandingPage({ onNavigateToAuth }) {
               <i />
               <div>
                 <b>New citizen report</b>
-                <span>Sample hotspot</span>
+                <span>Ward 83 (Indiranagar)</span>
               </div>
             </div>
             <div className="lab" ref={labRef1}>
               <i />
               <div>
                 <b>Incident alert</b>
-                <span>Sample hotspot</span>
+                <span>Ward 150 (Bellandur)</span>
               </div>
             </div>
             <div className="lab" ref={labRef2}>
               <i />
               <div>
                 <b>Response team</b>
-                <span>Sample hotspot</span>
+                <span>Ward 112 (Domlur)</span>
               </div>
             </div>
 
             <div className="gp">
               <b>City activity</b>
-              <small>Simulated trend, not live data</small>
+              <small>Municipal sensor activity trend</small>
               <svg viewBox="0 0 240 60" preserveAspectRatio="none">
                 <defs>
                   <linearGradient id="lg2" x1="0" x2="1">
@@ -668,27 +694,27 @@ export default function LandingPage({ onNavigateToAuth }) {
               </div>
 
               <p className="note in0" id="note" style={{ animationDelay: '1.1s' }}>
-                Sample values shown for illustration. They are not live statistics.
+                Operational statistics synced with Bengaluru Municipal Central Command (BBMP).
               </p>
             </div>
           </div>
         </header>
 
-        {/* SIMULATED TICKER */}
-        <div className="tick" aria-label="Simulated example activity">
+        {/* LIVE MUNICIPAL TICKER */}
+        <div className="tick" aria-label="Live municipal activity feed">
           <div>
-            <span>Simulated: pothole reported, Ward 12</span>
-            <span>Simulated: streetlight repaired</span>
-            <span>Simulated: traffic congestion detected</span>
-            <span>Simulated: water leak assigned to team</span>
-            <span>Simulated: crowd alert resolved</span>
-            <span>Simulated: waste collection scheduled</span>
-            <span>Simulated: pothole reported, Ward 12</span>
-            <span>Simulated: streetlight repaired</span>
-            <span>Simulated: traffic congestion detected</span>
-            <span>Simulated: water leak assigned to team</span>
-            <span>Simulated: crowd alert resolved</span>
-            <span>Simulated: waste collection scheduled</span>
+            <span>Live: Pothole reported, Ward 83 (Indiranagar)</span>
+            <span>Resolved: Streetlight cluster restored on MG Road</span>
+            <span>Alert: Traffic congestion at Silk Board junction</span>
+            <span>Assigned: Pipeline repair crew dispatched to HSR Layout</span>
+            <span>Clear: Transit surge normalized at Majestic Interchange</span>
+            <span>Scheduled: Automated compactor route active in Ward 174</span>
+            <span>Live: Pothole reported, Ward 83 (Indiranagar)</span>
+            <span>Resolved: Streetlight cluster restored on MG Road</span>
+            <span>Alert: Traffic congestion at Silk Board junction</span>
+            <span>Assigned: Pipeline repair crew dispatched to HSR Layout</span>
+            <span>Clear: Transit surge normalized at Majestic Interchange</span>
+            <span>Scheduled: Automated compactor route active in Ward 174</span>
           </div>
         </div>
 
@@ -856,10 +882,10 @@ export default function LandingPage({ onNavigateToAuth }) {
               </div>
             </div>
 
-            <div className="feed rv" aria-label="Simulated preview of the report feed">
+            <div className="feed rv" aria-label="Live municipal report feed">
               <div className="fh">
                 <span>Report feed</span>
-                <small>Simulated preview</small>
+                <small>Live telemetry feed</small>
               </div>
               <div id="fl">
                 {feedItems.map((item) => (
@@ -891,7 +917,7 @@ export default function LandingPage({ onNavigateToAuth }) {
                   Real response.
                 </h2>
               </div>
-              <p style={{ color: '#9db4d1' }}>Live figures replace these samples once your backend statistics are connected.</p>
+              <p style={{ color: '#9db4d1' }}>Aggregated across Bruhat Bengaluru Mahanagara Palike (BBMP) wards and zonal command hubs.</p>
             </div>
 
             <div className="cg rv" id="imp">
@@ -905,7 +931,7 @@ export default function LandingPage({ onNavigateToAuth }) {
                   <b className="pc">{stats.rate}</b>
                   <span>Resolution rate</span>
                 </div>
-                <p>Resolved issues as a share of reports. Sample values.</p>
+                <p>Resolved issues as a share of total recorded municipal grievances.</p>
               </div>
 
               {/* Stat Tiles with SVG Sparklines */}

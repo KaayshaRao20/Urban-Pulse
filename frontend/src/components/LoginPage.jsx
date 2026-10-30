@@ -770,7 +770,7 @@ export default function LoginPage({
                   </div>
                 </div>
 
-                {/* Instant 1-Click Demo Fillers for Quick Testing */}
+                {/* Quick Access Credentials for Rapid Sign-in */}
                 {selectedPortal === 'citizen' ? (
                   <button
                     type="button"
@@ -779,9 +779,9 @@ export default function LoginPage({
                       setIdentifier('citizen@urbanpulse.org');
                       setPassword('citizen123');
                     }}
-                    title="Click to autofill demo citizen credentials"
+                    title="Click to autofill verified citizen credentials"
                   >
-                    <span>👤 Fill Citizen Demo</span>
+                    <span>👤 Quick Access: Citizen Portal</span>
                     <span className="auth-demo-hint-pill">citizen@urbanpulse.org / citizen123</span>
                   </button>
                 ) : (
@@ -792,9 +792,9 @@ export default function LoginPage({
                       setIdentifier('01kaaysha');
                       setPassword('bbmp2026');
                     }}
-                    title="Click to autofill authorized officer credentials"
+                    title="Click to autofill authorized municipal officer credentials"
                   >
-                    <span>🛡️ Fill Officer Demo</span>
+                    <span>🛡️ Quick Access: Authority Officer</span>
                     <span className="auth-demo-hint-pill">01kaaysha / bbmp2026</span>
                   </button>
                 )}

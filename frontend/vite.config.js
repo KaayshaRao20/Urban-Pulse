@@ -19,11 +19,20 @@ export default defineConfig({
     }
   },
   build: {
+    chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
         entryFileNames: 'assets/[name]-[hash]-v3.js',
         chunkFileNames: 'assets/[name]-[hash]-v3.js',
-        assetFileNames: 'assets/[name]-[hash]-v3.[ext]'
+        assetFileNames: 'assets/[name]-[hash]-v3.[ext]',
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('three')) return 'vendor-three';
+            if (id.includes('chart.js')) return 'vendor-charts';
+            if (id.includes('leaflet') || id.includes('react-leaflet')) return 'vendor-leaflet';
+            if (id.includes('react') || id.includes('react-dom')) return 'vendor-react';
+          }
+        }
       }
     }
   }
