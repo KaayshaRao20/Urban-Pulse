@@ -1,17 +1,12 @@
+# UrbanPulse High-Severity 4-Class YOLO Configuration
 path: .
 train: images/train
 val: images/val
 test: images/test
 
-nc: 10
+nc: 4
 names:
   0: pothole
   1: road_crack
-  2: surface_erosion
-  3: biodegradable_waste
-  4: cardboard
-  5: glass
-  6: metal
-  7: paper
-  8: plastic
-  9: standing_water
+  2: garbage_dump
+  3: waterlogging

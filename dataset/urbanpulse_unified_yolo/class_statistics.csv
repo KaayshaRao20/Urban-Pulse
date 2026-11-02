@@ -1,11 +1,5 @@
 class_id,class_name,images_with_class,bounding_boxes
 0,pothole,328,927
 1,road_crack,456,522
-2,surface_erosion,391,397
-3,biodegradable_waste,222,4715
-4,cardboard,217,715
-5,glass,229,633
-6,metal,230,788
-7,paper,214,581
-8,plastic,219,634
-9,standing_water,1000,9974
+2,garbage_dump,950,1992
+3,waterlogging,316,690

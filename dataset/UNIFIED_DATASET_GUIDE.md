@@ -3,32 +3,26 @@
 ## 1. Unified Dataset Overview
 The UrbanPulse computer vision dataset consolidates multiple municipal hazard and urban defect datasets into a single, standardized **YOLO format** detection dataset.
 
-- **Total Images**: 3,071
-  - **Train**: 2,149 images (70%)
-  - **Validation**: 614 images (20%)
-  - **Test**: 308 images (10%)
-- **Total Bounding Boxes**: 19,886
+- **Total Images**: 2,020
+  - **Train**: 1,424 images (70.5%)
+  - **Validation**: 399 images (19.8%)
+  - **Test**: 197 images (9.7%)
+- **Total High-Severity Bounding Boxes**: 4,131
+- **Purged Micro-Items**: 1,051 images containing only isolated tiny litter or small shallow puddles were filtered out.
 - **Format**: YOLO normalized bounding boxes `(class_id, x_center, y_center, width, height)`
-- **Standard Image Dimensions**: Resized to maximum 416 px with preserved aspect ratios, JPEG quality 80/85.
 - **Master Configuration File**: [`dataset/urbanpulse_unified_yolo/data.yaml`](file:///c:/Users/Kaaysha%20Rao/OneDrive/Desktop/Urban%20pulse/dataset/urbanpulse_unified_yolo/data.yaml)
 
 ---
 
-## 2. Standardized 10-Class Taxonomy
+## 2. Standardized 4-Class High-Severity Taxonomy
 
-| Class ID | Class Name | Unique Images | Total Bounding Boxes | Original Source Dataset |
+| Class ID | Class Name | Unique Images | Total Bounding Boxes | Scope / Filtering Criteria |
 | :---: | :--- | :---: | :---: | :--- |
-| **0** | `pothole` | 328 | 927 | Curated Road Damage RGB Dataset |
-| **1** | `road_crack` | 456 | 522 | Curated Road Damage RGB Dataset |
-| **2** | `surface_erosion` | 391 | 397 | Curated Road Damage RGB Dataset |
-| **3** | `biodegradable_waste` | 222 | 4,715 | Trash Detection / Waste Segregation |
-| **4** | `cardboard` | 217 | 715 | Trash Detection / Waste Segregation |
-| **5** | `glass` | 229 | 633 | Trash Detection / Waste Segregation |
-| **6** | `metal` | 230 | 788 | Trash Detection / Waste Segregation |
-| **7** | `paper` | 214 | 581 | Trash Detection / Waste Segregation |
-| **8** | `plastic` | 219 | 634 | Trash Detection / Waste Segregation |
-| **9** | `standing_water` | 1,000 | 9,974 | Mendeley Stagnant Water & Wet Surface (`y6zyrnxbfm`) |
-| **TOTAL** | **10 Classes** | **3,071** | **19,886** | **Unified Master Dataset** |
+| **0** | `pothole` | 328 | 927 | Real road surface craters & potholes |
+| **1** | `road_crack` | 456 | 522 | Asphalt cracks (longitudinal, transverse, alligator) |
+| **2** | `garbage_dump` | 950 | 1,992 | **Huge-level waste dumps only** (bounding box area $\ge$ 8% of frame; minor litter dropped) |
+| **3** | `waterlogging` | 316 | 690 | **Large-scale stagnant pools only** (bounding box area $\ge$ 5% of frame; tiny puddles dropped) |
+| **TOTAL** | **4 Classes** | **2,020** | **4,131** | **Balanced High-Severity Dataset** |
 
 ---
 
