@@ -51,3 +51,5 @@ backend/urbanpulse_dev.db
 backend/uploads/
 frontend/start_vite.js
 scratch/
+dataset/urbanpulse_unified_yolo/images/
+UrbanPulse_Models/

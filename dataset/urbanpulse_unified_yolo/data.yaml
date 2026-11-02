@@ -1,0 +1,17 @@
+path: .
+train: images/train
+val: images/val
+test: images/test
+
+nc: 10
+names:
+  0: pothole
+  1: road_crack
+  2: surface_erosion
+  3: biodegradable_waste
+  4: cardboard
+  5: glass
+  6: metal
+  7: paper
+  8: plastic
+  9: standing_water
