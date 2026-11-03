@@ -41,6 +41,40 @@ def run_tests():
     passed = 0
     total = 0
 
+    # Ensure test citizen has accepted active terms
+    try:
+        from app.database import SessionLocal, UserModel, SystemConfigModel, init_db
+        init_db()
+        db = SessionLocal()
+        cfg = db.query(SystemConfigModel).filter(SystemConfigModel.key == "active_terms_version").first()
+        active_v = cfg.value if cfg else "v1.0"
+        test_emails = ["test_citizen@urbanpulse.org", "dispute_user@urbanpulse.org", "onsite_user@urbanpulse.org"]
+        for em in test_emails:
+            u = db.query(UserModel).filter(UserModel.email == em).first()
+            if not u:
+                u = UserModel(
+                    id=f"user_{em.split('@')[0]}",
+                    email=em,
+                    username=em.split('@')[0],
+                    hashed_password="mock_password",
+                    full_name=em.split('@')[0].replace('_', ' ').title(),
+                    role="citizen",
+                    terms_accepted=True,
+                    terms_version=active_v,
+                    consent_status="accepted",
+                    enforcement_status="active"
+                )
+                db.add(u)
+            else:
+                u.terms_accepted = True
+                u.terms_version = active_v
+                u.consent_status = "accepted"
+                u.enforcement_status = "active"
+        db.commit()
+        db.close()
+    except Exception as e:
+        print(f"Setup note: {e}")
+
     # 1. Nearby Issues Discovery (Marathahalli Bridge: 12.9569, 77.7011)
     total += 1
     print("\n[Test 1] GET /api/community/issues (Nearby Marathahalli 2km)...", flush=True)

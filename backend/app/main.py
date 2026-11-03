@@ -109,6 +109,16 @@ try:
 except Exception as e:
     print(f"Warning: Community Help engine could not be initialized: {e}")
 
+# Terms & Conditions Consent Management & Account Enforcement Engine
+try:
+    try:
+        from app.consent_engine import router as consent_router
+    except ImportError:
+        from consent_engine import router as consent_router
+    app.include_router(consent_router)
+except Exception as e:
+    print(f"Warning: Consent engine could not be initialized: {e}")
+
 @app.on_event("startup")
 def startup_db_init():
     try:

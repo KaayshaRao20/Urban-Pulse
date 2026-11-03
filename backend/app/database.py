@@ -392,9 +392,20 @@ class UserModel(Base):
     reset_token_expires = Column(DateTime, nullable=True)
     auth_provider = Column(String(30), default="local") # local, google, supabase
     google_id = Column(String(150), nullable=True, index=True)
-    avatar_url = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Terms & Conditions, Consent and Account Enforcement
+    terms_accepted = Column(Boolean, default=False)
+    terms_version = Column(String(20), default="v1.0")
+    privacy_policy_version = Column(String(20), default="v1.0")
+    terms_accepted_at = Column(DateTime, nullable=True)
+    consent_status = Column(String(30), default="pending") # 'accepted', 'pending', 'declined'
+    enforcement_status = Column(String(30), default="active") # 'active', 'warned', 'suspended', 'terminated'
+    enforcement_reason = Column(Text, nullable=True)
+    enforcement_timestamp = Column(DateTime, nullable=True)
+    enforcement_appealed = Column(Boolean, default=False)
+    enforcement_appeal_notes = Column(Text, nullable=True)
 
 # -----------------------------------------------------------------------------
 # Community Help Feature Models
@@ -439,6 +450,47 @@ class CommunityActivityModel(Base):
     description = Column(String(255), nullable=False)
     ward_zone = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+# -----------------------------------------------------------------------------
+# Terms & Conditions, Consent Management & Account Enforcement Models
+# -----------------------------------------------------------------------------
+class TermsConsentRecordModel(Base):
+    __tablename__ = "terms_consent_records"
+
+    id = Column(String(50), primary_key=True)
+    user_id = Column(String(50), index=True, nullable=False)
+    user_email = Column(String(150), index=True, nullable=True)
+    terms_version = Column(String(20), nullable=False, default="v1.0")
+    privacy_policy_version = Column(String(20), nullable=False, default="v1.0")
+    consent_status = Column(String(30), nullable=False, default="accepted") # 'accepted' | 'declined'
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(String(255), nullable=True)
+    accepted_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class AccountEnforcementLogModel(Base):
+    __tablename__ = "account_enforcement_logs"
+
+    id = Column(String(50), primary_key=True)
+    user_id = Column(String(50), index=True, nullable=False)
+    user_email = Column(String(150), index=True, nullable=True)
+    action = Column(String(50), nullable=False) # 'warning', 'temporary_suspension', 'permanent_suspension', 'termination', 'reinstatement'
+    reason = Column(Text, nullable=False)
+    admin_id = Column(String(50), nullable=True)
+    admin_notes = Column(Text, nullable=True)
+    appeal_status = Column(String(30), default="none") # 'none', 'pending', 'reviewed', 'rejected', 'approved'
+    appeal_reason = Column(Text, nullable=True)
+    enforced_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+class SystemConfigModel(Base):
+    __tablename__ = "system_configs"
+
+    key = Column(String(50), primary_key=True)
+    value = Column(Text, nullable=False)
+    description = Column(String(255), nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow)
 
 # Database Engine Setup (Supports SQLite local dev & Supabase / Render PostgreSQL)
 _backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -542,7 +594,17 @@ def init_db():
                     ("reset_token_expires", "DATETIME"),
                     ("auth_provider", "VARCHAR(30) DEFAULT 'local'"),
                     ("google_id", "VARCHAR(150)"),
-                    ("avatar_url", "VARCHAR(255)")
+                    ("avatar_url", "VARCHAR(255)"),
+                    ("terms_accepted", "BOOLEAN DEFAULT 0"),
+                    ("terms_version", "VARCHAR(20) DEFAULT 'v1.0'"),
+                    ("privacy_policy_version", "VARCHAR(20) DEFAULT 'v1.0'"),
+                    ("terms_accepted_at", "DATETIME"),
+                    ("consent_status", "VARCHAR(30) DEFAULT 'pending'"),
+                    ("enforcement_status", "VARCHAR(30) DEFAULT 'active'"),
+                    ("enforcement_reason", "TEXT"),
+                    ("enforcement_timestamp", "DATETIME"),
+                    ("enforcement_appealed", "BOOLEAN DEFAULT 0"),
+                    ("enforcement_appeal_notes", "TEXT")
                 ]
                 for col_name, col_type in new_user_cols:
                     if col_name not in existing_user_cols:
@@ -561,6 +623,16 @@ def init_db():
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(30) DEFAULT 'local';",
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(150);",
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255);",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted BOOLEAN DEFAULT FALSE;",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_version VARCHAR(20) DEFAULT 'v1.0';",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS privacy_policy_version VARCHAR(20) DEFAULT 'v1.0';",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMP;",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_status VARCHAR(30) DEFAULT 'pending';",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS enforcement_status VARCHAR(30) DEFAULT 'active';",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS enforcement_reason TEXT;",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS enforcement_timestamp TIMESTAMP;",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS enforcement_appealed BOOLEAN DEFAULT FALSE;",
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS enforcement_appeal_notes TEXT;",
                     "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS assigned_department VARCHAR(150);",
                     "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS assigned_squad VARCHAR(150);",
                     "ALTER TABLE civic_complaints ADD COLUMN IF NOT EXISTS assigned_officer VARCHAR(150);",

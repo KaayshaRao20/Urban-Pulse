@@ -651,6 +651,12 @@ def vote_support_issue(issue_id: str, payload: VoteSupportRequest):
 
     db = SessionLocal()
     try:
+        try:
+            from app.consent_engine import verify_citizen_consent_and_enforcement
+        except ImportError:
+            from consent_engine import verify_citizen_consent_and_enforcement
+        verify_citizen_consent_and_enforcement(db, cid)
+
         clean_cid = cid
         existing = db.query(CommunityVoteModel).filter(
             CommunityVoteModel.issue_id == issue_id,
@@ -738,6 +744,12 @@ def vote_challenge_issue(issue_id: str, payload: VoteChallengeRequest):
 
     db = SessionLocal()
     try:
+        try:
+            from app.consent_engine import verify_citizen_consent_and_enforcement
+        except ImportError:
+            from consent_engine import verify_citizen_consent_and_enforcement
+        verify_citizen_consent_and_enforcement(db, cid)
+
         clean_cid = cid
         existing = db.query(CommunityVoteModel).filter(
             CommunityVoteModel.issue_id == issue_id,
@@ -815,6 +827,12 @@ async def submit_onsite_verification(
     """
     db = SessionLocal()
     try:
+        try:
+            from app.consent_engine import verify_citizen_consent_and_enforcement
+        except ImportError:
+            from consent_engine import verify_citizen_consent_and_enforcement
+        verify_citizen_consent_and_enforcement(db, citizen_id)
+
         # 1. Locate reference issue
         issue = db.query(CivicComplaintModel).filter(
             (CivicComplaintModel.ticket_number == issue_id) | (CivicComplaintModel.id == issue_id)

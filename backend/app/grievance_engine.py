@@ -1912,6 +1912,25 @@ async def create_grievance(
     """
     check_rate_limit(request, max_requests=25, window_sec=60)
 
+    # Backend Terms & Conditions and Enforcement Check
+    consent_user_identifier = (
+        request.headers.get("x-user-id")
+        or request.headers.get("x-user-email")
+        or citizen_email
+        or citizen_phone
+        or citizen_name
+    )
+    if consent_user_identifier:
+        consent_db = SessionLocal()
+        try:
+            try:
+                from app.consent_engine import verify_citizen_consent_and_enforcement
+            except ImportError:
+                from consent_engine import verify_citizen_consent_and_enforcement
+            verify_citizen_consent_and_enforcement(consent_db, str(consent_user_identifier).strip())
+        finally:
+            consent_db.close()
+
     if not title.strip() or len(title.strip()) < 4:
         raise HTTPException(status_code=400, detail="A descriptive issue title (min 4 characters) is required.")
 

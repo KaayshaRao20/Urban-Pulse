@@ -7,6 +7,7 @@ import { API_BASE } from '../config/api';
 import { detectRealtimeFrame, validateVideoEvidence } from '../services/civicDetectionService';
 import { generateDemoRoadVideo, createLiveDemoRoadStream } from '../services/demoRoadVideoService';
 import CommunityHelpView from './CommunityHelpView';
+import TermsConditionsView from './TermsConditionsView';
 
 // Popular Bengaluru landmark locations for instant geocode matching
 export const BENGALURU_PRESET_LOCATIONS = [
@@ -116,6 +117,11 @@ export default function CitizenPortalView({
 
   // Navigation: 'report', 'track', 'feed', 'emergency', 'help'
   const [activeNav, setActiveNav] = useState('report');
+
+  // Terms & Conditions Functional Consent & Enforcement Gate
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [isAccountSuspended, setIsAccountSuspended] = useState(false);
+  const [enforcementDetails, setEnforcementDetails] = useState(null);
 
   // Form Fields
   const [category, setCategory] = useState('Pothole / Road Damage');
@@ -254,6 +260,34 @@ export default function CitizenPortalView({
       setWardZone('East Zone (Mahadevapura / Indiranagar)');
       setLandmarkAddress('');
     }
+  }, [user]);
+
+  // Check functional terms consent & account enforcement status
+  useEffect(() => {
+    const checkTermsConsent = async () => {
+      const uIdentifier = user?.id || user?.email || user?.username || localStorage.getItem('up_user_id') || localStorage.getItem('citizen_email');
+      if (!uIdentifier) {
+        // First-time or guest citizen without authenticated record
+        setShowConsentModal(true);
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/consent/status?user_id=${encodeURIComponent(uIdentifier)}&email=${encodeURIComponent(user?.email || '')}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.requires_consent) {
+            setShowConsentModal(true);
+          }
+          if (data.enforcement_status && ['suspended', 'temporary_suspension', 'permanent_suspension', 'terminated'].includes(data.enforcement_status)) {
+            setIsAccountSuspended(true);
+            setEnforcementDetails(data);
+          }
+        }
+      } catch (err) {
+        console.warn('Consent check note:', err);
+      }
+    };
+    checkTermsConsent();
   }, [user]);
 
   useEffect(() => {
@@ -4022,170 +4056,17 @@ export default function CitizenPortalView({
         {/* TAB 5: HELP & GUIDELINES (COMPREHENSIVE FULL-SCREEN CITIZEN CHARTER)*/}
         {/* =================================================================== */}
         {activeNav === 'help' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Full-Width Hero Charter Card */}
-            <div className="citizen-card" style={{ width: '100%', padding: '16px 20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 8, background: '#EFF6FF', border: '1px solid #BFDBFE', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB' }}>
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-title, #0F172A)', margin: 0 }}>
-                    {t('help.heroTitle', 'Bengaluru Citizen Civic Redressal Charter & Service Standards')}
-                  </h3>
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted, #64748B)', margin: '3px 0 0 0' }}>
-                    {t('help.heroDesc', 'UrbanPulse empowers every citizen of Bengaluru to report civic issues directly to municipal squad dispatchers with end-to-end accountability.')}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Department SLA Turnaround Benchmarks - 6 Cards Grid */}
-            <div style={{ width: '100%' }}>
-              <h4 style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-title, #0F172A)', margin: '0 0 10px 0' }}>
-                {t('help.slaTitle', 'Municipal Service Level Agreements (SLAs)')}
-              </h4>
-              <div className="citizen-sla-grid">
-                <div className="citizen-card" style={{ padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                    <strong style={{ fontSize: '0.82rem', color: '#2563EB', fontWeight: 600 }}>{t('help.slaRoads', 'Roads & Potholes')}</strong>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#047857', background: '#ECFDF5', padding: '2px 7px', borderRadius: 4 }}>48 {t('common.hours', 'Hours')}</span>
-                  </div>
-                  <p style={{ fontSize: '0.74rem', color: 'var(--text-muted, #64748B)', margin: 0, lineHeight: 1.4 }}>
-                    {t('help.slaRoadsDesc', 'Cold-mix patching and asphalt milling by BBMP Road Infrastructure Cell.')}
-                  </p>
-                </div>
-
-                <div className="citizen-card" style={{ padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                    <strong style={{ fontSize: '0.82rem', color: '#2563EB', fontWeight: 600 }}>{t('help.slaGarbage', 'Garbage Blackspots')}</strong>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#047857', background: '#ECFDF5', padding: '2px 7px', borderRadius: 4 }}>24 {t('common.hours', 'Hours')}</span>
-                  </div>
-                  <p style={{ fontSize: '0.74rem', color: 'var(--text-muted, #64748B)', margin: 0, lineHeight: 1.4 }}>
-                    {t('help.slaGarbageDesc', 'Compactor dispatch and sanitation sweep by Solid Waste Management (SWM).')}
-                  </p>
-                </div>
-
-                <div className="citizen-card" style={{ padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                    <strong style={{ fontSize: '0.82rem', color: '#2563EB', fontWeight: 600 }}>{t('help.slaWater', 'Water Pipeline Leaks')}</strong>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#047857', background: '#ECFDF5', padding: '2px 7px', borderRadius: 4 }}>24 {t('common.hours', 'Hours')}</span>
-                  </div>
-                  <p style={{ fontSize: '0.74rem', color: 'var(--text-muted, #64748B)', margin: 0, lineHeight: 1.4 }}>
-                    {t('help.slaWaterDesc', 'Acoustic leak detection and valve replacement by BWSSB Supply Division.')}
-                  </p>
-                </div>
-
-                <div className="citizen-card" style={{ padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                    <strong style={{ fontSize: '0.82rem', color: '#2563EB', fontWeight: 600 }}>{t('help.slaDrainage', 'Drainage & Flooding')}</strong>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#047857', background: '#ECFDF5', padding: '2px 7px', borderRadius: 4 }}>12 {t('common.hours', 'Hours')}</span>
-                  </div>
-                  <p style={{ fontSize: '0.74rem', color: 'var(--text-muted, #64748B)', margin: 0, lineHeight: 1.4 }}>
-                    {t('help.slaDrainageDesc', 'Emergency underpass suction de-watering and primary silt clearance.')}
-                  </p>
-                </div>
-
-                <div className="citizen-card" style={{ padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                    <strong style={{ fontSize: '0.82rem', color: '#2563EB', fontWeight: 600 }}>{t('help.slaLighting', 'Streetlight Failures')}</strong>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#047857', background: '#ECFDF5', padding: '2px 7px', borderRadius: 4 }}>36 {t('common.hours', 'Hours')}</span>
-                  </div>
-                  <p style={{ fontSize: '0.74rem', color: 'var(--text-muted, #64748B)', margin: 0, lineHeight: 1.4 }}>
-                    {t('help.slaLightingDesc', 'Hydraulic ladder pole maintenance and underground cable diagnosis by BESCOM.')}
-                  </p>
-                </div>
-
-                <div className="citizen-card" style={{ padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                    <strong style={{ fontSize: '0.82rem', color: '#2563EB', fontWeight: 600 }}>{t('help.slaTraffic', 'Traffic Signal Hazards')}</strong>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#DC2626', background: '#FEF2F2', padding: '2px 7px', borderRadius: 4 }}>6 {t('common.hours', 'Hours')}</span>
-                  </div>
-                  <p style={{ fontSize: '0.74rem', color: 'var(--text-muted, #64748B)', margin: 0, lineHeight: 1.4 }}>
-                    {t('help.slaTrafficDesc', 'Immediate traffic obstruction towing and signal restoration by BTP QRT.')}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* 4-Step Resolution Lifecycle */}
-            <div className="citizen-card" style={{ width: '100%', padding: '16px 20px' }}>
-              <h4 style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-title, #0F172A)', margin: '0 0 12px 0' }}>
-                {t('help.stepsTitle', 'How Your Complaint Moves: 4-Step Action Path')}
-              </h4>
-              <div className="citizen-help-steps-grid">
-                <div style={{ background: 'var(--bg-subtle, #F8FAFC)', padding: 12, borderRadius: 8, border: '1px solid var(--card-border, #E2E8F0)' }}>
-                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#2563EB', color: '#FFFFFF', fontSize: '0.74rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-                    1
-                  </div>
-                  <strong style={{ fontSize: '0.8rem', color: 'var(--text-title, #0F172A)', fontWeight: 600 }}>{t('help.step1Title', 'Capture & Geotag')}</strong>
-                  <p style={{ fontSize: '0.73rem', color: 'var(--text-muted, #64748B)', margin: '3px 0 0 0', lineHeight: 1.4 }}>
-                    {t('help.step1Desc', 'Citizen pins the exact location and attaches photo evidence via the mobile-ready portal.')}
-                  </p>
-                </div>
-
-                <div style={{ background: 'var(--bg-subtle, #F8FAFC)', padding: 12, borderRadius: 8, border: '1px solid var(--card-border, #E2E8F0)' }}>
-                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#2563EB', color: '#FFFFFF', fontSize: '0.74rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-                    2
-                  </div>
-                  <strong style={{ fontSize: '0.8rem', color: 'var(--text-title, #0F172A)', fontWeight: 600 }}>{t('help.step2Title', 'Triage & Routing')}</strong>
-                  <p style={{ fontSize: '0.73rem', color: 'var(--text-muted, #64748B)', margin: '3px 0 0 0', lineHeight: 1.4 }}>
-                    {t('help.step2Desc', 'Automated rule engine classifies the category and assigns the ticket to the designated ward squad.')}
-                  </p>
-                </div>
-
-                <div style={{ background: 'var(--bg-subtle, #F8FAFC)', padding: 12, borderRadius: 8, border: '1px solid var(--card-border, #E2E8F0)' }}>
-                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#2563EB', color: '#FFFFFF', fontSize: '0.74rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-                    3
-                  </div>
-                  <strong style={{ fontSize: '0.8rem', color: 'var(--text-title, #0F172A)', fontWeight: 600 }}>{t('help.step3Title', 'Crew Field Dispatch')}</strong>
-                  <p style={{ fontSize: '0.73rem', color: 'var(--text-muted, #64748B)', margin: '3px 0 0 0', lineHeight: 1.4 }}>
-                    {t('help.step3Desc', 'Municipal response vehicle moves on site with vehicle number and live ETA logged.')}
-                  </p>
-                </div>
-
-                <div style={{ background: 'var(--bg-subtle, #F8FAFC)', padding: 12, borderRadius: 8, border: '1px solid var(--card-border, #E2E8F0)' }}>
-                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#059669', color: '#FFFFFF', fontSize: '0.74rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-                    4
-                  </div>
-                  <strong style={{ fontSize: '0.8rem', color: 'var(--text-title, #0F172A)', fontWeight: 600 }}>{t('help.step4Title', 'Verified Closure')}</strong>
-                  <p style={{ fontSize: '0.73rem', color: 'var(--text-muted, #64748B)', margin: '3px 0 0 0', lineHeight: 1.4 }}>
-                    {t('help.step4Desc', 'Authorized supervisor records closure notes and resolution photo. Citizen can reopen if needed.')}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Dos and Don'ts Matrix */}
-            <div className="citizen-dos-donts-grid">
-              <div className="citizen-card" style={{ padding: '14px 18px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#ECFDF5', color: '#047857', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: '0.7rem' }}>✓</span>
-                  <strong style={{ fontSize: '0.86rem', color: 'var(--text-title, #0F172A)', fontWeight: 600 }}>{t('help.dosTitle', 'Best Practices (Do\'s)')}</strong>
-                </div>
-                <ul style={{ fontSize: '0.76rem', color: 'var(--text-body, #334155)', margin: 0, paddingLeft: 16, lineHeight: 1.55 }}>
-                  <li>{t('help.do1', 'Capture both close-up damage and surrounding landmarks (e.g. metro pillar, street sign).')}</li>
-                  <li>{t('help.do2', 'Allow device GPS permission to verify and lock genuine ground coordinates at the incident location.')}</li>
-                  <li>{t('help.do3', 'Provide brief dimensions (e.g. 1m wide pothole, 20cm water depth) in the description.')}</li>
-                  <li>{t('help.do4', 'Check existing community reports to see if the issue is already queued for repair.')}</li>
-                </ul>
-              </div>
-
-              <div className="citizen-card" style={{ padding: '14px 18px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#FEF2F2', color: '#B91C1C', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: '0.7rem' }}>✕</span>
-                  <strong style={{ fontSize: '0.86rem', color: 'var(--text-title, #0F172A)', fontWeight: 600 }}>{t('help.dontsTitle', 'Common Errors (Don\'ts)')}</strong>
-                </div>
-                <ul style={{ fontSize: '0.76rem', color: 'var(--text-body, #334155)', margin: 0, paddingLeft: 16, lineHeight: 1.55 }}>
-                  <li>{t('help.dont1', 'Don\'t upload blurry night photos without landmarks — teams may fail to locate the spot.')}</li>
-                  <li>{t('help.dont2', 'Don\'t submit duplicate reports for the same issue in a short period; track the original ID.')}</li>
-                  <li>{t('help.dont3', 'Don\'t report private property maintenance issues (only public infrastructure is serviced).')}</li>
-                  <li>{t('help.dont4', 'For active fires or live electrical lines sparking, call hotlines immediately (1912 / 112).')}</li>
-                </ul>
-              </div>
-            </div>
+          <div style={{ width: '100%' }}>
+            <TermsConditionsView
+              user={user}
+              onAccepted={(data) => {
+                setShowConsentModal(false);
+                setIsAccountSuspended(false);
+              }}
+              onDeclined={() => {
+                console.log('Terms declined');
+              }}
+            />
           </div>
         )}
 
@@ -4719,6 +4600,46 @@ export default function CitizenPortalView({
                   {t('common.save', 'Save Preferences')}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* MANDATORY TERMS & CONDITIONS MODAL GATE */}
+        {showConsentModal && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.82)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 99998,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            overflowY: 'auto'
+          }}>
+            <div style={{
+              width: '100%',
+              maxWidth: 900,
+              maxHeight: '92vh',
+              overflowY: 'auto',
+              background: '#F8FAFC',
+              borderRadius: 16,
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              padding: 24,
+              border: '1px solid #E2E8F0'
+            }}>
+              <TermsConditionsView
+                user={user}
+                isModal={true}
+                onAccepted={(data) => {
+                  setShowConsentModal(false);
+                  setIsAccountSuspended(false);
+                }}
+                onDeclined={() => {
+                  alert("You must accept the Terms & Conditions and Privacy Policy to access UrbanPulse citizen services.");
+                }}
+              />
             </div>
           </div>
         )}
