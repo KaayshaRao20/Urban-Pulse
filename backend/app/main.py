@@ -99,6 +99,16 @@ try:
 except Exception as e:
     print(f"Warning: Predictive engine could not be initialized: {e}")
 
+# Community Help Autonomous Feature Engine
+try:
+    try:
+        from app.community_engine import router as community_router, init_community_seeds
+    except ImportError:
+        from community_engine import router as community_router, init_community_seeds
+    app.include_router(community_router)
+except Exception as e:
+    print(f"Warning: Community Help engine could not be initialized: {e}")
+
 @app.on_event("startup")
 def startup_db_init():
     try:
@@ -124,7 +134,11 @@ def startup_db_init():
                 sync_complaints_from_db()
             except Exception as e_griev:
                 print(f"[UrbanPulse] Grievance sync note: {e_griev}")
-        print("[UrbanPulse] Database, alerts, complaints, and default municipal officers initialized successfully.")
+        try:
+            init_community_seeds()
+        except Exception as e_comm:
+            print(f"[UrbanPulse] Community Help seeding note: {e_comm}")
+        print("[UrbanPulse] Database, alerts, complaints, community help, and default municipal officers initialized successfully.")
     except Exception as e:
         print(f"[UrbanPulse] Database initialization note: {e}")
 

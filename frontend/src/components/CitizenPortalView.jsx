@@ -6,6 +6,7 @@ import LanguageSelector from './LanguageSelector';
 import { API_BASE } from '../config/api';
 import { detectRealtimeFrame, validateVideoEvidence } from '../services/civicDetectionService';
 import { generateDemoRoadVideo, createLiveDemoRoadStream } from '../services/demoRoadVideoService';
+import CommunityHelpView from './CommunityHelpView';
 
 // Popular Bengaluru landmark locations for instant geocode matching
 export const BENGALURU_PRESET_LOCATIONS = [
@@ -777,23 +778,15 @@ export default function CitizenPortalView({
   };
 
 
-  // Pre-submission Video Validation using modular civicDetectionService
+  // Pre-submission Video Validation using trained YOLOv8 backend model with modular fallback
   const validateRecordedVideo = async (fileOrBlob, durationSec = 0) => {
     setCvValidationLoading(true);
     try {
-      // 1. In-browser modular civic detection & quality analysis
-      const clientResult = await validateVideoEvidence(fileOrBlob, category, durationSec);
-
-      // If client rejected, return client result immediately
-      if (!clientResult.valid) {
-        setVideoValidationResult(clientResult);
-        return clientResult;
-      }
-
-      // 2. In auto mode, query backend if accessible
+      // 1. Attempt trained YOLOv8 validation via backend
       try {
         const formData = new FormData();
-        formData.append('video', fileOrBlob, 'evidence_check.webm');
+        const fname = (fileOrBlob instanceof File && fileOrBlob.name) ? fileOrBlob.name : 'evidence_check.mp4';
+        formData.append('video', fileOrBlob, fname);
         formData.append('category', category);
 
         const res = await fetch(`${API_BASE}/grievances/validate-video`, {
@@ -804,7 +797,9 @@ export default function CitizenPortalView({
         if (res.ok) {
           const cvData = await res.json();
           setVideoValidationResult(cvData);
-          if (!cvData.is_valid) {
+          if (cvData.is_valid) {
+            return { valid: true, error: '', data: cvData };
+          } else {
             return {
               valid: false,
               error: cvData.error || cvData.reason,
@@ -814,12 +809,13 @@ export default function CitizenPortalView({
               data: cvData
             };
           }
-          return { valid: true, error: '', data: cvData };
         }
       } catch (backendErr) {
-        console.warn('Backend CV validation notice:', backendErr);
+        console.warn('Backend YOLO validation unavailable, using in-browser inference:', backendErr);
       }
 
+      // 2. In-browser modular civic detection fallback
+      const clientResult = await validateVideoEvidence(fileOrBlob, category, durationSec);
       setVideoValidationResult(clientResult);
       return clientResult;
     } catch (err) {
@@ -1637,33 +1633,42 @@ export default function CitizenPortalView({
               )}
             </button>
 
-            {/* Feature 3: Community Reports */}
+            {/* Feature 3: Community Help */}
             <button
               type="button"
-              className={`citizen-menu-item ${activeNav === 'feed' ? 'active' : ''}`}
-              onClick={() => { setActiveNav('feed'); setMobileDrawerOpen(false); }}
-              title={t('nav.communityReports', 'Community Reports')}
+              className={`citizen-menu-item ${activeNav === 'community' || activeNav === 'feed' ? 'active' : ''}`}
+              onClick={() => { setActiveNav('community'); setMobileDrawerOpen(false); }}
+              title={t('nav.communityHelp', 'Community Help')}
             >
               <div className="citizen-item-left">
                 <div className="citizen-item-icon">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                    <polyline points="22,6 12,13 2,6" />
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
                 </div>
                 {!sidebarCollapsed && (
-                  <span className="citizen-item-label">{t('nav.communityReports', 'Community Reports')}</span>
+                  <span className="citizen-item-label" style={{ fontWeight: 600, fontSize: '0.84rem', letterSpacing: '-0.01em' }}>
+                    {t('nav.communityHelp', 'Community Help')}
+                  </span>
                 )}
               </div>
               {!sidebarCollapsed && (
-                <div className="citizen-avatars-badge-group">
-                  <div className="citizen-avatar-stack">
-                    <span className="avatar-mini a1" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&auto=format&fit=crop&q=80)' }}></span>
-                    <span className="avatar-mini a2" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=50&auto=format&fit=crop&q=80)' }}></span>
-                    <span className="avatar-mini a3" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&auto=format&fit=crop&q=80)' }}></span>
-                  </div>
-                  <span className="citizen-count-badge">4</span>
-                </div>
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: 999,
+                    background: (activeNav === 'community' || activeNav === 'feed') ? 'rgba(255, 255, 255, 0.25)' : '#EFF6FF',
+                    color: (activeNav === 'community' || activeNav === 'feed') ? '#FFFFFF' : '#2563EB',
+                    flexShrink: 0
+                  }}
+                >
+                  12
+                </span>
               )}
             </button>
 
@@ -1807,7 +1812,7 @@ export default function CitizenPortalView({
               <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-title, #0F172A)', margin: 0, letterSpacing: '-0.01em' }}>
                 {activeNav === 'report' && t('header.reportTitle', 'Report a Civic Grievance')}
                 {activeNav === 'track' && t('header.trackTitle', 'Track My Grievance')}
-                {activeNav === 'feed' && t('header.feedTitle', 'Bengaluru Community Reports')}
+                {(activeNav === 'community' || activeNav === 'feed') && t('header.feedTitle', 'Bengaluru Community Reports')}
                 {activeNav === 'emergency' && t('header.emergencyTitle', 'Emergency Helplines & Rapid Action Squads')}
                 {activeNav === 'help' && t('header.helpTitle', 'Citizen Help & Reporting Guidelines')}
                 {activeNav === 'settings' && t('header.settingsTitle', 'Account Settings & Profile')}
@@ -1815,7 +1820,7 @@ export default function CitizenPortalView({
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted, #64748B)', margin: '3px 0 0 0' }}>
                 {activeNav === 'report' && t('header.reportSubtitle', 'Help make Bengaluru better. Report infrastructure problems directly to the municipal team.')}
                 {activeNav === 'track' && t('header.trackSubtitle', 'Real-time multi-stage status, department routing, and authorized field resolution proofs.')}
-                {activeNav === 'feed' && t('header.feedSubtitle', 'Live citizen grievances submitted across all BBMP zones and municipal divisions.')}
+                {(activeNav === 'community' || activeNav === 'feed') && t('header.communitySubtitle', 'Support, verify, or challenge reported issues in your nearby area.')}
                 {activeNav === 'emergency' && t('header.emergencySubtitle', '24x7 municipal hotlines for life-safety emergencies, arterial bursts, and power hazards.')}
                 {activeNav === 'help' && t('header.helpSubtitle', 'Standards, SLA turnaround benchmarks, and photographic evidence tips for faster remediation.')}
                 {activeNav === 'settings' && t('header.settingsSubtitle', 'Manage your verified citizen profile, notification preferences, security credentials, and data privacy.')}
@@ -3834,176 +3839,16 @@ export default function CitizenPortalView({
         )}
 
         {/* =================================================================== */}
-        {/* TAB 3: COMMUNITY REPORTS (FULL SCREEN FEED WITH METRICS)            */}
+        {/* TAB 3: COMMUNITY HELP (STANDALONE CITIZEN NEARBY DISCOVERY & VERIFICATION) */}
         {/* =================================================================== */}
-        {activeNav === 'feed' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {/* Top Metrics Row - 4 Full-Width Cards */}
-            <div className="citizen-kpi-grid">
-              <div className="citizen-card" style={{ padding: '12px 16px' }}>
-                <div style={{ fontSize: '0.69rem', color: 'var(--text-muted, #64748B)', fontWeight: 600, textTransform: 'uppercase' }}>
-                  {t('feed.kpiTotal', 'Total Grievances Logged')}
-                </div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-title, #0F172A)', marginTop: 2 }}>
-                  {recentGrievances.length || 24}
-                </div>
-                <div style={{ fontSize: '0.67rem', color: '#10B981', fontWeight: 500, marginTop: 2 }}>
-                  {t('feed.kpiTotalSub', 'Bengaluru Ward Network')}
-                </div>
-              </div>
-
-              <div className="citizen-card" style={{ padding: '12px 16px' }}>
-                <div style={{ fontSize: '0.69rem', color: 'var(--text-muted, #64748B)', fontWeight: 600, textTransform: 'uppercase' }}>
-                  {t('feed.kpiDispatched', 'Field Squads Dispatched')}
-                </div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#2563EB', marginTop: 2 }}>
-                  {recentGrievances.filter(g => g.status === 'Crew Dispatched' || g.status === 'In Progress').length || 8}
-                </div>
-                <div style={{ fontSize: '0.67rem', color: '#2563EB', fontWeight: 500, marginTop: 2 }}>
-                  {t('feed.kpiDispatchedSub', 'Active on Arterial Corridors')}
-                </div>
-              </div>
-
-              <div className="citizen-card" style={{ padding: '12px 16px' }}>
-                <div style={{ fontSize: '0.69rem', color: 'var(--text-muted, #64748B)', fontWeight: 600, textTransform: 'uppercase' }}>
-                  {t('feed.kpiSla', 'Resolved within SLA')}
-                </div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#059669', marginTop: 2 }}>
-                  95.8%
-                </div>
-                <div style={{ fontSize: '0.67rem', color: '#059669', fontWeight: 500, marginTop: 2 }}>
-                  {t('feed.kpiSlaSub', 'Municipal SLA Compliance')}
-                </div>
-              </div>
-
-              <div className="citizen-card" style={{ padding: '12px 16px' }}>
-                <div style={{ fontSize: '0.69rem', color: 'var(--text-muted, #64748B)', fontWeight: 600, textTransform: 'uppercase' }}>
-                  {t('feed.kpiResponse', 'Avg Dispatch Response')}
-                </div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-title, #0F172A)', marginTop: 2 }}>
-                  1.4 hrs
-                </div>
-                <div style={{ fontSize: '0.67rem', color: 'var(--text-muted, #64748B)', fontWeight: 500, marginTop: 2 }}>
-                  {t('feed.kpiResponseSub', 'Triage to First Squad Movement')}
-                </div>
-              </div>
-            </div>
-
-            {/* Filter Bar */}
-            <div className="citizen-card" style={{ padding: '12px 16px', width: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-                  <input
-                    type="text"
-                    placeholder={t('feed.searchPlaceholder', 'Search complaints by keyword, area, ticket ID...')}
-                    value={feedSearch}
-                    onChange={(e) => setFeedSearch(e.target.value)}
-                    className="citizen-input"
-                    style={{ flex: 1, minWidth: 260, padding: '7px 12px' }}
-                  />
-                  <select
-                    className="citizen-select"
-                    value={feedFilterCategory}
-                    onChange={(e) => setFeedFilterCategory(e.target.value)}
-                    style={{ width: 220, padding: '7px 10px' }}
-                  >
-                    <option value="All">{t('feed.allCategories', 'All Issue Categories')}</option>
-                    {categories.map(c => (
-                      <option key={c.id} value={c.id}>{c.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={fetchRecentFeed}
-                  style={{
-                    background: 'var(--card-bg, #FFFFFF)',
-                    border: '1px solid var(--card-border, #CBD5E1)',
-                    color: 'var(--text-body, #334155)',
-                    borderRadius: 8,
-                    padding: '7px 14px',
-                    fontSize: '0.78rem',
-                    fontWeight: 500,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {feedLoading ? t('common.loading', 'Refreshing...') : t('feed.refreshBtn', 'Refresh Live Feed')}
-                </button>
-              </div>
-            </div>
-
-            {/* Full-Screen Reports Grid */}
-            <div className="citizen-feed-grid">
-              {filteredFeed.map((item) => (
-                <div key={item.id} className="citizen-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 12 }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                      <span style={{
-                        fontSize: '0.73rem',
-                        fontWeight: 600,
-                        color: '#2563EB',
-                        background: '#EFF6FF',
-                        border: '1px solid #BFDBFE',
-                        padding: '2px 7px',
-                        borderRadius: 4,
-                        fontFamily: 'var(--font-mono)'
-                      }}>
-                        {item.ticket_number || item.id}
-                      </span>
-                      <span style={{
-                        fontSize: '0.68rem',
-                        fontWeight: 600,
-                        padding: '2px 7px',
-                        borderRadius: 4,
-                        background: item.status === 'Resolved' ? '#ECFDF5' : '#EFF6FF',
-                        color: item.status === 'Resolved' ? '#047857' : '#1D4ED8',
-                        border: item.status === 'Resolved' ? '1px solid #A7F3D0' : '1px solid #BFDBFE'
-                      }}>
-                        {getStatusLabel(item.status)}
-                      </span>
-                    </div>
-
-                    <h4 style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-title, #0F172A)', margin: '0 0 4px 0' }}>
-                      {item.title}
-                    </h4>
-                    <div style={{
-                      fontSize: '0.75rem',
-                      color: 'var(--text-muted, #64748B)',
-                      lineHeight: 1.45,
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden'
-                    }}>
-                      {item.description}
-                    </div>
-
-                    <div style={{ fontSize: '0.71rem', color: '#94A3B8', marginTop: 6 }}>
-                      {item.landmark_address || item.ward_zone}
-                    </div>
-                  </div>
-
-                  <div style={{ borderTop: '1px solid var(--card-border, #E2E8F0)', paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.73rem' }}>
-                    <span style={{ color: 'var(--text-muted, #64748B)', fontWeight: 500 }}>
-                      {t(`categories.${getCategoryKey(item.category)}.label`, item.category)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTrackSearchId(item.ticket_number || item.id);
-                        setActiveNav('track');
-                        handleTrackSearch(item.ticket_number || item.id);
-                      }}
-                      style={{ background: 'none', border: 'none', color: '#2563EB', fontWeight: 600, cursor: 'pointer', padding: 0 }}
-                    >
-                      {t('feed.trackAction', 'Track →')}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        {(activeNav === 'community' || activeNav === 'feed') && (
+          <CommunityHelpView
+            userLat={latitude}
+            userLng={longitude}
+            userAddress={selectedAddress || landmarkAddress}
+            user={user}
+            showToast={showToast}
+          />
         )}
 
         {/* =================================================================== */}
@@ -5453,8 +5298,8 @@ export default function CitizenPortalView({
 
           <button
             type="button"
-            className={`citizen-mobile-tab-btn ${activeNav === 'feed' ? 'active' : ''}`}
-            onClick={() => setActiveNav('feed')}
+            className={`citizen-mobile-tab-btn ${activeNav === 'community' || activeNav === 'feed' ? 'active' : ''}`}
+            onClick={() => setActiveNav('community')}
           >
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -5462,7 +5307,7 @@ export default function CitizenPortalView({
               <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
               <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
-            <span className="citizen-mobile-tab-label">{t('nav.feed', 'Feed')}</span>
+            <span className="citizen-mobile-tab-label">{t('nav.communityHelp', 'Community')}</span>
           </button>
 
           <button

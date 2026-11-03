@@ -396,6 +396,50 @@ class UserModel(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+# -----------------------------------------------------------------------------
+# Community Help Feature Models
+# -----------------------------------------------------------------------------
+class CommunityVoteModel(Base):
+    __tablename__ = "community_votes"
+    
+    id = Column(String(50), primary_key=True)
+    issue_id = Column(String(50), index=True, nullable=False)
+    citizen_id = Column(String(100), index=True, nullable=False)
+    citizen_name = Column(String(100), nullable=True)
+    vote_type = Column(String(20), nullable=False) # 'support' or 'challenge'
+    challenge_reason = Column(Text, nullable=True)
+    challenge_category = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+class CommunityVerificationModel(Base):
+    __tablename__ = "community_verifications"
+    
+    id = Column(String(50), primary_key=True)
+    issue_id = Column(String(50), index=True, nullable=False)
+    citizen_id = Column(String(100), index=True, nullable=False)
+    citizen_name = Column(String(100), nullable=True)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    gps_accuracy = Column(Float, nullable=False)
+    distance_meters = Column(Float, nullable=False)
+    evidence_type = Column(String(20), nullable=False) # 'photo' or 'video'
+    media_url = Column(String(255), nullable=False)
+    media_filename = Column(String(255), nullable=True)
+    notes = Column(Text, nullable=True)
+    verified_on_site = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class CommunityActivityModel(Base):
+    __tablename__ = "community_activities"
+    
+    id = Column(String(50), primary_key=True)
+    issue_id = Column(String(50), index=True, nullable=False)
+    activity_type = Column(String(50), nullable=False) # 'support', 'challenge', 'verification_photo', 'verification_video'
+    description = Column(String(255), nullable=False)
+    ward_zone = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 # Database Engine Setup (Supports SQLite local dev & Supabase / Render PostgreSQL)
 _backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _default_sqlite_path = os.path.join(_backend_dir, "urbanpulse_dev.db").replace(os.sep, "/")

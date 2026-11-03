@@ -52,4 +52,7 @@ backend/uploads/
 frontend/start_vite.js
 scratch/
 dataset/urbanpulse_unified_yolo/images/
+dataset/urbanpulse_unified_yolo/labels/
+dataset/urbanpulse_unified_yolo/annotated_previews/
 UrbanPulse_Models/
+runs/

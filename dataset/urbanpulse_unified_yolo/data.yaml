@@ -1,5 +1,5 @@
 # UrbanPulse High-Severity 4-Class YOLO Configuration
-path: .
+path: c:/Users/Kaaysha Rao/OneDrive/Desktop/Urban pulse/dataset/urbanpulse_unified_yolo
 train: images/train
 val: images/val
 test: images/test
