@@ -127,7 +127,7 @@ export default function CitizenPortalView({
   const [category, setCategory] = useState('Pothole / Road Damage');
   const [title, setTitle] = useState('');
   const [urgency, setUrgency] = useState('Moderate - Regular repair');
-  const [wardZone, setWardZone] = useState('East Zone (Mahadevapura / Indiranagar)');
+  const [wardZone, setWardZone] = useState('');
   const [description, setDescription] = useState('');
 
   // Voice Dictation (Speech-to-Text)
@@ -251,13 +251,11 @@ export default function CitizenPortalView({
       setCitizenName(user.name || user.full_name || 'Citizen Resident');
       setCitizenEmail(user.email || '');
       setCitizenPhone(user.phone || '');
-      setWardZone(user.zone || user.assignedZone || 'East Zone (Mahadevapura / Indiranagar)');
       setLandmarkAddress(user.address || '');
     } else {
       setCitizenName('Citizen Resident');
       setCitizenEmail('');
       setCitizenPhone('');
-      setWardZone('East Zone (Mahadevapura / Indiranagar)');
       setLandmarkAddress('');
     }
   }, [user]);
@@ -748,13 +746,11 @@ export default function CitizenPortalView({
   };
 
   const handleSelectSearchResult = (item) => {
-    // Descriptive landmark note is updated, but coordinates remain locked to verified live GPS
+    // Descriptive landmark note is updated, but coordinates and municipal zone remain locked to verified live GPS
     setLandmarkAddress(item.name);
     setSearchQuery('');
     setShowSearchDropdown(false);
-    const targetWard = item.ward || detectWardZone(item.lat, item.lng, item.name);
-    setWardZone(targetWard);
-    showToast(`Landmark set: ${item.name.split(',')[0]} (Ward synced)`);
+    showToast(`Landmark note set: ${item.name.split(',')[0]} (Ward remains locked to live GPS)`);
   };
 
   const handleClearLocation = () => {
@@ -1277,7 +1273,9 @@ export default function CitizenPortalView({
     setDescription('');
     setCategory('Pothole / Road Damage');
     setUrgency('Moderate - Regular repair');
-    setWardZone('East Zone (Mahadevapura / Indiranagar)');
+    if (latitude !== null && longitude !== null && !isNaN(latitude) && !isNaN(longitude)) {
+      setWardZone(detectWardZone(latitude, longitude, selectedAddress));
+    }
     handleRemoveVideo();
     setSubmittedTicket(null);
     setSubmitError('');
@@ -1320,13 +1318,17 @@ export default function CitizenPortalView({
 
     setIsSubmitting(true);
 
+    const liveLockedZone = (latitude !== null && longitude !== null && !isNaN(latitude) && !isNaN(longitude))
+      ? detectWardZone(latitude, longitude, selectedAddress)
+      : wardZone;
+
     const formData = new FormData();
     formData.append('category', category);
     formData.append('title', title.trim());
     formData.append('description', description.trim());
     const urgencyVal = urgency.includes(' - ') ? urgency.split(' - ')[0] : urgency;
     formData.append('urgency', urgencyVal);
-    formData.append('ward_zone', wardZone);
+    formData.append('ward_zone', liveLockedZone);
     formData.append('latitude', latitude);
     formData.append('longitude', longitude);
     
@@ -2252,13 +2254,13 @@ export default function CitizenPortalView({
                       </div>
                     </div>
 
-                    {/* 4. Ward / Municipal Zone */}
+                    {/* 4. Ward / Municipal Zone (Strictly Locked to Live Location) */}
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <label className="citizen-label" style={{ margin: 0 }}>
-                          {t('report.wardLabel', 'Ward / Municipal Zone *')}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                        <label className="citizen-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span>{t('report.wardLabel', 'Ward / Municipal Zone *')}</span>
                         </label>
-                        {gpsVerified && (
+                        {gpsVerified ? (
                           <span style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -2272,24 +2274,80 @@ export default function CitizenPortalView({
                             border: '1px solid #A7F3D0'
                           }}>
                             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', display: 'inline-block' }}></span>
-                            <span>Live Synced with GPS</span>
+                            <span>Live Synced with GPS (Locked)</span>
+                          </span>
+                        ) : (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            fontSize: '0.68rem',
+                            color: '#B45309',
+                            background: '#FFFBEB',
+                            padding: '2px 8px',
+                            borderRadius: 12,
+                            fontWeight: 600,
+                            border: '1px solid #FDE68A'
+                          }}>
+                            <span>Awaiting Live GPS Lock...</span>
                           </span>
                         )}
                       </div>
-                      <select
-                        className="citizen-select"
-                        value={wardZone}
-                        onChange={(e) => setWardZone(e.target.value)}
-                      >
-                        <option value="East Zone (Mahadevapura / Indiranagar)">East Zone (Mahadevapura / Indiranagar)</option>
-                        <option value="South Zone (Koramangala / BTM / Jayanagar)">South Zone (Koramangala / BTM / Jayanagar)</option>
-                        <option value="Central Zone (MG Road / CBD)">Central Zone (MG Road / CBD)</option>
-                        <option value="West Zone (Malleshwaram / Rajajinagar)">West Zone (Malleshwaram / Rajajinagar)</option>
-                        <option value="North Zone (Hebbal / Yelahanka)">North Zone (Hebbal / Yelahanka)</option>
-                        <option value="Bommanahalli Zone (Electronic City / Anekal / Begur)">Bommanahalli Zone (Electronic City / Anekal / Begur)</option>
-                        <option value="Rajarajeshwari Nagar Zone (RR Nagar / Kengeri)">Rajarajeshwari Nagar Zone (RR Nagar / Kengeri)</option>
-                        <option value="Dasarahalli Zone (Peenya / Dasarahalli)">Dasarahalli Zone (Peenya / Dasarahalli)</option>
-                      </select>
+
+                      {/* Locked Live Location Field */}
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          readOnly
+                          value={gpsVerified && wardZone ? wardZone : (gpsVerified ? 'Detecting Municipal Zone from Live GPS...' : 'Awaiting Live GPS Location...')}
+                          className="citizen-input"
+                          style={{
+                            width: '100%',
+                            background: 'var(--bg-muted, #F8FAFC)',
+                            color: 'var(--text-title, #0F172A)',
+                            fontWeight: 600,
+                            fontSize: '0.86rem',
+                            padding: '9px 12px 9px 36px',
+                            cursor: 'not-allowed',
+                            border: '1px solid var(--card-border, #CBD5E1)',
+                            borderRadius: 8
+                          }}
+                          title="Ward and Municipal Zone are locked to your live verified GPS coordinates to prevent jurisdiction mismatch."
+                        />
+                        <div style={{
+                          position: 'absolute',
+                          left: 12,
+                          color: gpsVerified ? '#10B981' : '#94A3B8',
+                          display: 'flex',
+                          alignItems: 'center',
+                          pointerEvents: 'none'
+                        }}>
+                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        fontSize: '0.71rem',
+                        color: 'var(--text-muted, #64748B)',
+                        marginTop: 4
+                      }}>
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" y1="16" x2="12" y2="12" />
+                          <line x1="12" y1="8" x2="12.01" y2="8" />
+                        </svg>
+                        <span>
+                          {gpsVerified
+                            ? `Municipal zone automatically locked to live GPS spot (${latitude?.toFixed(4)}, ${longitude?.toFixed(4)}).`
+                            : 'Live device GPS required to auto-detect and lock municipal jurisdiction.'}
+                        </span>
+                      </div>
                     </div>
 
                     {/* 5. Description with Voice Typing Microphone */}
