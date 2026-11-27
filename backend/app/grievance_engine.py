@@ -2093,6 +2093,49 @@ def update_department_config(
 
 
 # -----------------------------------------------------------------------------
+# 2.45 POST /api/grievances/detect-frame - Real-Time Single-Frame YOLO Detection
+# -----------------------------------------------------------------------------
+@router.post("/detect-frame")
+async def detect_frame_endpoint(
+    request: Request,
+    frame: UploadFile = File(...),
+    category: str = Form(...)
+):
+    """
+    Performs real-time YOLOv8 deep vision inference on a live camera frame.
+    Strictly filters out persons, faces, selfies, and indoor scenes.
+    """
+    check_rate_limit(request, max_requests=180, window_sec=60)
+    try:
+        frame_bytes = await frame.read()
+        nparr = np.frombuffer(frame_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            return {
+                "detected": False,
+                "confidence": 0.0,
+                "box": None,
+                "reason": "Unable to decode frame."
+            }
+
+        if video_validator and video_validator.detector:
+            return video_validator.detector.detect_frame(img, category)
+        return {
+            "detected": False,
+            "confidence": 0.0,
+            "box": None,
+            "reason": "No valid civic defect detected. Please point the camera towards a civic issue."
+        }
+    except Exception as e:
+        return {
+            "detected": False,
+            "confidence": 0.0,
+            "box": None,
+            "reason": "No valid civic defect detected. Please point the camera towards a civic issue."
+        }
+
+
+# -----------------------------------------------------------------------------
 # 2.5 POST /api/grievances/validate-video - Real Multi-Frame Video Detection & Validation
 # -----------------------------------------------------------------------------
 @router.post("/validate-video")

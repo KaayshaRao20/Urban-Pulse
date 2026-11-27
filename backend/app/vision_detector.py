@@ -45,15 +45,17 @@ class YOLOv8CivicDetector(CivicIssueDetector):
     Real Trained YOLOv8 Object Detection Engine for UrbanPulse Civic Defects:
       - 0: pothole
       - 1: road_crack
-      - 2: garbage_dump (huge-level waste accumulations)
-      - 3: waterlogging (large-scale standing water)
+      - 2: garbage_dump
+      - 3: waterlogging
+    Integrated with Person & Face Rejection Layer to guarantee that persons,
+    faces, selfies, clothing, and domestic furniture are NEVER classified as defects.
     """
     def __init__(self, weights_path: Optional[str] = None):
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        root_dir = os.path.dirname(backend_dir)
         if weights_path:
             self.weights_path = weights_path
         else:
-            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            root_dir = os.path.dirname(backend_dir)
             candidates = [
                 os.path.join(backend_dir, "weights", "best.pt"),
                 os.path.join(root_dir, "backend", "weights", "best.pt"),
@@ -62,47 +64,46 @@ class YOLOv8CivicDetector(CivicIssueDetector):
                 os.path.join(root_dir, "UrbanPulse_Models", "urbanpulse_yolo_run", "weights", "best.pt")
             ]
             self.weights_path = next((p for p in candidates if os.path.isfile(p)), candidates[0])
+
+        person_candidates = [
+            os.path.join(backend_dir, "weights", "yolov8n.pt"),
+            os.path.join(root_dir, "yolov8n.pt"),
+            "yolov8n.pt"
+        ]
+        self.person_weights_path = next((p for p in person_candidates if os.path.isfile(p)), "yolov8n.pt")
             
         self.model = None
+        self.person_model = None
         self._fallback = None
-        self._init_yolo()
+        self._init_models()
 
     def _get_fallback(self):
         if self._fallback is None:
             self._fallback = OpenCVRuleBasedDetector()
         return self._fallback
 
-    def _init_yolo(self):
-        if os.path.isfile(self.weights_path):
-            try:
-                from ultralytics import YOLO
+    def _init_models(self):
+        try:
+            from ultralytics import YOLO
+            if os.path.isfile(self.weights_path):
                 self.model = YOLO(self.weights_path)
-            except Exception:
-                self.model = None
+            if os.path.isfile(self.person_weights_path) or self.person_weights_path == "yolov8n.pt":
+                self.person_model = YOLO(self.person_weights_path)
+        except Exception:
+            pass
 
     def detect_frame(self, frame: np.ndarray, category: str) -> Dict[str, Any]:
-        if self.model is None:
-            self._init_yolo()
+        if self.model is None or self.person_model is None:
+            self._init_models()
         if self.model is None:
             return self._get_fallback().detect_frame(frame, category)
 
         h, w = frame.shape[:2]
+        frame_area = max(1, w * h)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         cat_lower = (category or "").lower()
-        
-        # 1. Quality & Face Checks
-        face_res = self._get_fallback().detect_human_face(frame, gray, h, w)
-        if face_res:
-            return {
-                "detected": False,
-                "confidence": 0.0,
-                "box": None,
-                "is_human_face": True,
-                "is_irrelevant": True,
-                "verdict": "rejected",
-                "reason": "Selected issue not detected. This video appears to show unrelated content. Please record the actual civic issue."
-            }
 
+        # 1. Optical Quality Checks
         is_obstructed = self._get_fallback().check_obstruction(frame, gray)
         if is_obstructed:
             return {
@@ -129,7 +130,7 @@ class YOLOv8CivicDetector(CivicIssueDetector):
         if is_blurry:
             return {
                 "detected": False,
-                "confidence": 0.15,
+                "confidence": 0.0,
                 "box": None,
                 "blur_score": blur_score,
                 "is_blurry": True,
@@ -137,11 +138,66 @@ class YOLOv8CivicDetector(CivicIssueDetector):
                 "reason": "The footage is too blurry to evaluate. Hold the camera steady and record again."
             }
 
-        # 2. YOLO Inference with multi-scale confidence sweep
-        results = self.model.predict(source=frame, conf=0.18, imgsz=320, verbose=False)
+        # 2. ANTI-FALSE-POSITIVE LAYER: Human Person & Face Rejection
+        person_boxes = []
+        is_person_dominating = False
+
+        if self.person_model is not None:
+            try:
+                # Class 0: person, Classes 56, 57, 59, 60, 62: chair, couch, bed, table, tv
+                p_res = self.person_model.predict(source=frame, classes=[0, 56, 57, 59, 60, 62], conf=0.28, imgsz=320, verbose=False)
+                if len(p_res) > 0 and len(p_res[0].boxes) > 0:
+                    for pb in p_res[0].boxes:
+                        p_cls = int(pb.cls[0].item())
+                        p_xyxy = pb.xyxy[0].tolist()
+                        p_conf = float(pb.conf[0].item())
+                        p_w = p_xyxy[2] - p_xyxy[0]
+                        p_h = p_xyxy[3] - p_xyxy[1]
+                        p_area = p_w * p_h
+
+                        if p_cls == 0:  # Person
+                            person_boxes.append(p_xyxy)
+                            # Selfie or person in camera view (covers > 8% of frame or upper center)
+                            if (p_area / frame_area) > 0.08 or (p_w / w > 0.30 and p_h / h > 0.30):
+                                is_person_dominating = True
+                        elif p_cls in [56, 57, 59, 60, 62] and p_conf >= 0.35:
+                            # Domestic furniture / indoor scene check
+                            if (p_area / frame_area) > 0.18:
+                                asphalt_pct, _ = self._get_fallback().analyze_asphalt_road(cv2.cvtColor(frame, cv2.COLOR_BGR2HSV), h, w)
+                                if asphalt_pct < 0.15:
+                                    return {
+                                        "detected": False,
+                                        "confidence": 0.0,
+                                        "box": None,
+                                        "is_irrelevant": True,
+                                        "verdict": "rejected",
+                                        "reason": "No valid civic defect detected. Please point the camera towards a civic issue."
+                                    }
+            except Exception:
+                pass
+
+        # Fallback skin / face check
+        if not is_person_dominating:
+            face_res = self._get_fallback().detect_human_face(frame, gray, h, w)
+            if face_res:
+                is_person_dominating = True
+
+        if is_person_dominating:
+            return {
+                "detected": False,
+                "confidence": 0.0,
+                "box": None,
+                "is_human_face": True,
+                "is_irrelevant": True,
+                "verdict": "rejected",
+                "reason": "No valid civic defect detected. Please point the camera towards a civic issue."
+            }
+
+        # 3. Real YOLOv8 Civic Defect Inference (confidence threshold >= 0.30)
+        results = self.model.predict(source=frame, conf=0.30, imgsz=320, verbose=False)
         boxes = results[0].boxes if len(results) > 0 else []
 
-        # Target class filtering
+        # Target class filtering based on selected municipal category
         target_classes = []
         if any(k in cat_lower for k in ["pothole", "road", "cavity", "asphalt"]):
             target_classes = [0, 1]
@@ -162,42 +218,65 @@ class YOLOv8CivicDetector(CivicIssueDetector):
             for b in boxes:
                 cid = int(b.cls[0].item())
                 raw_conf = float(b.conf[0].item())
+                if cid not in target_classes or raw_conf < 0.30:
+                    continue
+
                 xyxy = b.xyxy[0].tolist()
                 bx = round((xyxy[0] / w) * 100, 1)
                 by = round((xyxy[1] / h) * 100, 1)
                 bw = round(((xyxy[2] - xyxy[0]) / w) * 100, 1)
                 bh = round(((xyxy[3] - xyxy[1]) / h) * 100, 1)
 
-                # Defect must be localized and not span > 85% of both dimensions
-                if bw > 85.0 and bh > 85.0:
+                # Defect must be localized and not span > 78% of both dimensions
+                if bw > 78.0 and bh > 78.0:
                     continue
 
-                if cid in target_classes and raw_conf > best_raw_conf and raw_conf >= 0.20:
-                    best_raw_conf = raw_conf
-                    
-                    # Calibrate raw YOLO logit product to citizen-facing certainty index
-                    if cid == 2:  # garbage_dump
-                        calibrated = 0.65 + (raw_conf * 0.33)
-                    elif cid == 3:  # waterlogging
-                        calibrated = 0.58 + min(0.38, raw_conf * 1.4)
-                    else:  # pothole & road_crack
-                        if raw_conf < 0.45:
-                            # Ambiguous / minor defect candidate (< 0.70)
-                            calibrated = 0.42 + (raw_conf * 0.45)
-                        else:
-                            calibrated = 0.62 + min(0.35, raw_conf * 1.0)
-                    calibrated_conf = round(min(0.98, max(0.40, calibrated)), 2)
-                    best_conf = calibrated_conf
+                # Defect box MUST NOT overlap with a person
+                overlaps_person = False
+                for p_xyxy in person_boxes:
+                    ix1 = max(xyxy[0], p_xyxy[0])
+                    iy1 = max(xyxy[1], p_xyxy[1])
+                    ix2 = min(xyxy[2], p_xyxy[2])
+                    iy2 = min(xyxy[3], p_xyxy[3])
+                    if ix2 > ix1 and iy2 > iy1:
+                        inter_area = (ix2 - ix1) * (iy2 - iy1)
+                        defect_area = max(1.0, (xyxy[2] - xyxy[0]) * (xyxy[3] - xyxy[1]))
+                        if (inter_area / defect_area) > 0.15:
+                            overlaps_person = True
+                            break
+                if overlaps_person:
+                    continue
 
+                # Environmental Context Verification
+                if cid in [0, 1]:  # Pothole or road crack
+                    asphalt_pct, _ = self._get_fallback().analyze_asphalt_road(cv2.cvtColor(frame, cv2.COLOR_BGR2HSV), h, w)
+                    if asphalt_pct < 0.22:
+                        continue
+                elif cid == 2:  # Garbage dump
+                    # A waste dump must be on ground level, not covering upper room/face
+                    if (xyxy[3] / h) < 0.38:
+                        continue
+
+                if raw_conf > best_raw_conf:
+                    best_raw_conf = raw_conf
+                    best_conf = round(raw_conf, 2)
                     cname = self.model.names[cid].upper()
+                    friendly_name = {
+                        'POTHOLE': 'POTHOLE',
+                        'ROAD_CRACK': 'ROAD CRACK',
+                        'GARBAGE_DUMP': 'GARBAGE ACCUMULATION',
+                        'WATERLOGGING': 'WATERLOGGING'
+                    }.get(cname, cname)
+
                     best_box = {
                         "x": max(0.0, min(100.0, bx)),
                         "y": max(0.0, min(100.0, by)),
                         "width": max(1.0, min(100.0, bw)),
                         "height": max(1.0, min(100.0, bh)),
-                        "label": f"{cname} ({int(calibrated_conf * 100)}%)",
-                        "confidence": calibrated_conf,
-                        "raw_confidence": round(raw_conf, 3)
+                        "label": friendly_name,
+                        "confidence": best_conf,
+                        "raw_confidence": round(raw_conf, 3),
+                        "class_id": cid
                     }
 
         if best_box:
@@ -206,13 +285,23 @@ class YOLOv8CivicDetector(CivicIssueDetector):
                 "confidence": best_conf,
                 "raw_confidence": round(best_raw_conf, 3),
                 "box": best_box,
-                "reason": f"Defect verified: {best_box['label']} detected by YOLOv8 deep vision model.",
+                "reason": f"{best_box['label']} detected ({int(best_conf * 100)}% confidence).",
                 "detector": "yolov8_neural_network"
             }
 
-        # 3. Fallback to OpenCV rule-based detector if YOLO didn't trigger
-        fallback_res = self._get_fallback().detect_frame(frame, category)
-        return fallback_res
+        # 4. Fallback to OpenCV detector only if outdoor road context is present
+        if not is_person_dominating:
+            fallback_res = self._get_fallback().detect_frame(frame, category)
+            if fallback_res.get("detected"):
+                return fallback_res
+
+        return {
+            "detected": False,
+            "confidence": 0.0,
+            "box": None,
+            "verdict": "rejected",
+            "reason": "No valid civic defect detected. Please point the camera towards a civic issue."
+        }
 
 
 class OpenCVRuleBasedDetector(CivicIssueDetector):
@@ -885,9 +974,9 @@ class MultiFrameVideoValidator:
                 "primary_box": None,
                 "category_match": False,
                 "confidence": 0.0,
-                "error": "Selected issue not detected.",
-                "reason": "Selected issue not detected. This video appears to show unrelated content. Please record the actual civic issue.",
-                "guidance": "The camera detected a person or unrelated scene. Point your camera directly at the reported civic defect.",
+                "error": "No civic defect detected.",
+                "reason": "No civic defect detected. Please record again with the camera focused on the actual issue.",
+                "guidance": "No civic defect detected. Please record again with the camera focused on the actual issue.",
                 "action": "record_again",
                 "frames_analyzed": frames_analyzed
             }
@@ -988,24 +1077,16 @@ class MultiFrameVideoValidator:
             }
 
         # B. INVALID — IRRELEVANT CONTENT / ISSUE ABSENT
-        no_defect_msg = (
-            "No pothole or road-surface damage was detected. Point the camera towards the affected road."
-            if any(k in cat_lower for k in ["pothole", "road", "crack", "pavement"])
-            else "No visible waterlogging or drainage issue was detected. Record the affected area clearly."
-            if any(k in cat_lower for k in ["waterlog", "flood", "drainage", "leak", "pipe"])
-            else "No garbage or solid waste accumulation was detected. Record the affected public area."
-            if any(k in cat_lower for k in ["garbage", "waste", "dump", "debris"])
-            else "Selected issue not detected. This video appears to show unrelated content. Please record the actual civic issue."
-        )
+        no_defect_msg = "No civic defect detected. Please record again with the camera focused on the actual issue."
 
         return {
             "is_valid": False,
             "verdict": "rejected",
             "category_match": False,
-            "confidence": 0.10,
+            "confidence": 0.0,
             "error": no_defect_msg,
             "reason": no_defect_msg,
-            "guidance": f"Point your camera directly at the reported {category.lower()} and record again.",
+            "guidance": no_defect_msg,
             "action": "record_again",
             "frames_analyzed": frames_analyzed
         }

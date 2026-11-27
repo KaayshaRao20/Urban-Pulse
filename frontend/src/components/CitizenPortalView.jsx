@@ -258,6 +258,14 @@ export default function CitizenPortalView({
   const [cameraFacing, setCameraFacing] = useState('environment'); // 'environment' | 'user'
   const [cameraError, setCameraError] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [recorderState, setRecorderState] = useState('idle'); // 'idle' | 'recording' | 'stopping' | 'processing' | 'completed' | 'error'
+  const recorderStateRef = useRef('idle');
+
+  const updateRecorderState = (nextState) => {
+    recorderStateRef.current = nextState;
+    setRecorderState(nextState);
+  };
+
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [detectedIssueBox, setDetectedIssueBox] = useState(null); // Real-time object detection box
   const [isAnalyzingFrame, setIsAnalyzingFrame] = useState(false);
@@ -939,6 +947,12 @@ export default function CitizenPortalView({
 
     // Run real-time computer vision frame analysis every 280ms
     detectionAnimRef.current = setInterval(() => {
+      // Do not run detection or show bounding boxes during stopping or processing
+      if (recorderStateRef.current === 'stopping' || recorderStateRef.current === 'processing') {
+        setDetectedIssueBox(null);
+        return;
+      }
+
       if (!videoRef.current || videoRef.current.readyState < 2) return;
 
       setIsAnalyzingFrame(true);
@@ -946,7 +960,8 @@ export default function CitizenPortalView({
         const analysis = detectRealtimeFrame(videoRef.current, category);
         if (analysis) {
           if (analysis.feedback) setRealtimeFeedback(analysis.feedback);
-          if (analysis.detected && analysis.box) {
+          // Strictly ensure no box is displayed for persons, faces, or irrelevant scenes
+          if (analysis.detected && analysis.box && !analysis.is_face && !analysis.is_irrelevant) {
             setDetectedIssueBox(analysis.box);
           } else {
             setDetectedIssueBox(null);
@@ -1031,6 +1046,13 @@ export default function CitizenPortalView({
 
   // Start live WebRTC camera stream for video recording
   const startLiveCamera = async (facing = cameraFacing) => {
+    updateRecorderState('idle');
+    setIsRecording(false);
+    setIsFinalizingRecording(false);
+    setRecordingSeconds(0);
+    recordingSecondsRef.current = 0;
+    setDetectedIssueBox(null);
+    setRealtimeFeedback('Point camera towards civic issue to detect defects.');
     setCameraError('');
     setVideoValidationError('');
     setIsCameraOpen(true);
@@ -1078,15 +1100,26 @@ export default function CitizenPortalView({
       startObjectDetection();
     } catch (err) {
       console.error('Camera access error:', err);
+      updateRecorderState('error');
       setCameraError(err.message || 'Unable to access live camera stream. You can also use the Device Camera button below.');
     }
   };
 
   // Stop camera stream & release hardware resources
   const stopLiveCamera = () => {
-    if (isRecording) {
-      stopLiveRecording();
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
     }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {
+        console.warn('Stop live camera recorder cleanup:', e);
+      }
+    }
+    mediaRecorderRef.current = null;
+
     stopObjectDetection();
     if (demoStreamControllerRef.current) {
       demoStreamControllerRef.current.stop();
@@ -1100,12 +1133,20 @@ export default function CitizenPortalView({
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    updateRecorderState('idle');
+    setIsRecording(false);
+    setIsFinalizingRecording(false);
+    setDetectedIssueBox(null);
+    setRealtimeFeedback('');
     setIsCameraOpen(false);
     setCameraError('');
   };
 
   // Switch camera facing mode (environment rear vs user front)
   const toggleCameraFacing = () => {
+    if (recorderStateRef.current === 'recording' || recorderStateRef.current === 'stopping' || recorderStateRef.current === 'processing') {
+      return;
+    }
     if (isDemoCameraFeed) {
       showToast('Camera facing toggle is disabled during demo road feed.');
       return;
@@ -1117,7 +1158,7 @@ export default function CitizenPortalView({
 
   // Toggle animated demo road defect stream inside camera viewfinder
   const toggleDemoCameraFeed = () => {
-    if (isRecording) return;
+    if (recorderStateRef.current === 'recording' || recorderStateRef.current === 'stopping' || recorderStateRef.current === 'processing') return;
     if (isDemoCameraFeed) {
       // Revert to device webcam / camera
       if (demoStreamControllerRef.current) {
@@ -1176,13 +1217,40 @@ export default function CitizenPortalView({
     }
   };
 
-  // Start live video recording using MediaRecorder API
+  // Start live video recording using MediaRecorder API with 6-state machine
   const startLiveRecording = () => {
+    // 1. Guard check: only start from idle, completed, or error states
+    if (recorderStateRef.current === 'recording' || recorderStateRef.current === 'stopping' || recorderStateRef.current === 'processing') {
+      return;
+    }
+
+    // 2. Stream check: verify camera permission granted and stream active
     const activeStream = (isDemoCameraFeed && demoStreamControllerRef.current?.stream)
       ? demoStreamControllerRef.current.stream
       : streamRef.current;
-    if (!activeStream) return;
+
+    if (!activeStream || !activeStream.active || activeStream.getVideoTracks().length === 0) {
+      updateRecorderState('error');
+      const streamErr = 'Camera stream is not active. Please ensure camera permissions are granted.';
+      setCameraError(streamErr);
+      setVideoValidationError(streamErr);
+      showToast(streamErr);
+      return;
+    }
+
+    // 3. Clean up any previous recorder instance cleanly
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {
+        console.warn('Prior MediaRecorder cleanup:', e);
+      }
+    }
+    mediaRecorderRef.current = null;
+
     setVideoValidationError('');
+    setVideoValidationResult(null);
+    setDetectedIssueBox(null);
     setRecordingSeconds(0);
     recordingSecondsRef.current = 0;
     recordingStartTimeRef.current = Date.now();
@@ -1205,27 +1273,69 @@ export default function CitizenPortalView({
         }
       };
 
+      recorder.onerror = (e) => {
+        console.error('MediaRecorder error event:', e);
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+        updateRecorderState('error');
+        setIsRecording(false);
+        setDetectedIssueBox(null);
+        const recErrMsg = 'MediaRecorder encountered an error while capturing frames. Please record again.';
+        setVideoValidationError(recErrMsg);
+        showToast(recErrMsg);
+      };
+
       recorder.onstop = async () => {
+        // Clear detection box immediately on stop to prevent stale overlays
+        setDetectedIssueBox(null);
+
+        // Transition to 'processing' state
+        updateRecorderState('processing');
+        setIsRecording(false);
+
+        // Verify chunks and create blob
+        if (!recordedChunksRef.current || recordedChunksRef.current.length === 0) {
+          updateRecorderState('idle');
+          const errMsg = 'No video data was captured. Please record again.';
+          setVideoValidationError(errMsg);
+          showToast(errMsg);
+          return;
+        }
+
         const rawDuration = (Date.now() - (recordingStartTimeRef.current || Date.now())) / 1000;
         const duration = Math.max(recordingSecondsRef.current || 0, Math.round(rawDuration));
         const blob = new Blob(recordedChunksRef.current, {
           type: recorder.mimeType || 'video/webm'
         });
 
-        // Strictly validate the recorded video before accepting
+        if (!blob || blob.size === 0) {
+          updateRecorderState('idle');
+          const errMsg = 'Empty video recording captured. Please try recording again.';
+          setVideoValidationError(errMsg);
+          showToast(errMsg);
+          return;
+        }
+
+        // Strictly validate the recorded video with OpenCV & YOLOv8 pipeline
         const validation = await validateRecordedVideo(blob, duration);
+
         if (!validation.valid) {
-          const reasonMsg = validation.reason || validation.error || 'Video is not valid. Please record the reported issue again.';
+          const reasonMsg = validation.reason || validation.error || 'No civic defect detected. Please record again with the camera focused on the actual issue.';
           setVideoValidationResult(validation.data || validation);
           setVideoValidationError(reasonMsg);
+          setDetectedIssueBox(null);
           showToast(reasonMsg);
           setRecordedVideoFile(null);
           setRecordedVideoUrl(null);
-          // Keep camera viewfinder open so user doesn't get dumped out abruptly
+          // Return to idle state so user can immediately click Start Recording again!
+          updateRecorderState('idle');
           return;
         }
 
         // Output verified playable video file
+        updateRecorderState('completed');
         const ext = (recorder.mimeType && recorder.mimeType.includes('mp4')) ? 'mp4' : 'webm';
         const videoFile = new File([blob], `civic_evidence_${Date.now()}.${ext}`, {
           type: blob.type,
@@ -1241,11 +1351,14 @@ export default function CitizenPortalView({
           : 'Live video recorded and validated successfully!');
 
         // Close camera viewfinder modal on successful validation
-        stopLiveCamera();
+        setTimeout(() => {
+          stopLiveCamera();
+        }, 800);
       };
 
       mediaRecorderRef.current = recorder;
       recorder.start(200); // 200ms slice
+      updateRecorderState('recording');
       setIsRecording(true);
 
       // Start recording duration timer
@@ -1255,12 +1368,14 @@ export default function CitizenPortalView({
         setRecordingSeconds(recordingSecondsRef.current);
       }, 1000);
     } catch (err) {
-      console.error('MediaRecorder error:', err);
+      console.error('MediaRecorder initialization error:', err);
+      updateRecorderState('error');
+      setIsRecording(false);
       const errReason = 'The video could not be processed. Camera recorder encountered an error.';
       setVideoValidationResult({
         is_valid: false,
         reason: errReason,
-        guidance: 'Please restart recording using the Record Live Video button.',
+        guidance: 'Please restart recording using the Start Recording button.',
         action: 'record_again'
       });
       setVideoValidationError(errReason);
@@ -1270,11 +1385,15 @@ export default function CitizenPortalView({
 
   // Stop live video recording safely with guaranteed minimum payload
   const stopLiveRecording = () => {
-    if (isFinalizingRecording) return;
+    if (recorderStateRef.current !== 'recording') return;
+
+    updateRecorderState('stopping');
+    setIsFinalizingRecording(true);
+    setDetectedIssueBox(null); // Clear detection box immediately on stop
+
     const elapsed = (Date.now() - (recordingStartTimeRef.current || Date.now())) / 1000;
     if (elapsed < 2.5) {
       // Ensure at least 2.5 seconds to guarantee valid payload and prevent "Recording is too short"
-      setIsFinalizingRecording(true);
       const remainingMs = Math.max(150, Math.ceil((2.6 - elapsed) * 1000));
       setTimeout(() => {
         setIsFinalizingRecording(false);
@@ -1282,6 +1401,7 @@ export default function CitizenPortalView({
       }, remainingMs);
       return;
     }
+    setIsFinalizingRecording(false);
     finalizeRecordingStop();
   };
 
@@ -1290,7 +1410,6 @@ export default function CitizenPortalView({
       clearInterval(recordingTimerRef.current);
       recordingTimerRef.current = null;
     }
-    setIsRecording(false);
 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try {
@@ -1482,6 +1601,14 @@ export default function CitizenPortalView({
       const gpsErr = 'Verified device GPS location is required to submit a civic report. Please enable location permissions and click "Retry GPS".';
       setSubmitError(gpsErr);
       showToast('GPS location required to submit report.');
+      return;
+    }
+
+    // Guard: Prevent users from submitting while recording or validation is actively in progress
+    if (recorderState === 'recording' || recorderState === 'stopping' || recorderState === 'processing' || isRecording) {
+      const recMsg = 'Please complete or stop live video recording before submitting your report.';
+      setSubmitError(recMsg);
+      showToast(recMsg);
       return;
     }
 
@@ -3599,7 +3726,7 @@ export default function CitizenPortalView({
 
                         <button
                           type="submit"
-                          disabled={isSubmitting}
+                          disabled={isSubmitting || isRecording || recorderState === 'recording' || recorderState === 'stopping' || recorderState === 'processing'}
                           className="citizen-btn-primary"
                         >
                           {isSubmitting ? (
@@ -5220,43 +5347,49 @@ export default function CitizenPortalView({
                     width: 9,
                     height: 9,
                     borderRadius: '50%',
-                    background: isRecording ? '#EF4444' : '#10B981',
-                    boxShadow: isRecording ? '0 0 10px #EF4444' : '0 0 6px #10B981',
-                    animation: isRecording ? 'pulse 1s infinite' : 'none'
+                    background: recorderState === 'recording' ? '#EF4444' : (recorderState === 'stopping' || recorderState === 'processing') ? '#3B82F6' : '#10B981',
+                    boxShadow: recorderState === 'recording' ? '0 0 10px #EF4444' : (recorderState === 'stopping' || recorderState === 'processing') ? '0 0 10px #3B82F6' : '0 0 6px #10B981',
+                    animation: (recorderState === 'recording' || recorderState === 'processing') ? 'pulse 1s infinite' : 'none'
                   }} />
                   <span className="citizen-camera-rec-text" style={{ fontSize: '0.78rem', fontWeight: 700, color: '#F8FAFC', letterSpacing: '0.5px' }}>
-                    {isRecording
+                    {recorderState === 'recording'
                       ? `🔴 REC [ 00:${String(recordingSeconds).padStart(2, '0')} ] • LIVE CIVIC VIDEO RECORDING`
-                      : 'URBANPULSE LIVE CIVIC VIDEO RECORDER'}
+                      : recorderState === 'stopping'
+                        ? `⏳ FINALIZING EVIDENCE [ 00:${String(recordingSeconds).padStart(2, '0')} ]`
+                        : recorderState === 'processing'
+                          ? '⚙️ VALIDATING EVIDENCE WITH AI VISION...'
+                          : recorderState === 'completed'
+                            ? '✓ CIVIC EVIDENCE VERIFIED'
+                            : 'URBANPULSE LIVE CIVIC VIDEO RECORDER'}
                   </span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    background: recorderState === 'processing' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                    border: recorderState === 'processing' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(16, 185, 129, 0.4)',
                     borderRadius: 6,
                     padding: '4px 8px',
-                    color: '#6EE7B7',
+                    color: recorderState === 'processing' ? '#93C5FD' : '#6EE7B7',
                     fontSize: '0.70rem',
                     fontWeight: 600
                   }}>
-                    ● LIVE CV ANALYZER
+                    {recorderState === 'processing' ? '● PROCESSING FRAMES' : '● LIVE CV ANALYZER'}
                   </span>
 
                   <button
                     type="button"
                     onClick={toggleDemoCameraFeed}
                     title="Switch between physical camera and simulated road defect feed"
-                    disabled={isRecording}
+                    disabled={recorderState === 'recording' || recorderState === 'stopping' || recorderState === 'processing'}
                     style={{
                       background: isDemoCameraFeed ? 'linear-gradient(135deg, #4F46E5, #3730A3)' : 'rgba(255, 255, 255, 0.12)',
                       border: isDemoCameraFeed ? '1px solid #818CF8' : 'none',
                       borderRadius: 6,
                       padding: '5px 10px',
                       color: '#F8FAFC',
-                      cursor: isRecording ? 'not-allowed' : 'pointer',
-                      opacity: isRecording ? 0.5 : 1,
+                      cursor: (recorderState === 'recording' || recorderState === 'stopping' || recorderState === 'processing') ? 'not-allowed' : 'pointer',
+                      opacity: (recorderState === 'recording' || recorderState === 'stopping' || recorderState === 'processing') ? 0.5 : 1,
                       display: 'flex',
                       alignItems: 'center',
                       gap: 4,
@@ -5272,15 +5405,15 @@ export default function CitizenPortalView({
                     type="button"
                     onClick={toggleCameraFacing}
                     title="Flip camera"
-                    disabled={isRecording}
+                    disabled={recorderState === 'recording' || recorderState === 'stopping' || recorderState === 'processing'}
                     style={{
                       background: 'rgba(255, 255, 255, 0.12)',
                       border: 'none',
                       borderRadius: 6,
                       padding: '5px 10px',
                       color: '#F8FAFC',
-                      cursor: isRecording ? 'not-allowed' : 'pointer',
-                      opacity: isRecording ? 0.5 : 1,
+                      cursor: (recorderState === 'recording' || recorderState === 'stopping' || recorderState === 'processing') ? 'not-allowed' : 'pointer',
+                      opacity: (recorderState === 'recording' || recorderState === 'stopping' || recorderState === 'processing') ? 0.5 : 1,
                       display: 'flex',
                       alignItems: 'center',
                       gap: 4,
@@ -5395,7 +5528,7 @@ export default function CitizenPortalView({
                 )}
 
                 {/* Real-Time Object Detection Red Outline Around Detected Civic Issue */}
-                {detectedIssueBox && (
+                {detectedIssueBox && recorderState !== 'stopping' && recorderState !== 'processing' && (
                   <div style={{
                     position: 'absolute',
                     left: `${detectedIssueBox.x}%`,
@@ -5404,7 +5537,7 @@ export default function CitizenPortalView({
                     height: `${detectedIssueBox.height}%`,
                     border: '3px solid #EF4444',
                     borderRadius: 8,
-                    boxShadow: isRecording
+                    boxShadow: recorderState === 'recording'
                       ? '0 0 22px rgba(239, 68, 68, 0.95), inset 0 0 14px rgba(239, 68, 68, 0.45)'
                       : '0 0 12px rgba(239, 68, 68, 0.75)',
                     pointerEvents: 'none',
@@ -5719,7 +5852,7 @@ export default function CitizenPortalView({
                 justifyContent: 'center',
                 gap: 10
               }}>
-                {!isRecording ? (
+                {(recorderState === 'idle' || recorderState === 'completed' || recorderState === 'error') && (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                     <button
                       type="button"
@@ -5753,75 +5886,118 @@ export default function CitizenPortalView({
                       Hold camera steady facing the defect. Record at least 2–3 seconds.
                     </span>
                   </div>
-                ) : (
+                )}
+
+                {recorderState === 'recording' && (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                    {isFinalizingRecording ? (
-                      <button
-                        type="button"
-                        disabled
-                        className="citizen-camera-record-btn"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          padding: '12px 30px',
-                          borderRadius: 999,
-                          background: '#FEF2F2',
-                          color: '#DC2626',
-                          fontSize: '0.92rem',
-                          fontWeight: 700,
-                          border: '3px solid #EF4444',
-                          boxShadow: '0 0 25px rgba(239, 68, 68, 0.8)',
-                          cursor: 'wait'
-                        }}
-                      >
-                        <span style={{
-                          width: 14,
-                          height: 14,
-                          border: '2px solid #DC2626',
-                          borderTopColor: 'transparent',
-                          borderRadius: '50%',
-                          display: 'inline-block',
-                          animation: 'spin 0.6s linear infinite'
-                        }} />
-                        Finalizing Evidence... [ 00:{String(recordingSeconds).padStart(2, '0')} ]
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={stopLiveRecording}
-                        className="citizen-camera-record-btn"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          padding: '12px 30px',
-                          borderRadius: 999,
-                          background: '#FFFFFF',
-                          color: '#DC2626',
-                          fontSize: '0.92rem',
-                          fontWeight: 700,
-                          border: '3px solid #EF4444',
-                          boxShadow: '0 0 25px rgba(239, 68, 68, 0.8)',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <span style={{
-                          width: 14,
-                          height: 14,
-                          borderRadius: 3,
-                          background: '#DC2626',
-                          display: 'inline-block'
-                        }} />
-                        {recordingSeconds < 2
-                          ? `Stop Recording [ 00:0${recordingSeconds} / min 3s ]`
-                          : `Stop Recording [ 00:${String(recordingSeconds).padStart(2, '0')} ]`}
-                      </button>
-                    )}
-                    <span style={{ fontSize: '0.72rem', color: isFinalizingRecording ? '#10B981' : '#EF4444', fontWeight: 600 }}>
-                      {isFinalizingRecording
-                        ? '✓ Finalizing required frames for high-precision verification...'
-                        : '● RECORDING IN PROGRESS — REAL-TIME CIVIC DEFECT TRACKING ACTIVE'}
+                    <button
+                      type="button"
+                      onClick={stopLiveRecording}
+                      className="citizen-camera-record-btn"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '12px 30px',
+                        borderRadius: 999,
+                        background: '#FFFFFF',
+                        color: '#DC2626',
+                        fontSize: '0.92rem',
+                        fontWeight: 700,
+                        border: '3px solid #EF4444',
+                        boxShadow: '0 0 25px rgba(239, 68, 68, 0.8)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <span style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: 3,
+                        background: '#DC2626',
+                        display: 'inline-block'
+                      }} />
+                      {recordingSeconds < 2
+                        ? `Stop Recording [ 00:0${recordingSeconds} / min 3s ]`
+                        : `Stop Recording [ 00:${String(recordingSeconds).padStart(2, '0')} ]`}
+                    </button>
+                    <span style={{ fontSize: '0.72rem', color: '#EF4444', fontWeight: 600 }}>
+                      ● RECORDING IN PROGRESS — REAL-TIME CIVIC DEFECT TRACKING ACTIVE
+                    </span>
+                  </div>
+                )}
+
+                {recorderState === 'stopping' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <button
+                      type="button"
+                      disabled
+                      className="citizen-camera-record-btn"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '12px 30px',
+                        borderRadius: 999,
+                        background: '#FEF2F2',
+                        color: '#DC2626',
+                        fontSize: '0.92rem',
+                        fontWeight: 700,
+                        border: '3px solid #EF4444',
+                        boxShadow: '0 0 25px rgba(239, 68, 68, 0.8)',
+                        cursor: 'wait'
+                      }}
+                    >
+                      <span style={{
+                        width: 14,
+                        height: 14,
+                        border: '2px solid #DC2626',
+                        borderTopColor: 'transparent',
+                        borderRadius: '50%',
+                        display: 'inline-block',
+                        animation: 'spin 0.6s linear infinite'
+                      }} />
+                      Finalizing Evidence... [ 00:{String(recordingSeconds).padStart(2, '0')} ]
+                    </button>
+                    <span style={{ fontSize: '0.72rem', color: '#10B981', fontWeight: 600 }}>
+                      ✓ Finalizing required frames for high-precision verification...
+                    </span>
+                  </div>
+                )}
+
+                {recorderState === 'processing' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <button
+                      type="button"
+                      disabled
+                      className="citizen-camera-record-btn"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '12px 30px',
+                        borderRadius: 999,
+                        background: 'linear-gradient(135deg, #1E293B, #0F172A)',
+                        color: '#60A5FA',
+                        fontSize: '0.92rem',
+                        fontWeight: 700,
+                        border: '2px solid #3B82F6',
+                        boxShadow: '0 0 20px rgba(59, 130, 246, 0.5)',
+                        cursor: 'wait'
+                      }}
+                    >
+                      <span style={{
+                        width: 14,
+                        height: 14,
+                        border: '2px solid #60A5FA',
+                        borderTopColor: 'transparent',
+                        borderRadius: '50%',
+                        display: 'inline-block',
+                        animation: 'spin 0.6s linear infinite'
+                      }} />
+                      Validating with AI Vision...
+                    </button>
+                    <span style={{ fontSize: '0.72rem', color: '#60A5FA', fontWeight: 600 }}>
+                      ⚙️ Analyzing video frames with OpenCV and YOLOv8 pipeline...
                     </span>
                   </div>
                 )}

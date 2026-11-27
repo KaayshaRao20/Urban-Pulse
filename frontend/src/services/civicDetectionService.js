@@ -118,27 +118,26 @@ export const computeFrameMetrics = (imgData) => {
 
       // =====================================================================
       // Human Skin Chrominance Extraction (YCbCr + Normalized RGB)
-      // Standard empirical thresholds for human skin tones across ethnicities
+      // Empirically robust across diverse human skin complexions
       // =====================================================================
       const sumRGB = r + g + b;
-      if (sumRGB > 60) {
+      if (sumRGB > 50) {
         const normR = r / sumRGB;
         const normG = g / sumRGB;
         const normB = b / sumRGB;
 
         const isSkinRGB = (
-          r > 70 && g > 38 && b > 20 &&
-          r > g && r > b &&
-          (r - g) >= 12 &&
-          normR > 0.35 && normR < 0.65 &&
-          normG > 0.24 && normG < 0.38 &&
-          normB < 0.33
+          r > 45 && g > 25 && b > 18 &&
+          r >= g && (r - b) >= 6 &&
+          normR >= 0.32 && normR <= 0.68 &&
+          normG >= 0.22 && normG <= 0.40 &&
+          normB <= 0.36
         );
 
-        // YCbCr check
+        // YCbCr skin tone check
         const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
         const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
-        const isSkinYCbCr = (lum >= 40 && cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173);
+        const isSkinYCbCr = (lum >= 30 && cb >= 75 && cb <= 135 && cr >= 128 && cr <= 178);
 
         if (isSkinRGB || isSkinYCbCr) {
           skinPixelCount++;
@@ -160,8 +159,11 @@ export const computeFrameMetrics = (imgData) => {
   const isDark = meanLuminance < 20.0;
   const isBlurry = sharpness < 2.0 && meanLuminance > 30.0;
 
-  // Face / Person detected if significant skin pixels cluster in center or overall frame
-  const isFaceOrHuman = (skinRatio >= 0.12 && skinCenterRatio >= 0.16) || (skinCenterRatio >= 0.28);
+  // Face / Person detected if skin pixels cluster in center or overall frame:
+  // (In webcams, a face/selfie typically occupies 3.5% to 15% of frame)
+  const isFaceOrHuman = (skinRatio >= 0.032 && skinCenterRatio >= 0.04) ||
+                        (skinCenterRatio >= 0.08) ||
+                        (skinRatio >= 0.06);
 
   return {
     meanLuminance,
@@ -237,7 +239,7 @@ export const analyzeFramePixels = (imgData, category) => {
 
   // =========================================================================
   // NEGATIVE FILTER: HUMAN FACE / PERSON IN CAMERA VIEW
-  // NEVER classify a person's face, portrait, selfie or upper body as a civic defect!
+  // NEVER classify a person's face, portrait, selfie, or body as a civic defect!
   // =========================================================================
   if (metrics.isFaceOrHuman) {
     return {
@@ -246,8 +248,8 @@ export const analyzeFramePixels = (imgData, category) => {
       is_face: true,
       is_irrelevant: true,
       verdict: 'rejected',
-      reason: 'Selected issue not detected. This video appears to show unrelated content. Please record the actual civic issue.',
-      feedback: 'Selected issue not detected. This video appears to show unrelated content.'
+      reason: 'No valid civic defect detected. Please point the camera towards a civic issue.',
+      feedback: 'No valid civic defect detected. Please point the camera towards a civic issue.'
     };
   }
 
@@ -292,8 +294,8 @@ export const analyzeFramePixels = (imgData, category) => {
         box: null,
         is_wrong_category: true,
         verdict: 'rejected',
-        reason: 'No pothole or road-surface damage was detected. Point the camera towards the affected road.',
-        feedback: 'No pothole or road-surface damage was detected. Point the camera towards the affected road.'
+        reason: 'No valid civic defect detected. Please point the camera towards a civic issue.',
+        feedback: 'No valid civic defect detected. Please point the camera towards a civic issue.'
       };
     }
 
@@ -375,8 +377,8 @@ export const analyzeFramePixels = (imgData, category) => {
         detected: false,
         box: null,
         verdict: 'rejected',
-        reason: 'No pothole or road-surface damage was detected. Point the camera towards the affected road.',
-        feedback: 'No pothole or road-surface damage was detected.'
+        reason: 'No valid civic defect detected. Please point the camera towards a civic issue.',
+        feedback: 'No valid civic defect detected. Please point the camera towards a civic issue.'
       };
     }
 
@@ -442,8 +444,8 @@ export const analyzeFramePixels = (imgData, category) => {
         detected: false,
         box: null,
         verdict: 'rejected',
-        reason: 'No pothole or road-surface damage was detected. Point the camera towards the affected road.',
-        feedback: 'No pothole or road-surface damage was detected.'
+        reason: 'No valid civic defect detected. Please point the camera towards a civic issue.',
+        feedback: 'No valid civic defect detected. Please point the camera towards a civic issue.'
       };
     }
   }
@@ -522,8 +524,8 @@ export const analyzeFramePixels = (imgData, category) => {
       detected: false,
       box: null,
       verdict: 'rejected',
-      reason: 'No visible waterlogging or drainage issue was detected. Record the affected area clearly.',
-      feedback: 'No visible waterlogging or drainage issue was detected.'
+      reason: 'No valid civic defect detected. Please point the camera towards a civic issue.',
+      feedback: 'No valid civic defect detected. Please point the camera towards a civic issue.'
     };
   }
 
@@ -531,20 +533,33 @@ export const analyzeFramePixels = (imgData, category) => {
   // CLASS 4: GARBAGE ACCUMULATION AND SOLID WASTE
   // =========================================================================
   if (normCat === 'garbage') {
+    if (metrics.isFaceOrHuman) {
+      return {
+        detected: false,
+        box: null,
+        is_face: true,
+        is_irrelevant: true,
+        verdict: 'rejected',
+        reason: 'No valid civic defect detected. Please point the camera towards a civic issue.',
+        feedback: 'No valid civic defect detected. Please point the camera towards a civic issue.'
+      };
+    }
+
     let minX = width, maxX = 0, minY = height, maxY = 0;
     let clutterPixelCount = 0;
     let groundContextCount = 0;
 
     // Must be positioned at ground/outdoor level with disordered high-chromatic refuse debris
-    for (let y = Math.floor(height * 0.25); y < height - 2; y += 2) {
-      for (let x = 2; x < width - 2; x += 2) {
+    // Upper 35% of the frame is excluded to avoid faces, heads, ceilings, and domestic walls
+    for (let y = Math.floor(height * 0.35); y < height - 2; y += 2) {
+      for (let x = 4; x < width - 4; x += 2) {
         const idx = (y * width + x) * 4;
         const r = data[idx];
         const g = data[idx + 1];
         const b = data[idx + 2];
         const lum = 0.299 * r + 0.587 * g + 0.114 * b;
 
-        const isGroundTone = (Math.abs(r - g) <= 28 && Math.abs(r - b) <= 28 && lum >= 25 && lum <= 190);
+        const isGroundTone = (Math.abs(r - g) <= 24 && Math.abs(r - b) <= 24 && lum >= 30 && lum <= 175);
         if (isGroundTone) groundContextCount++;
 
         // Refuse debris: high chromatic dispersion contrasting with ground
@@ -552,7 +567,7 @@ export const analyzeFramePixels = (imgData, category) => {
         const nextIdx = (y * width + (x + 2)) * 4;
         const nextDiff = Math.abs(r - data[nextIdx]) + Math.abs(g - data[nextIdx + 1]) + Math.abs(b - data[nextIdx + 2]);
 
-        if (chromaDiff > 48 && nextDiff > 40 && lum > 35 && lum < 225) {
+        if (chromaDiff > 52 && nextDiff > 45 && lum > 40 && lum < 215) {
           clutterPixelCount++;
           if (x < minX) minX = x;
           if (x > maxX) maxX = x;
@@ -562,22 +577,30 @@ export const analyzeFramePixels = (imgData, category) => {
       }
     }
 
-    const analyzedArea = (width - 4) * (height * 0.75) / 4;
+    const analyzedArea = (width - 8) * (height * 0.65) / 4;
     const groundRatio = groundContextCount / analyzedArea;
     const clutterRatio = clutterPixelCount / analyzedArea;
     const boxWidth = maxX - minX;
     const boxHeight = maxY - minY;
 
-    // Waste pile must exist on ground context with adequate clutter concentration
-    if (groundRatio >= 0.20 && clutterRatio >= 0.048 && boxWidth >= width * 0.18 && boxHeight >= height * 0.12) {
-      const padX = Math.round(boxWidth * 0.06);
-      const padY = Math.round(boxHeight * 0.06);
+    // Genuine waste pile must exist on ground context with localized bounds (not spanning the whole frame)
+    if (
+      groundRatio >= 0.25 &&
+      clutterRatio >= 0.055 &&
+      boxWidth >= width * 0.18 &&
+      boxWidth <= width * 0.68 &&
+      boxHeight >= height * 0.12 &&
+      boxHeight <= height * 0.55 &&
+      minY >= height * 0.30
+    ) {
+      const padX = Math.round(boxWidth * 0.05);
+      const padY = Math.round(boxHeight * 0.05);
       const finalMinX = Math.max(0, minX - padX);
       const finalMinY = Math.max(0, minY - padY);
       const finalMaxX = Math.min(width, maxX + padX);
       const finalMaxY = Math.min(height, maxY + padY);
 
-      const realConfidence = Math.min(0.92, Math.max(0.70, 0.65 + clutterRatio * 4.0));
+      const realConfidence = Math.min(0.88, Math.max(0.68, 0.62 + clutterRatio * 2.2));
       const realBox = {
         x: Math.round((finalMinX / width) * 100),
         y: Math.round((finalMinY / height) * 100),
@@ -601,8 +624,8 @@ export const analyzeFramePixels = (imgData, category) => {
       detected: false,
       box: null,
       verdict: 'rejected',
-      reason: 'No garbage or solid waste accumulation was detected. Record the affected public area.',
-      feedback: 'No garbage or solid waste accumulation was detected.'
+      reason: 'No valid civic defect detected. Please point the camera towards a civic issue.',
+      feedback: 'No valid civic defect detected. Please point the camera towards a civic issue.'
     };
   }
 
@@ -641,8 +664,8 @@ export const analyzeFramePixels = (imgData, category) => {
     detected: false,
     box: null,
     verdict: 'rejected',
-    reason: 'Selected issue not detected. This video appears to show unrelated content. Please record the actual civic issue.',
-    feedback: 'Selected issue not detected. Please record the actual civic issue.'
+    reason: 'No valid civic defect detected. Please point the camera towards a civic issue.',
+    feedback: 'No valid civic defect detected. Please point the camera towards a civic issue.'
   };
 };
 
@@ -802,9 +825,9 @@ export const validateVideoEvidence = async (fileOrBlob, category, durationSec = 
             valid: false,
             is_valid: false,
             verdict: 'rejected',
-            error: 'Selected issue not detected.',
-            reason: 'Selected issue not detected. This video appears to show unrelated content. Please record the actual civic issue.',
-            guidance: 'The camera detected a person or face. Point the camera directly at the actual civic defect.',
+            error: 'No civic defect detected.',
+            reason: 'No civic defect detected. Please record again with the camera focused on the actual issue.',
+            guidance: 'No civic defect detected. Please record again with the camera focused on the actual issue.',
             action: 'record_again'
           });
         }
@@ -848,21 +871,13 @@ export const validateVideoEvidence = async (fileOrBlob, category, durationSec = 
 
         // B. INVALID — IRRELEVANT CONTENT: Selected issue absent (camera pointed away from road/puddle/waste)
         if (wrongCatFrames >= 3) {
-          const catMsg = normCat === 'pothole'
-            ? 'No pothole or road-surface damage was detected. Point the camera towards the affected road.'
-            : normCat === 'waterlogging'
-            ? 'No visible waterlogging or drainage issue was detected. Record the affected area clearly.'
-            : normCat === 'garbage'
-            ? 'No garbage or solid waste accumulation was detected. Record the affected public area.'
-            : 'Selected issue not detected. This video appears to show unrelated content. Please record the actual civic issue.';
-
           return resolve({
             valid: false,
             is_valid: false,
             verdict: 'rejected',
-            error: 'Selected issue not detected.',
-            reason: catMsg,
-            guidance: `Point your camera directly at the reported ${category.toLowerCase()} and record again.`,
+            error: 'No civic defect detected.',
+            reason: 'No civic defect detected. Please record again with the camera focused on the actual issue.',
+            guidance: 'No civic defect detected. Please record again with the camera focused on the actual issue.',
             action: 'record_again'
           });
         }
@@ -904,15 +919,7 @@ export const validateVideoEvidence = async (fileOrBlob, category, durationSec = 
         }
 
         // Genuine negative result: issue absent
-        const failureReason = lastFailureReason || (
-          normCat === 'pothole'
-            ? 'No pothole or road-surface damage was detected. Point the camera towards the affected road.'
-            : normCat === 'waterlogging'
-            ? 'No visible waterlogging or drainage issue was detected. Record the affected area clearly.'
-            : normCat === 'garbage'
-            ? 'No garbage or solid waste accumulation was detected. Record the affected public area.'
-            : 'Selected issue not detected. This video appears to show unrelated content. Please record the actual civic issue.'
-        );
+        const failureReason = 'No civic defect detected. Please record again with the camera focused on the actual issue.';
 
         return resolve({
           valid: false,
@@ -920,7 +927,7 @@ export const validateVideoEvidence = async (fileOrBlob, category, durationSec = 
           verdict: 'rejected',
           error: failureReason,
           reason: failureReason,
-          guidance: `Point the camera directly at the ${category.toLowerCase()} and record again.`,
+          guidance: failureReason,
           action: 'record_again'
         });
       } catch (err) {
