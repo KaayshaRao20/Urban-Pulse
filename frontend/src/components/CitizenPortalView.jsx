@@ -11,80 +11,183 @@ import TermsConditionsView from './TermsConditionsView';
 import DefectEvidencePlayer from './DefectEvidencePlayer';
 
 // Popular Bengaluru landmark locations for instant geocode matching
+// Popular Bengaluru landmark locations with granular official Municipal Ward mapping
 export const BENGALURU_PRESET_LOCATIONS = [
-  { name: 'Alliance University, Anekal Main Road, Bengaluru - 562106', lat: 12.7316, lng: 77.7072, ward: 'Bommanahalli Zone (Electronic City / Anekal / Begur)' },
-  { name: 'Electronic City Phase 1, Hosur Road, Bengaluru - 560100', lat: 12.8452, lng: 77.6602, ward: 'Bommanahalli Zone (Electronic City / Anekal / Begur)' },
-  { name: 'Kadubeesanahalli Bridge, Bellandur, Bengaluru - 560103', lat: 12.9352, lng: 77.6953, ward: 'East Zone (Mahadevapura / Indiranagar)' },
-  { name: 'HDFC Bank, Outer Ring Road, Bellandur, Bengaluru - 560103', lat: 12.9360, lng: 77.6920, ward: 'East Zone (Mahadevapura / Indiranagar)' },
-  { name: 'Marathahalli Bridge, Outer Ring Road, Bengaluru - 560037', lat: 12.9569, lng: 77.7011, ward: 'East Zone (Mahadevapura / Indiranagar)' },
-  { name: 'Indiranagar 100ft Road, Bengaluru - 560038', lat: 12.9784, lng: 77.6408, ward: 'East Zone (Mahadevapura / Indiranagar)' },
-  { name: 'Koramangala Sony World Junction, Bengaluru - 560034', lat: 12.9352, lng: 77.6245, ward: 'South Zone (Koramangala / BTM / Jayanagar)' },
-  { name: 'MG Road Metro Station, Bengaluru - 560001', lat: 12.9756, lng: 77.6067, ward: 'Central Zone (MG Road / CBD)' },
-  { name: 'Whitefield ITPL Main Road, Bengaluru - 560066', lat: 12.9863, lng: 77.7308, ward: 'East Zone (Mahadevapura / Indiranagar)' },
-  { name: 'HSR Layout 27th Main Road, Bengaluru - 560102', lat: 12.9121, lng: 77.6446, ward: 'South Zone (Koramangala / BTM / Jayanagar)' },
-  { name: 'Hebbal Flyover, Bellary Road, Bengaluru - 560024', lat: 13.0358, lng: 77.5970, ward: 'North Zone (Hebbal / Yelahanka)' },
-  { name: 'Jayanagar 4th Block Complex, Bengaluru - 560011', lat: 12.9299, lng: 77.5824, ward: 'South Zone (Koramangala / BTM / Jayanagar)' },
-  { name: 'Silk Board Junction, Hosur Road, Bengaluru - 560068', lat: 12.9176, lng: 77.6238, ward: 'South Zone (Koramangala / BTM / Jayanagar)' },
-  { name: 'Malleshwaram 8th Cross, Bengaluru - 560003', lat: 12.9982, lng: 77.5703, ward: 'West Zone (Malleshwaram / Rajajinagar)' },
-  { name: 'Rajarajeshwari Nagar Ideal Homes, Bengaluru - 560098', lat: 12.9260, lng: 77.5186, ward: 'Rajarajeshwari Nagar Zone (RR Nagar / Kengeri)' },
-  { name: 'Peenya Industrial Area 1st Stage, Bengaluru - 560058', lat: 13.0285, lng: 77.5195, ward: 'Dasarahalli Zone (Peenya / Dasarahalli)' }
+  { name: 'Electronic City Phase 1, Hosur Road, Bengaluru - 560100', lat: 12.8452, lng: 77.6602, ward: 'Ward 192 - Electronic City (ELCITA)' },
+  { name: 'Neeladri Road, Electronic City Phase 1, Bengaluru - 560100', lat: 12.8406, lng: 77.6482, ward: 'Ward 192 - Electronic City (ELCITA)' },
+  { name: 'Alliance University, Anekal Main Road, Bengaluru - 562106', lat: 12.7316, lng: 77.7072, ward: 'Anekal Municipal Ward (Alliance University / Chandapura)' },
+  { name: 'Bommasandra Industrial Area, Hosur Road, Bengaluru - 560099', lat: 12.8170, lng: 77.6940, ward: 'Ward 193 - Bommasandra / Hebbagodi Industrial Area' },
+  { name: 'Kadubeesanahalli Bridge, Bellandur, Bengaluru - 560103', lat: 12.9352, lng: 77.6953, ward: 'Ward 150 - Bellandur (East Zone / Mahadevapura)' },
+  { name: 'HDFC Bank, Outer Ring Road, Bellandur, Bengaluru - 560103', lat: 12.9360, lng: 77.6920, ward: 'Ward 150 - Bellandur (East Zone / Mahadevapura)' },
+  { name: 'Marathahalli Bridge, Outer Ring Road, Bengaluru - 560037', lat: 12.9569, lng: 77.7011, ward: 'Ward 87 - Marathahalli (East Zone / Mahadevapura)' },
+  { name: 'Indiranagar 100ft Road, Bengaluru - 560038', lat: 12.9784, lng: 77.6408, ward: 'Ward 112 - Indiranagar (East Zone)' },
+  { name: 'Koramangala Sony World Junction, Bengaluru - 560034', lat: 12.9352, lng: 77.6245, ward: 'Ward 151 - Koramangala (South Zone)' },
+  { name: 'MG Road Metro Station, Bengaluru - 560001', lat: 12.9756, lng: 77.6067, ward: 'Ward 111 - Shantala Nagar (MG Road / Central Zone)' },
+  { name: 'Whitefield ITPL Main Road, Bengaluru - 560066', lat: 12.9863, lng: 77.7308, ward: 'Ward 84 - Whitefield / Hagadur (East Zone)' },
+  { name: 'HSR Layout 27th Main Road, Bengaluru - 560102', lat: 12.9121, lng: 77.6446, ward: 'Ward 174 - HSR Layout (South Zone)' },
+  { name: 'Hebbal Flyover, Bellary Road, Bengaluru - 560024', lat: 13.0358, lng: 77.5970, ward: 'Ward 7 - Hebbal / Byatarayanapura (North Zone)' },
+  { name: 'Jayanagar 4th Block Complex, Bengaluru - 560011', lat: 12.9299, lng: 77.5824, ward: 'Ward 153 - Jayanagar (South Zone)' },
+  { name: 'Silk Board Junction, Hosur Road, Bengaluru - 560068', lat: 12.9176, lng: 77.6238, ward: 'Ward 173 - Madivala / Silk Board (South Zone)' },
+  { name: 'Begur Fort Road, Bengaluru - 560068', lat: 12.8785, lng: 77.6288, ward: 'Ward 188 - Begur / Hongasandra (Bommanahalli Zone)' },
+  { name: 'Bommanahalli Junction, Hosur Road, Bengaluru - 560068', lat: 12.9015, lng: 77.6240, ward: 'Ward 175 - Bommanahalli Central' },
+  { name: 'Malleshwaram 8th Cross, Bengaluru - 560003', lat: 12.9982, lng: 77.5703, ward: 'Ward 45 - Malleshwaram (West Zone)' },
+  { name: 'Rajarajeshwari Nagar Ideal Homes, Bengaluru - 560098', lat: 12.9260, lng: 77.5186, ward: 'Ward 160 - RR Nagar (Rajarajeshwari Nagar Zone)' },
+  { name: 'Peenya Industrial Area 1st Stage, Bengaluru - 560058', lat: 13.0285, lng: 77.5195, ward: 'Ward 41 - Peenya Industrial Area (Dasarahalli Zone)' }
 ];
 
 /**
- * Intelligently maps GPS coordinates and address metadata to the official BBMP Ward / Municipal Zone
+ * Intelligently maps GPS coordinates and address metadata to the nearest official Municipal Ward & Zone
  */
 export function detectWardZone(lat, lng, addressText = '', addressDetails = null) {
-  const text = `${addressText || ''} ${addressDetails?.county || ''} ${addressDetails?.suburb || ''} ${addressDetails?.city_district || ''} ${addressDetails?.neighbourhood || ''}`.toLowerCase();
+  const text = `${addressText || ''} ${addressDetails?.county || ''} ${addressDetails?.suburb || ''} ${addressDetails?.city_district || ''} ${addressDetails?.neighbourhood || ''} ${addressDetails?.road || ''}`.toLowerCase();
 
-  // 1. Locality & Landmark Keyword Matching
-  if (/anekal|alliance|kammasandra|electronic city|bommasandra|chandapura|attibele|jigani|begur|bommanahalli|singasandra|kudlu|hosa road|hulimavu|hongasandra|bannerghatta|avalahalli/.test(text)) {
-    return 'Bommanahalli Zone (Electronic City / Anekal / Begur)';
+  // 1. Precise Electronic City Ward Detection (ELCITA / Ward 192)
+  if (/electronic city|neeladri|ittina|konappana|doddathoguru|bettadasanapura|velankani|elcita|wipro avenue|infosys|phase 1|phase 2|hosur road toll/.test(text)) {
+    return 'Ward 192 - Electronic City (ELCITA)';
   }
-  if (/mahadevapura|indiranagar|marathahalli|bellandur|whitefield|kadubeesanahalli|hal|domlur|cv raman|varthur|brookefield|hoodi|kr puram|kaggadasapura|sarjapur road|panathur/.test(text)) {
-    return 'East Zone (Mahadevapura / Indiranagar)';
+
+  // 2. Anekal / Alliance University / Chandapura Ward Detection
+  if (/alliance university|alliance|anekal|kammasandra|chandapura|attibele|jigani/.test(text)) {
+    return 'Anekal Municipal Ward (Alliance University / Chandapura)';
   }
-  if (/koramangala|btm|jayanagar|jp nagar|banashankari|silk board|hsr|madiwala|madivala|basavanagudi|girinagar|padmanabhanagar|kumaraswamy/.test(text)) {
-    return 'South Zone (Koramangala / BTM / Jayanagar)';
+
+  // 3. Bommasandra / Hebbagodi Industrial Area
+  if (/bommasandra|hebbagodi|veerasandra/.test(text)) {
+    return 'Ward 193 - Bommasandra / Hebbagodi Industrial Area';
   }
+
+  // 4. Begur / Hongasandra / Singasandra / Kudlu
+  if (/begur|singasandra|kudlu|hosa road|hongasandra|hulimavu/.test(text)) {
+    return 'Ward 188 - Begur / Hongasandra (Bommanahalli Zone)';
+  }
+
+  // 5. Bommanahalli Central
+  if (/bommanahalli/.test(text)) {
+    return 'Ward 175 - Bommanahalli Central';
+  }
+
+  // 6. HSR Layout
+  if (/hsr layout|hsr|sector [1-7]|27th main/.test(text)) {
+    return 'Ward 174 - HSR Layout (South Zone)';
+  }
+
+  // 7. Koramangala
+  if (/koramangala|sony world|st john|forum/.test(text)) {
+    return 'Ward 151 - Koramangala (South Zone)';
+  }
+
+  // 8. Bellandur / Kadubeesanahalli / Outer Ring Road
+  if (/bellandur|kadubeesanahalli|ecospace|devarabisanahalli/.test(text)) {
+    return 'Ward 150 - Bellandur (East Zone / Mahadevapura)';
+  }
+
+  // 9. Marathahalli
+  if (/marathahalli|kalamandir|munnekolala/.test(text)) {
+    return 'Ward 87 - Marathahalli (East Zone / Mahadevapura)';
+  }
+
+  // 10. Whitefield / ITPL
+  if (/whitefield|itpl|hope farm|kadugodi|hoodi|brookefield/.test(text)) {
+    return 'Ward 84 - Whitefield / Hagadur (East Zone)';
+  }
+
+  // 11. Indiranagar
+  if (/indiranagar|100ft|100 feet|cmh road|domlur|hal/.test(text)) {
+    return 'Ward 112 - Indiranagar (East Zone)';
+  }
+
+  // 12. Central / MG Road / CBD
   if (/mg road|cbd|cubbon|brigade|commercial street|shivajinagar|vidhana|richmond|vasanth|ashok nagar|shanthi nagar|sampangiram/.test(text)) {
-    return 'Central Zone (MG Road / CBD)';
-  }
-  if (/malleshwaram|malleswaram|rajajinagar|basaveshwaranagar|vijayanagar|yeshwanthpur|yeshwantpur|chamarajpet|mahalakshmi|srirampura/.test(text)) {
-    return 'West Zone (Malleshwaram / Rajajinagar)';
-  }
-  if (/hebbal|yelahanka|sahakar|thanisandra|nagavara|hennur|rt nagar|sanjay nagar|vidyaranyapura|jakkar|kogilu|bagalur|airport/.test(text)) {
-    return 'North Zone (Hebbal / Yelahanka)';
-  }
-  if (/rajarajeshwari|rr nagar|kengeri|mysore road|nayandahalli|nagarbhavi|jnana bharathi|ullal/.test(text)) {
-    return 'Rajarajeshwari Nagar Zone (RR Nagar / Kengeri)';
-  }
-  if (/dasarahalli|peenya|jalahalli|bagalagunte|chikkabanavara|heggadadevanapura/.test(text)) {
-    return 'Dasarahalli Zone (Peenya / Dasarahalli)';
+    return 'Ward 111 - Shantala Nagar (MG Road / Central Zone)';
   }
 
-  // 2. Nearest Landmark Preset Match (within ~2.5km)
+  // 13. Jayanagar / JP Nagar
+  if (/jayanagar|jp nagar|banashankari|south end/.test(text)) {
+    return 'Ward 153 - Jayanagar (South Zone)';
+  }
+
+  // 14. Malleshwaram / Rajajinagar
+  if (/malleshwaram|malleswaram|rajajinagar|basaveshwaranagar|vijayanagar|yeshwanthpur|yeshwantpur|chamarajpet|mahalakshmi|srirampura/.test(text)) {
+    return 'Ward 45 - Malleshwaram (West Zone)';
+  }
+
+  // 15. Hebbal / Yelahanka
+  if (/hebbal|yelahanka|sahakar|thanisandra|nagavara|hennur|rt nagar|sanjay nagar|vidyaranyapura|jakkar|kogilu|bagalur|airport/.test(text)) {
+    return 'Ward 7 - Hebbal / Byatarayanapura (North Zone)';
+  }
+
+  // 16. RR Nagar / Kengeri
+  if (/rajarajeshwari|rr nagar|kengeri|mysore road|nayandahalli|nagarbhavi|jnana bharathi|ullal/.test(text)) {
+    return 'Ward 160 - RR Nagar (Rajarajeshwari Nagar Zone)';
+  }
+
+  // 17. Peenya / Dasarahalli
+  if (/dasarahalli|peenya|jalahalli|bagalagunte|chikkabanavara|heggadadevanapura/.test(text)) {
+    return 'Ward 41 - Peenya Industrial Area (Dasarahalli Zone)';
+  }
+
+  // 18. Spatial GPS Coordinate Matching with high-accuracy bounding boxes
   if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+    // Electronic City cluster (12.825 - 12.865 N, 77.635 - 77.695 E)
+    if (lat >= 12.825 && lat <= 12.865 && lng >= 77.635 && lng <= 77.695) {
+      return 'Ward 192 - Electronic City (ELCITA)';
+    }
+
+    // Anekal / Alliance University cluster (lat < 12.825)
+    if (lat < 12.825) {
+      return 'Anekal Municipal Ward (Alliance University / Chandapura)';
+    }
+
+    // Begur / Singasandra cluster (12.865 - 12.895 N)
+    if (lat >= 12.865 && lat < 12.895 && lng >= 77.61 && lng <= 77.67) {
+      return 'Ward 188 - Begur / Hongasandra (Bommanahalli Zone)';
+    }
+
+    // Bommanahalli Central (12.895 - 12.915 N, 77.61 - 77.64 E)
+    if (lat >= 12.895 && lat < 12.915 && lng >= 77.61 && lng <= 77.64) {
+      return 'Ward 175 - Bommanahalli Central';
+    }
+
+    // HSR Layout (12.905 - 12.925 N, 77.635 - 77.665 E)
+    if (lat >= 12.905 && lat <= 12.925 && lng >= 77.635 && lng <= 77.665) {
+      return 'Ward 174 - HSR Layout (South Zone)';
+    }
+
+    // Koramangala (12.925 - 12.945 N, 77.615 - 77.635 E)
+    if (lat >= 12.925 && lat <= 12.945 && lng >= 77.615 && lng <= 77.635) {
+      return 'Ward 151 - Koramangala (South Zone)';
+    }
+
+    // Bellandur (12.925 - 12.945 N, 77.67 - 77.705 E)
+    if (lat >= 12.925 && lat <= 12.945 && lng >= 77.67 && lng <= 77.705) {
+      return 'Ward 150 - Bellandur (East Zone / Mahadevapura)';
+    }
+
+    // Marathahalli (12.945 - 12.965 N, 77.69 - 77.72 E)
+    if (lat >= 12.945 && lat <= 12.965 && lng >= 77.69 && lng <= 77.72) {
+      return 'Ward 87 - Marathahalli (East Zone / Mahadevapura)';
+    }
+
+    // Whitefield (12.965 - 13.01 N, 77.71 - 77.76 E)
+    if (lat >= 12.965 && lat <= 13.01 && lng >= 77.71 && lng <= 77.76) {
+      return 'Ward 84 - Whitefield / Hagadur (East Zone)';
+    }
+
+    // Indiranagar (12.965 - 12.99 N, 77.63 - 77.66 E)
+    if (lat >= 12.965 && lat <= 12.99 && lng >= 77.63 && lng <= 77.66) {
+      return 'Ward 112 - Indiranagar (East Zone)';
+    }
+
+    // Nearest Preset Landmark Fallback
     const closest = BENGALURU_PRESET_LOCATIONS.find(loc => {
       const dLat = Math.abs(loc.lat - lat);
       const dLng = Math.abs(loc.lng - lng);
-      return dLat < 0.025 && dLng < 0.025;
+      return dLat < 0.035 && dLng < 0.035;
     });
     if (closest?.ward) return closest.ward;
-
-    // 3. Spatial Coordinate Bounding Geometry across Bengaluru Metro
-    if (lat < 12.89) return 'Bommanahalli Zone (Electronic City / Anekal / Begur)';
-    if (lat > 13.01) {
-      if (lng < 77.56) return 'Dasarahalli Zone (Peenya / Dasarahalli)';
-      return 'North Zone (Hebbal / Yelahanka)';
-    }
-    if (lng < 77.53) return 'Rajarajeshwari Nagar Zone (RR Nagar / Kengeri)';
-    if (lng > 77.64) return 'East Zone (Mahadevapura / Indiranagar)';
-    if (lat >= 12.965 && lat <= 12.985 && lng >= 77.585 && lng <= 77.625) return 'Central Zone (MG Road / CBD)';
-    if (lng < 77.585) return 'West Zone (Malleshwaram / Rajajinagar)';
-    return 'South Zone (Koramangala / BTM / Jayanagar)';
   }
 
-  return 'East Zone (Mahadevapura / Indiranagar)';
+  return 'Ward 192 - Electronic City (ELCITA)';
 }
 
 

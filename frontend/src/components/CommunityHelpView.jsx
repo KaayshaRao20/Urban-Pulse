@@ -10,17 +10,17 @@ import DefectEvidencePlayer from './DefectEvidencePlayer';
 
 // Popular Bengaluru landmark locations for instant location switching
 const PRESET_LOCALITIES = [
-  { name: 'Alliance University / Anekal, Bengaluru', lat: 12.7316, lng: 77.7072, ward: 'Bommanahalli Zone (Electronic City / Anekal / Begur)' },
-  { name: 'Electronic City, Bengaluru', lat: 12.8452, lng: 77.6602, ward: 'Bommanahalli Zone (Electronic City / Anekal / Begur)' },
-  { name: 'Bommasandra / Chandapura, Bengaluru', lat: 12.8170, lng: 77.6940, ward: 'Bommanahalli Zone (Electronic City / Anekal / Begur)' },
-  { name: 'Bellandur, Bengaluru', lat: 12.9352, lng: 77.6953, ward: 'East Zone (Mahadevapura)' },
-  { name: 'Marathahalli, Bengaluru', lat: 12.9569, lng: 77.7011, ward: 'East Zone (Mahadevapura)' },
-  { name: 'Indiranagar, Bengaluru', lat: 12.9784, lng: 77.6408, ward: 'East Zone (Indiranagar)' },
-  { name: 'Koramangala, Bengaluru', lat: 12.9352, lng: 77.6245, ward: 'South Zone (Koramangala)' },
-  { name: 'HSR Layout, Bengaluru', lat: 12.9121, lng: 77.6446, ward: 'South Zone (HSR / BTM)' },
-  { name: 'Whitefield, Bengaluru', lat: 12.9863, lng: 77.7308, ward: 'East Zone (Whitefield)' },
-  { name: 'MG Road / CBD, Bengaluru', lat: 12.9756, lng: 77.6067, ward: 'Central Zone (CBD)' },
-  { name: 'Hebbal, Bengaluru', lat: 13.0358, lng: 77.5970, ward: 'North Zone (Hebbal)' }
+  { name: 'Electronic City, Bengaluru', lat: 12.8452, lng: 77.6602, ward: 'Ward 192 - Electronic City (ELCITA)' },
+  { name: 'Alliance University / Anekal, Bengaluru', lat: 12.7316, lng: 77.7072, ward: 'Anekal Municipal Ward (Alliance University / Chandapura)' },
+  { name: 'Bommasandra / Chandapura, Bengaluru', lat: 12.8170, lng: 77.6940, ward: 'Ward 193 - Bommasandra / Hebbagodi Industrial Area' },
+  { name: 'Bellandur, Bengaluru', lat: 12.9352, lng: 77.6953, ward: 'Ward 150 - Bellandur (East Zone / Mahadevapura)' },
+  { name: 'Marathahalli, Bengaluru', lat: 12.9569, lng: 77.7011, ward: 'Ward 87 - Marathahalli (East Zone / Mahadevapura)' },
+  { name: 'Indiranagar, Bengaluru', lat: 12.9784, lng: 77.6408, ward: 'Ward 112 - Indiranagar (East Zone)' },
+  { name: 'Koramangala, Bengaluru', lat: 12.9352, lng: 77.6245, ward: 'Ward 151 - Koramangala (South Zone)' },
+  { name: 'HSR Layout, Bengaluru', lat: 12.9121, lng: 77.6446, ward: 'Ward 174 - HSR Layout (South Zone)' },
+  { name: 'Whitefield, Bengaluru', lat: 12.9863, lng: 77.7308, ward: 'Ward 84 - Whitefield / Hagadur (East Zone)' },
+  { name: 'MG Road / CBD, Bengaluru', lat: 12.9756, lng: 77.6067, ward: 'Ward 111 - Shantala Nagar (MG Road / Central Zone)' },
+  { name: 'Hebbal, Bengaluru', lat: 13.0358, lng: 77.5970, ward: 'Ward 7 - Hebbal / Byatarayanapura (North Zone)' }
 ];
 
 // Helper: Haversine distance in meters

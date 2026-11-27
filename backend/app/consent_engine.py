@@ -645,7 +645,7 @@ def generate_consent_certificate_pdf_bytes(
     terms_version: str,
     accepted_at_str: str,
     certificate_id: str,
-    jurisdiction: str = "Bommanahalli Zone (Electronic City / Anekal / Begur)"
+    jurisdiction: str = "Ward 192 - Electronic City (ELCITA)"
 ) -> bytes:
     """
     Synthesizes an ISO 32000-1 compliant Citizen Consent Certificate & Undertaking PDF (PDF-1.4).
