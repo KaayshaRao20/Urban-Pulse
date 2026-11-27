@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { API_BASE } from '../config/api';
+import DefectEvidencePlayer, { getCategoryDefectPhoto, CATEGORY_DEFECT_PHOTOS } from './DefectEvidencePlayer';
 
 const isVideoUrl = (url) => {
   if (!url || typeof url !== 'string') return false;
@@ -8,56 +9,11 @@ const isVideoUrl = (url) => {
 };
 
 export const getDefectFallback = (category) => {
-  const cat = (category || '').toLowerCase();
-  let defectType = 'ROAD CAVITY / POTHOLE';
-  let color = '#EF4444';
-  let shape = '<ellipse cx="200" cy="115" rx="75" ry="38" fill="#09090B"/><ellipse cx="200" cy="118" rx="55" ry="25" fill="#000000"/><path d="M135,105 Q170,85 200,90 T265,110 Q245,145 195,148 T135,105" stroke="#71717A" stroke-width="2" fill="none"/>';
-
-  if (cat.includes('garbage') || cat.includes('waste')) {
-    defectType = 'SOLID WASTE ACCUMULATION';
-    color = '#F59E0B';
-    shape = '<polygon points="150,135 190,85 240,140" fill="#78350F"/><polygon points="195,135 230,95 270,135" fill="#92400E"/><circle cx="180" cy="125" r="16" fill="#B45309"/>';
-  } else if (cat.includes('water') || cat.includes('drainage') || cat.includes('flood')) {
-    defectType = 'WATERLOGGING / SEEPAGE';
-    color = '#0284C7';
-    shape = '<ellipse cx="200" cy="115" rx="85" ry="42" fill="#0369A1" opacity="0.6"/><ellipse cx="200" cy="115" rx="55" ry="24" fill="#38BDF8" opacity="0.4"/>';
-  } else if (cat.includes('light') || cat.includes('electrical')) {
-    defectType = 'STREETLIGHT FAULT';
-    color = '#8B5CF6';
-    shape = '<rect x="195" y="45" width="8" height="100" fill="#475569"/><circle cx="199" cy="40" r="9" fill="#334155"/><ellipse cx="199" cy="140" rx="70" ry="16" fill="#1E293B" opacity="0.5"/>';
-  } else if (cat.includes('traffic')) {
-    defectType = 'TRAFFIC HAZARD';
-    color = '#DC2626';
-    shape = '<polygon points="200,60 155,135 245,135" fill="#DC2626" stroke="#FEF2F2" stroke-width="2"/><text x="196" y="125" fill="#FFFFFF" font-family="sans-serif" font-size="20" font-weight="bold">!</text>';
-  }
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 220" width="100%" height="100%">
-    <rect width="400" height="220" fill="#18181B"/>
-    <line x1="0" y1="110" x2="400" y2="110" stroke="#27272A" stroke-width="1.5"/>
-    <line x1="0" y1="195" x2="400" y2="195" stroke="#EAB308" stroke-dasharray="14,10" stroke-width="3"/>
-    ${shape}
-    <rect x="10" y="10" width="220" height="20" rx="4" fill="rgba(0,0,0,0.8)"/>
-    <text x="18" y="24" fill="${color}" font-family="system-ui,sans-serif" font-size="8.5" font-weight="bold" letter-spacing="0.5">BBMP EVIDENCE • ${defectType}</text>
-    <rect x="10" y="190" width="180" height="20" rx="4" fill="rgba(0,0,0,0.8)"/>
-    <text x="18" y="204" fill="#94A3B8" font-family="monospace" font-size="7.5">12.9789° N, 77.6441° E • GEOTAGGED</text>
-    <rect x="310" y="10" width="80" height="20" rx="4" fill="rgba(0,0,0,0.8)"/>
-    <text x="320" y="24" fill="#10B981" font-family="system-ui,sans-serif" font-size="8" font-weight="bold">AI TRIAGED ✓</text>
-  </svg>`;
-
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  return getCategoryDefectPhoto(category);
 };
 
 export const getFrameFallback = (category, frameNum = 1) => {
-  const cat = (category || '').toLowerCase();
-  const color = cat.includes('garbage') ? '#F59E0B' : (cat.includes('water') ? '#0284C7' : '#EF4444');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" width="100%" height="100%">
-    <rect width="100" height="80" fill="#1E293B"/>
-    <rect x="4" y="4" width="92" height="72" rx="4" fill="#0F172A" stroke="#334155" stroke-width="1"/>
-    <circle cx="50" cy="40" r="14" fill="${color}" opacity="0.3"/>
-    <text x="50" y="43" fill="#E2E8F0" font-family="monospace" font-size="9" font-weight="bold" text-anchor="middle">f#${frameNum}</text>
-    <text x="50" y="65" fill="#94A3B8" font-family="monospace" font-size="7" text-anchor="middle">${frameNum * 0.5}s</text>
-  </svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  return getCategoryDefectPhoto(category);
 };
 
 export default function GrievanceManagementView({ initialTicketId }) {
@@ -1531,31 +1487,43 @@ export default function GrievanceManagementView({ initialTicketId }) {
                         borderRadius: '8px',
                         overflow: 'hidden',
                         position: 'relative',
-                        background: '#0F172A',
+                        background: '#1E293B',
                         flexShrink: 0
                       }}>
                         <img
-                          src={c.image_url || getDefectFallback(c.category)}
+                          src={c.image_url || getCategoryDefectPhoto(c.category)}
                           alt="Evidence thumbnail"
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           onError={(e) => {
-                            const fb = getDefectFallback(c.category);
+                            const fb = getCategoryDefectPhoto(c.category);
                             if (e.target.src !== fb) e.target.src = fb;
                           }}
                         />
-                        {isVideoUrl(c.image_url) && (
+                        {(c.is_video || isVideoUrl(c.image_url)) && (
                           <div style={{
                             position: 'absolute',
                             inset: 0,
-                            background: 'rgba(0,0,0,0.45)',
+                            background: 'rgba(0,0,0,0.35)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>
-                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <svg viewBox="0 0 24 24" width="10" height="10" fill="#0F172A">
+                            <div style={{
+                              padding: '2px 5px',
+                              borderRadius: '4px',
+                              background: 'rgba(15,23,42,0.85)',
+                              border: '1px solid rgba(255,255,255,0.2)',
+                              color: '#38BDF8',
+                              fontSize: '0.58rem',
+                              fontWeight: 800,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '3px'
+                            }}>
+                              <svg viewBox="0 0 24 24" width="8" height="8" fill="#38BDF8">
                                 <polygon points="5 3 19 12 5 21 5 3" />
                               </svg>
+                              <span>{c.video_duration || '0:26'}</span>
                             </div>
                           </div>
                         )}
@@ -1822,120 +1790,19 @@ export default function GrievanceManagementView({ initialTicketId }) {
                         Evidence (Video / Images)
                       </div>
 
-                      {/* Video Player */}
-                      <div style={{
-                        position: 'relative',
-                        width: '100%',
-                        height: '160px',
-                        background: '#0F172A',
-                        borderRadius: '8px',
-                        overflow: 'hidden',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        {isVideoUrl(currentComplaint.image_url) ? (
-                          <video
-                            ref={videoPlayerRef}
-                            src={currentComplaint.image_url}
-                            controls
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                        ) : (
-                          <>
-                            <img
-                              src={currentComplaint.image_url || getDefectFallback(currentComplaint.category)}
-                              alt="Defect visual evidence"
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              onError={(e) => {
-                                const fb = getDefectFallback(currentComplaint?.category);
-                                if (e.target.src !== fb) e.target.src = fb;
-                              }}
-                            />
-                            {/* Play button overlay */}
-                            <div
-                              onClick={() => {
-                                setPreviewImgUrl(currentComplaint.image_url || getDefectFallback(currentComplaint?.category));
-                                setActiveModal('preview_img');
-                              }}
-                              style={{
-                                position: 'absolute',
-                                width: '38px',
-                                height: '38px',
-                                borderRadius: '50%',
-                                background: 'rgba(0,0,0,0.65)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                border: '2px solid white'
-                              }}
-                            >
-                              <svg viewBox="0 0 24 24" width="16" height="16" fill="white">
-                                <polygon points="5 3 19 12 5 21 5 3" />
-                              </svg>
-                            </div>
-                            <div style={{ position: 'absolute', bottom: '6px', left: '10px', color: 'white', fontSize: '0.68rem', fontWeight: 600 }}>
-                              0:00 / 0:15
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Extra thumbnail row + +2 More */}
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <div
-                          onClick={() => {
-                            setPreviewImgUrl(getFrameFallback(currentComplaint?.category, 1));
-                            setActiveModal('preview_img');
-                          }}
-                          style={{ width: '48px', height: '40px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #CBD5E1', cursor: 'pointer' }}
-                          title="Click to view Keyframe 1"
-                        >
-                          <img
-                            src={getFrameFallback(currentComplaint?.category, 1)}
-                            alt="Frame 1"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                        </div>
-                        <div
-                          onClick={() => {
-                            setPreviewImgUrl(getFrameFallback(currentComplaint?.category, 2));
-                            setActiveModal('preview_img');
-                          }}
-                          style={{ width: '48px', height: '40px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #CBD5E1', cursor: 'pointer' }}
-                          title="Click to view Keyframe 2"
-                        >
-                          <img
-                            src={getFrameFallback(currentComplaint?.category, 2)}
-                            alt="Frame 2"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                        </div>
-                        <div
-                          onClick={() => {
-                            setPreviewImgUrl(currentComplaint.image_url || getDefectFallback(currentComplaint?.category));
-                            setActiveModal('preview_img');
-                          }}
-                          style={{
-                            width: '48px',
-                            height: '40px',
-                            borderRadius: '6px',
-                            background: '#F1F5F9',
-                            border: '1px dashed #CBD5E1',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
-                            color: '#475569',
-                            cursor: 'pointer'
-                          }}
-                          title="Inspect complete evidence"
-                        >
-                          +2 More
-                        </div>
-                      </div>
+                      {/* Interactive Video & Media Player with Canvas Engine, Telemetry HUD & Keyframes */}
+                      <DefectEvidencePlayer
+                        category={currentComplaint.category}
+                        imageUrl={currentComplaint.image_url}
+                        isVideo={currentComplaint.is_video || isVideoUrl(currentComplaint.image_url)}
+                        videoDuration={currentComplaint.video_duration || '0:26'}
+                        ticketNumber={currentComplaint.id || currentComplaint.ticket_number}
+                        location={currentComplaint.location || currentComplaint.address}
+                        onInspectFullscreen={(img) => {
+                          setPreviewImgUrl(img);
+                          setActiveModal('preview_img');
+                        }}
+                      />
 
                       {/* Issue Details List */}
                       <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '10px' }}>

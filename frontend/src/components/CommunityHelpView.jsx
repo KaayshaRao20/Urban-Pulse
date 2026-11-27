@@ -6,6 +6,7 @@ import {
   ShieldAlert, AlertCircle, Sparkles, Navigation, Info, Eye
 } from 'lucide-react';
 import { API_BASE } from '../config/api';
+import DefectEvidencePlayer from './DefectEvidencePlayer';
 
 // Popular Bengaluru landmark locations for instant location switching
 const PRESET_LOCALITIES = [
@@ -122,9 +123,9 @@ export default function CommunityHelpView({
   const recordingTimerRef = useRef(null);
   const streamRef = useRef(null);
 
-  // Citizen Identifier
-  const activeCitizenId = user?.email || user?.citizen_email || 'ramesh@citizen.blr.in';
-  const activeCitizenName = user?.name || user?.citizen_name || 'Ramesh Kumar';
+  // Citizen Identifier - Synchronized with logged-in resident profile
+  const activeCitizenId = user?.email || user?.citizen_email || (typeof window !== 'undefined' ? localStorage.getItem('up_user_email') : null) || 'kaaysha.rao@gmail.com';
+  const activeCitizenName = user?.name || user?.citizen_name || (typeof window !== 'undefined' ? localStorage.getItem('up_user_name') : null) || 'Kaaysha Rao';
 
   // 1. Fetch nearby issues from backend using geographic filtering
   const fetchNearbyIssues = useCallback(async (
@@ -2079,19 +2080,15 @@ export default function CommunityHelpView({
               </button>
             </div>
 
-            {/* Main Image */}
-            <div style={{
-              width: '100%',
-              height: 220,
-              borderRadius: 12,
-              overflow: 'hidden',
-              marginBottom: 14,
-              background: '#F1F5F9'
-            }}>
-              <img
-                src={selectedIssueForDetails.image_url}
-                alt={selectedIssueForDetails.title}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            {/* Visual Evidence Player (Interactive Video & Forensic Evidence) */}
+            <div style={{ marginBottom: 14 }}>
+              <DefectEvidencePlayer
+                category={selectedIssueForDetails.category}
+                imageUrl={selectedIssueForDetails.image_url}
+                isVideo={Boolean(selectedIssueForDetails.is_video)}
+                videoDuration={selectedIssueForDetails.video_duration || '0:26'}
+                ticketNumber={selectedIssueForDetails.ticket_number}
+                location={selectedIssueForDetails.landmark_address || selectedIssueForDetails.locality}
               />
             </div>
 

@@ -8,6 +8,7 @@ import { detectRealtimeFrame, validateVideoEvidence } from '../services/civicDet
 import { generateDemoRoadVideo, createLiveDemoRoadStream } from '../services/demoRoadVideoService';
 import CommunityHelpView from './CommunityHelpView';
 import TermsConditionsView from './TermsConditionsView';
+import DefectEvidencePlayer from './DefectEvidencePlayer';
 
 // Popular Bengaluru landmark locations for instant geocode matching
 export const BENGALURU_PRESET_LOCATIONS = [
@@ -3818,6 +3819,21 @@ export default function CitizenPortalView({
                       <div style={{ fontSize: '0.82rem', color: 'var(--text-body, #334155)', marginTop: 4, lineHeight: 1.5 }}>
                         {trackedRecord.complaint.description}
                       </div>
+                    </div>
+
+                    {/* Defect Visual Evidence & Interactive Player */}
+                    <div style={{ marginTop: 14 }}>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted, #64748B)', fontWeight: 600, marginBottom: 8 }}>
+                        {t('track.visualEvidence', 'Defect Visual Evidence & Telemetry:')}
+                      </div>
+                      <DefectEvidencePlayer
+                        category={trackedRecord.complaint.category}
+                        imageUrl={trackedRecord.complaint.image_url}
+                        isVideo={Boolean(trackedRecord.complaint.is_video || trackedRecord.complaint.image_url?.includes('.webm') || trackedRecord.complaint.image_url?.includes('.mp4'))}
+                        videoDuration={trackedRecord.complaint.video_duration || '0:26'}
+                        ticketNumber={trackedRecord.complaint.ticket_number}
+                        location={trackedRecord.complaint.landmark_address}
+                      />
                     </div>
 
                     {/* Dispatch Notes */}

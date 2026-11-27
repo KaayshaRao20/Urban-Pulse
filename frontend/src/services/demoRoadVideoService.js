@@ -15,7 +15,7 @@
  *    - Daylight road curb with distinct solid waste & refuse accumulation
  */
 
-import { normalizeCategory } from './civicDetectionService';
+export { normalizeCategory } from './civicDetectionService';
 
 /**
  * Draw authentic bright daylight asphalt road texture and lane markings
