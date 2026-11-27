@@ -776,13 +776,13 @@ export default function LoginPage({
                     type="button"
                     className="auth-demo-hint-btn"
                     onClick={() => {
-                      setIdentifier('citizen@urbanpulse.org');
+                      setIdentifier('kaaysha.rao@gmail.com');
                       setPassword('citizen123');
                     }}
                     title="Click to autofill verified citizen credentials"
                   >
                     <span>👤 Quick Access: Citizen Portal</span>
-                    <span className="auth-demo-hint-pill">citizen@urbanpulse.org / citizen123</span>
+                    <span className="auth-demo-hint-pill">kaaysha.rao@gmail.com / citizen123</span>
                   </button>
                 ) : (
                   <button

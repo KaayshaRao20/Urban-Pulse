@@ -61,6 +61,20 @@ export const DEMO_OFFICERS = [
     phone: '+91 80 2266 0000'
   },
   {
+    id: 'cit-kaaysha-01',
+    username: 'kaaysha',
+    badgeId: 'CIT-KAAYSHA-01',
+    name: 'Kaaysha Rao',
+    email: 'kaaysha.rao@gmail.com',
+    department: 'Public / Citizen Resident',
+    role: 'citizen',
+    clearance: 'Verified Citizen Resident',
+    assignedZone: 'Bommanahalli Zone (Electronic City / Anekal / Begur)',
+    phone: '+91 98450 12345',
+    address: 'Ritika Mahavir Apartments, Hongasandra, Electronic City Post, Bengaluru - 560100',
+    aliases: ['kaaysha', 'kaaysha.rao', 'kaaysharao', '01kaaysha', 'kaisha']
+  },
+  {
     id: 'cit-demo-01',
     username: 'citizen',
     badgeId: 'CIT-DEMO',
@@ -76,13 +90,14 @@ export const DEMO_OFFICERS = [
     id: 'cit-demo-02',
     username: 'citizen.org',
     badgeId: 'CIT-ORG-02',
-    name: 'Ramesh Kumar (Citizen)',
-    email: 'citizen@urbanpulse.org',
+    name: 'Kaaysha Rao',
+    email: 'kaaysha.rao@gmail.com',
     department: 'Public / Citizen Ward 150',
     role: 'citizen',
     clearance: 'Verified Citizen Resident',
-    assignedZone: 'Bengaluru East',
-    phone: '+91 98450 12345'
+    assignedZone: 'Bommanahalli Zone (Electronic City / Anekal / Begur)',
+    phone: '+91 98450 12345',
+    address: 'Ritika Mahavir Apartments, Hongasandra, Electronic City Post, Bengaluru - 560100'
   }
 ];
 
@@ -115,7 +130,27 @@ export function AuthProvider({ children }) {
     try {
       const savedSession = localStorage.getItem(SESSION_STORAGE_KEY);
       if (savedSession) {
-        const parsed = JSON.parse(savedSession);
+        let parsed = JSON.parse(savedSession);
+        // Automatically migrate legacy demo data to Kaaysha Rao
+        if (parsed && (parsed.email === 'citizen@urbanpulse.org' || parsed.name?.includes('Ramesh Kumar'))) {
+          parsed = {
+            ...parsed,
+            name: 'Kaaysha Rao',
+            full_name: 'Kaaysha Rao',
+            email: 'kaaysha.rao@gmail.com',
+            phone: '+91 98450 12345',
+            address: 'Ritika Mahavir Apartments, Hongasandra, Electronic City Post, Bengaluru - 560100'
+          };
+          localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(parsed));
+          localStorage.setItem('citizen_name', 'Kaaysha Rao');
+          localStorage.setItem('citizen_email', 'kaaysha.rao@gmail.com');
+          localStorage.setItem('citizen_phone', '+91 98450 12345');
+          localStorage.setItem('citizen_address', 'Ritika Mahavir Apartments, Hongasandra, Electronic City Post, Bengaluru - 560100');
+          localStorage.setItem('up_terms_citizen_name', 'Kaaysha Rao');
+          localStorage.setItem('up_terms_citizen_email', 'kaaysha.rao@gmail.com');
+          localStorage.setItem('up_terms_citizen_phone', '+91 98450 12345');
+          localStorage.setItem('up_terms_citizen_address', 'Ritika Mahavir Apartments, Hongasandra, Electronic City Post, Bengaluru - 560100');
+        }
         if (parsed && (parsed.email || parsed.id)) {
           setUser(parsed);
           setIsAuthenticated(true);

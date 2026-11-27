@@ -831,8 +831,8 @@ def download_consent_certificate_pdf(
         identifier = user_id or email or ""
         user = find_user_by_identifier(db, identifier) if identifier else None
 
-        citizen_name = name or (user.full_name if user and user.full_name else None) or "Ramesh Kumar"
-        citizen_email = (user.email if user and user.email else None) or email or "ramesh.kumar@resident.blr.in"
+        citizen_name = name or (user.full_name if user and user.full_name else None) or "Kaaysha Rao"
+        citizen_email = (user.email if user and user.email else None) or email or "kaaysha.rao@gmail.com"
         terms_version = (user.terms_version if user and user.terms_version else None) or active_terms["version"]
 
         if user and user.terms_accepted_at:

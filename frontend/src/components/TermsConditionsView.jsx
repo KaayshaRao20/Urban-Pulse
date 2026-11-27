@@ -62,46 +62,30 @@ export default function TermsConditionsView({
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [pdfDownloaded, setPdfDownloaded] = useState(false);
 
-  // Identifier & Citizen Name from citizenProfile, user prop, or registered Settings in localStorage
-  const userIdentifier =
-    citizenProfile?.email ||
-    user?.id ||
-    user?.email ||
-    user?.username ||
-    localStorage.getItem('up_user_id') ||
-    localStorage.getItem('citizen_email') ||
-    'citizen_guest';
+  // Read exact Settings info with top priority, completely filtering out legacy defaults
+  const getCitizenField = (field, fallback) => {
+    if (typeof window === 'undefined') return fallback;
+    const settingsVal = localStorage.getItem(`citizen_${field}`) || localStorage.getItem(`up_terms_citizen_${field}`);
+    if (settingsVal && !settingsVal.includes('Ramesh Kumar') && settingsVal !== 'citizen@urbanpulse.org') {
+      return settingsVal;
+    }
+    const profileVal = citizenProfile?.[field];
+    if (profileVal && !profileVal.includes('Ramesh Kumar') && profileVal !== 'citizen@urbanpulse.org') {
+      return profileVal;
+    }
+    const userVal = user?.[field] || (field === 'name' ? user?.full_name : null);
+    if (userVal && !userVal.includes('Ramesh Kumar') && userVal !== 'citizen@urbanpulse.org') {
+      return userVal;
+    }
+    return fallback;
+  };
 
-  const citizenName =
-    citizenProfile?.name ||
-    user?.name ||
-    user?.full_name ||
-    localStorage.getItem('up_terms_citizen_name') ||
-    localStorage.getItem('citizen_name') ||
-    'Kaaysha Rao';
+  const citizenName = getCitizenField('name', 'Kaaysha Rao');
+  const citizenEmail = getCitizenField('email', 'kaaysha.rao@gmail.com');
+  const citizenPhone = getCitizenField('phone', '+91 98450 12345');
+  const citizenAddress = getCitizenField('address', 'Ritika Mahavir Apartments, Hongasandra, Electronic City Post, Bengaluru - 560100');
 
-  const citizenEmail =
-    citizenProfile?.email ||
-    user?.email ||
-    localStorage.getItem('up_terms_citizen_email') ||
-    localStorage.getItem('citizen_email') ||
-    (userIdentifier.includes('@') ? userIdentifier : null) ||
-    'kaaysha.rao@gmail.com';
-
-  const citizenPhone =
-    citizenProfile?.phone ||
-    user?.phone ||
-    localStorage.getItem('up_terms_citizen_phone') ||
-    localStorage.getItem('citizen_phone') ||
-    '+91 98450 12345';
-
-  const citizenAddress =
-    citizenProfile?.address ||
-    user?.address ||
-    localStorage.getItem('up_terms_citizen_address') ||
-    localStorage.getItem('citizen_address') ||
-    'Ritika Mahavir Apartments, Hongasandra, Electronic City Post, Bengaluru - 560100';
-
+  const userIdentifier = citizenEmail || user?.id || user?.username || 'kaaysha.rao@gmail.com';
   const certRef = 'UP-BLR-CONSENT-' + (citizenEmail ? Math.abs(citizenEmail.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)).toString(16).toUpperCase().padStart(8, '0').slice(0, 8) : '27EA5D29');
 
   // Fetch current consent status and latest active version
@@ -822,6 +806,33 @@ export default function TermsConditionsView({
                   </p>
                 </div>
               </div>
+
+              {/* Close Button if modal or onClose available */}
+              {(isModal || onClose) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onClose) onClose();
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    padding: '8px 18px',
+                    borderRadius: 8,
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: '0 2px 8px rgba(5, 150, 105, 0.3)'
+                  }}
+                >
+                  <span>Close & Enter Portal</span>
+                  <span>✕</span>
+                </button>
+              )}
             </div>
 
             {/* Official Citizen Credentials & Seal Panel */}
@@ -1138,6 +1149,41 @@ export default function TermsConditionsView({
                 </span>
               </div>
             </div>
+
+            {/* Bottom Modal Close Bar if modal */}
+            {(isModal || onClose) && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                paddingTop: 10,
+                borderTop: '1px solid #E2E8F0',
+                marginTop: 6
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onClose) onClose();
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    padding: '11px 26px',
+                    borderRadius: 8,
+                    fontSize: '0.88rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 14px rgba(5, 150, 105, 0.3)'
+                  }}
+                >
+                  <span>✓ Terms Accepted • Enter Citizen Portal</span>
+                  <span>→</span>
+                </button>
+              </div>
+            )}
           </>
         ) : (
           /* ========================================================= */

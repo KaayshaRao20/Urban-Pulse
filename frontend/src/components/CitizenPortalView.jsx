@@ -206,16 +206,22 @@ export default function CitizenPortalView({
 
   // Auth Context & User Profile
   const { updateProfile, changePassword } = useAuth();
+  
+  const resolveCleanCitizen = (val, fallback) => {
+    if (val && !val.includes('Ramesh Kumar') && val !== 'citizen@urbanpulse.org') return val;
+    return fallback;
+  };
+
   const [citizenName, setCitizenName] = useState(() => (
-    user?.name || user?.full_name || localStorage.getItem('citizen_name') || localStorage.getItem('up_terms_citizen_name') || 'Kaaysha Rao'
+    resolveCleanCitizen(localStorage.getItem('citizen_name') || localStorage.getItem('up_terms_citizen_name') || user?.name || user?.full_name, 'Kaaysha Rao')
   ));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [citizenPhone, setCitizenPhone] = useState(() => (
-    user?.phone || localStorage.getItem('citizen_phone') || localStorage.getItem('up_terms_citizen_phone') || '+91 98450 12345'
+    resolveCleanCitizen(localStorage.getItem('citizen_phone') || localStorage.getItem('up_terms_citizen_phone') || user?.phone, '+91 98450 12345')
   ));
   const [citizenEmail, setCitizenEmail] = useState(() => (
-    user?.email || localStorage.getItem('citizen_email') || localStorage.getItem('up_terms_citizen_email') || 'kaaysha.rao@gmail.com'
+    resolveCleanCitizen(localStorage.getItem('citizen_email') || localStorage.getItem('up_terms_citizen_email') || user?.email, 'kaaysha.rao@gmail.com')
   ));
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -255,12 +261,15 @@ export default function CitizenPortalView({
   }, [user, citizenEmail]);
 
   useEffect(() => {
-    if (user) {
-      setCitizenName(user.name || user.full_name || localStorage.getItem('citizen_name') || localStorage.getItem('up_terms_citizen_name') || 'Kaaysha Rao');
-      setCitizenEmail(user.email || localStorage.getItem('citizen_email') || localStorage.getItem('up_terms_citizen_email') || 'kaaysha.rao@gmail.com');
-      setCitizenPhone(user.phone || localStorage.getItem('citizen_phone') || localStorage.getItem('up_terms_citizen_phone') || '+91 98450 12345');
-      setLandmarkAddress(user.address || localStorage.getItem('citizen_address') || localStorage.getItem('up_terms_citizen_address') || 'Ritika Mahavir Apartments, Hongasandra, Electronic City Post, Bengaluru - 560100');
-    }
+    const cleanSettingsName = localStorage.getItem('citizen_name') || localStorage.getItem('up_terms_citizen_name');
+    const cleanSettingsEmail = localStorage.getItem('citizen_email') || localStorage.getItem('up_terms_citizen_email');
+    const cleanSettingsPhone = localStorage.getItem('citizen_phone') || localStorage.getItem('up_terms_citizen_phone');
+    const cleanSettingsAddress = localStorage.getItem('citizen_address') || localStorage.getItem('up_terms_citizen_address');
+
+    setCitizenName(resolveCleanCitizen(cleanSettingsName || user?.name || user?.full_name, 'Kaaysha Rao'));
+    setCitizenEmail(resolveCleanCitizen(cleanSettingsEmail || user?.email, 'kaaysha.rao@gmail.com'));
+    setCitizenPhone(resolveCleanCitizen(cleanSettingsPhone || user?.phone, '+91 98450 12345'));
+    setLandmarkAddress(resolveCleanCitizen(cleanSettingsAddress || user?.address, 'Ritika Mahavir Apartments, Hongasandra, Electronic City Post, Bengaluru - 560100'));
   }, [user]);
 
   // Check functional terms consent & account enforcement status
@@ -4967,18 +4976,25 @@ export default function CitizenPortalView({
 
         {/* MANDATORY TERMS & CONDITIONS MODAL GATE */}
         {showConsentModal && (
-          <div style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.82)',
-            backdropFilter: 'blur(8px)',
-            zIndex: 99998,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-            overflowY: 'auto'
-          }}>
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowConsentModal(false);
+              }
+            }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.82)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 99998,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+              overflowY: 'auto'
+            }}
+          >
             <div style={{
               width: '100%',
               maxWidth: 900,
@@ -4988,8 +5004,40 @@ export default function CitizenPortalView({
               borderRadius: 16,
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
               padding: 24,
-              border: '1px solid #E2E8F0'
+              border: '1px solid #E2E8F0',
+              position: 'relative'
             }}>
+              {/* Sticky Top-Right Close Button */}
+              <button
+                type="button"
+                onClick={() => setShowConsentModal(false)}
+                title="Close Modal"
+                style={{
+                  position: 'sticky',
+                  top: 0,
+                  float: 'right',
+                  marginRight: -6,
+                  marginTop: -6,
+                  zIndex: 99999,
+                  background: '#FFFFFF',
+                  color: '#475569',
+                  border: '1.5px solid #CBD5E1',
+                  borderRadius: '50%',
+                  width: 36,
+                  height: 36,
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                ✕
+              </button>
+
               <TermsConditionsView
                 user={user}
                 citizenProfile={{
@@ -4999,6 +5047,7 @@ export default function CitizenPortalView({
                   address: landmarkAddress || user?.address
                 }}
                 isModal={true}
+                onClose={() => setShowConsentModal(false)}
                 onAccepted={(data) => {
                   setShowConsentModal(false);
                   setIsAccountSuspended(false);
