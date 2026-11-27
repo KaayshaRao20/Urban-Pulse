@@ -206,11 +206,17 @@ export default function CitizenPortalView({
 
   // Auth Context & User Profile
   const { updateProfile, changePassword } = useAuth();
-  const [citizenName, setCitizenName] = useState(user?.name || user?.full_name || 'Citizen Resident');
+  const [citizenName, setCitizenName] = useState(() => (
+    user?.name || user?.full_name || localStorage.getItem('citizen_name') || localStorage.getItem('up_terms_citizen_name') || 'Kaaysha Rao'
+  ));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [citizenPhone, setCitizenPhone] = useState(user?.phone || '');
-  const [citizenEmail, setCitizenEmail] = useState(user?.email || '');
+  const [citizenPhone, setCitizenPhone] = useState(() => (
+    user?.phone || localStorage.getItem('citizen_phone') || localStorage.getItem('up_terms_citizen_phone') || '+91 98450 12345'
+  ));
+  const [citizenEmail, setCitizenEmail] = useState(() => (
+    user?.email || localStorage.getItem('citizen_email') || localStorage.getItem('up_terms_citizen_email') || 'kaaysha.rao@gmail.com'
+  ));
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
@@ -250,32 +256,34 @@ export default function CitizenPortalView({
 
   useEffect(() => {
     if (user) {
-      setCitizenName(user.name || user.full_name || 'Citizen Resident');
-      setCitizenEmail(user.email || '');
-      setCitizenPhone(user.phone || '');
-      setLandmarkAddress(user.address || '');
-    } else {
-      setCitizenName('Citizen Resident');
-      setCitizenEmail('');
-      setCitizenPhone('');
-      setLandmarkAddress('');
+      setCitizenName(user.name || user.full_name || localStorage.getItem('citizen_name') || localStorage.getItem('up_terms_citizen_name') || 'Kaaysha Rao');
+      setCitizenEmail(user.email || localStorage.getItem('citizen_email') || localStorage.getItem('up_terms_citizen_email') || 'kaaysha.rao@gmail.com');
+      setCitizenPhone(user.phone || localStorage.getItem('citizen_phone') || localStorage.getItem('up_terms_citizen_phone') || '+91 98450 12345');
+      setLandmarkAddress(user.address || localStorage.getItem('citizen_address') || localStorage.getItem('up_terms_citizen_address') || 'Ritika Mahavir Apartments, Hongasandra, Electronic City Post, Bengaluru - 560100');
     }
   }, [user]);
 
   // Check functional terms consent & account enforcement status
   useEffect(() => {
     const checkTermsConsent = async () => {
+      const isAlreadyAcceptedLocally = typeof window !== 'undefined' && (
+        localStorage.getItem('up_terms_accepted_constant') === 'true' ||
+        Boolean(localStorage.getItem('up_terms_accepted_at')) ||
+        Boolean(localStorage.getItem('up_terms_accepted_version'))
+      );
+      if (isAlreadyAcceptedLocally) {
+        setShowConsentModal(false);
+        return;
+      }
       const uIdentifier = user?.id || user?.email || user?.username || localStorage.getItem('up_user_id') || localStorage.getItem('citizen_email');
       if (!uIdentifier) {
-        // First-time or guest citizen without authenticated record
-        setShowConsentModal(true);
         return;
       }
       try {
-        const res = await fetch(`${API_BASE}/consent/status?user_id=${encodeURIComponent(uIdentifier)}&email=${encodeURIComponent(user?.email || '')}`);
+        const res = await fetch(`${API_BASE}/consent/status?user_id=${encodeURIComponent(uIdentifier)}&email=${encodeURIComponent(user?.email || citizenEmail || '')}`);
         if (res.ok) {
           const data = await res.json();
-          if (data.requires_consent) {
+          if (data.requires_consent && !isAlreadyAcceptedLocally) {
             setShowConsentModal(true);
           }
           if (data.enforcement_status && ['suspended', 'temporary_suspension', 'permanent_suspension', 'terminated'].includes(data.enforcement_status)) {
@@ -288,7 +296,7 @@ export default function CitizenPortalView({
       }
     };
     checkTermsConsent();
-  }, [user]);
+  }, [user, citizenEmail]);
 
   useEffect(() => {
     if (activeNav === 'track' || activeNav === 'settings') {
@@ -316,6 +324,17 @@ export default function CitizenPortalView({
           address: landmarkAddress.trim()
         });
       }
+      // Also save to localStorage for instant cross-tab / cross-component sync!
+      localStorage.setItem('citizen_name', citizenName.trim());
+      localStorage.setItem('citizen_phone', citizenPhone.trim());
+      localStorage.setItem('citizen_email', citizenEmail.trim());
+      localStorage.setItem('citizen_address', landmarkAddress.trim());
+      localStorage.setItem('citizen_zone', wardZone);
+      localStorage.setItem('up_terms_citizen_name', citizenName.trim());
+      localStorage.setItem('up_terms_citizen_phone', citizenPhone.trim());
+      localStorage.setItem('up_terms_citizen_email', citizenEmail.trim());
+      localStorage.setItem('up_terms_citizen_address', landmarkAddress.trim());
+
       setProfileSuccessMsg('Profile details successfully updated and saved to your account.');
       showToast('Profile updated successfully');
     } catch (err) {
@@ -4395,6 +4414,12 @@ export default function CitizenPortalView({
           <div style={{ width: '100%' }}>
             <TermsConditionsView
               user={user}
+              citizenProfile={{
+                name: citizenName,
+                email: citizenEmail,
+                phone: citizenPhone,
+                address: landmarkAddress || user?.address
+              }}
               onAccepted={(data) => {
                 setShowConsentModal(false);
                 setIsAccountSuspended(false);
@@ -4967,6 +4992,12 @@ export default function CitizenPortalView({
             }}>
               <TermsConditionsView
                 user={user}
+                citizenProfile={{
+                  name: citizenName,
+                  email: citizenEmail,
+                  phone: citizenPhone,
+                  address: landmarkAddress || user?.address
+                }}
                 isModal={true}
                 onAccepted={(data) => {
                   setShowConsentModal(false);

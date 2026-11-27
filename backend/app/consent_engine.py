@@ -290,7 +290,20 @@ def get_consent_status(
         identifier = user_id or email or ""
         user = find_user_by_identifier(db, identifier) if identifier else None
 
-        if not user:
+        # Check if there is an accepted consent record in TermsConsentRecordModel
+        consent_rec = None
+        if identifier:
+            from sqlalchemy import or_
+            consent_rec = db.query(TermsConsentRecordModel).filter(
+                or_(
+                    TermsConsentRecordModel.user_id == identifier,
+                    TermsConsentRecordModel.user_email == identifier,
+                    TermsConsentRecordModel.user_email == email
+                ),
+                TermsConsentRecordModel.consent_status == "accepted"
+            ).order_by(TermsConsentRecordModel.accepted_at.desc()).first()
+
+        if not user and not consent_rec:
             # Anonymous / prospective user
             return {
                 "authenticated": False,
@@ -306,6 +319,27 @@ def get_consent_status(
                 "enforcement_status": "active",
                 "enforcement_reason": None,
                 "requires_consent": True
+            }
+
+        if not user and consent_rec:
+            return {
+                "authenticated": False,
+                "user_id": consent_rec.user_id,
+                "email": consent_rec.user_email,
+                "full_name": None,
+                "current_version": active_terms["version"],
+                "active_version": active_terms["version"],
+                "privacy_version": active_terms["privacy_version"],
+                "last_updated": active_terms["last_updated"],
+                "has_accepted": True,
+                "accepted": True,
+                "accepted_version": consent_rec.terms_version,
+                "accepted_at": consent_rec.accepted_at.strftime("%Y-%m-%d %H:%M:%S") if consent_rec.accepted_at else None,
+                "consent_status": "accepted",
+                "enforcement_status": "active",
+                "enforcement_reason": None,
+                "enforcement_appealed": False,
+                "requires_consent": False
             }
 
         # Check version match
