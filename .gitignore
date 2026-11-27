@@ -48,7 +48,11 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 backend/urbanpulse_dev.db
-backend/uploads/
+backend/uploads/*
+!backend/uploads/grievances/
+!backend/uploads/grievances/sample_*.jpg
+!backend/uploads/grievances/*.mp4
+!backend/uploads/grievances/*.png
 frontend/start_vite.js
 scratch/
 dataset/urbanpulse_unified_yolo/images/

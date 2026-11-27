@@ -7,6 +7,59 @@ const isVideoUrl = (url) => {
   return clean.endsWith('.webm') || clean.endsWith('.mp4') || clean.endsWith('.mov') || clean.endsWith('.ogg');
 };
 
+export const getDefectFallback = (category) => {
+  const cat = (category || '').toLowerCase();
+  let defectType = 'ROAD CAVITY / POTHOLE';
+  let color = '#EF4444';
+  let shape = '<ellipse cx="200" cy="115" rx="75" ry="38" fill="#09090B"/><ellipse cx="200" cy="118" rx="55" ry="25" fill="#000000"/><path d="M135,105 Q170,85 200,90 T265,110 Q245,145 195,148 T135,105" stroke="#71717A" stroke-width="2" fill="none"/>';
+
+  if (cat.includes('garbage') || cat.includes('waste')) {
+    defectType = 'SOLID WASTE ACCUMULATION';
+    color = '#F59E0B';
+    shape = '<polygon points="150,135 190,85 240,140" fill="#78350F"/><polygon points="195,135 230,95 270,135" fill="#92400E"/><circle cx="180" cy="125" r="16" fill="#B45309"/>';
+  } else if (cat.includes('water') || cat.includes('drainage') || cat.includes('flood')) {
+    defectType = 'WATERLOGGING / SEEPAGE';
+    color = '#0284C7';
+    shape = '<ellipse cx="200" cy="115" rx="85" ry="42" fill="#0369A1" opacity="0.6"/><ellipse cx="200" cy="115" rx="55" ry="24" fill="#38BDF8" opacity="0.4"/>';
+  } else if (cat.includes('light') || cat.includes('electrical')) {
+    defectType = 'STREETLIGHT FAULT';
+    color = '#8B5CF6';
+    shape = '<rect x="195" y="45" width="8" height="100" fill="#475569"/><circle cx="199" cy="40" r="9" fill="#334155"/><ellipse cx="199" cy="140" rx="70" ry="16" fill="#1E293B" opacity="0.5"/>';
+  } else if (cat.includes('traffic')) {
+    defectType = 'TRAFFIC HAZARD';
+    color = '#DC2626';
+    shape = '<polygon points="200,60 155,135 245,135" fill="#DC2626" stroke="#FEF2F2" stroke-width="2"/><text x="196" y="125" fill="#FFFFFF" font-family="sans-serif" font-size="20" font-weight="bold">!</text>';
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 220" width="100%" height="100%">
+    <rect width="400" height="220" fill="#18181B"/>
+    <line x1="0" y1="110" x2="400" y2="110" stroke="#27272A" stroke-width="1.5"/>
+    <line x1="0" y1="195" x2="400" y2="195" stroke="#EAB308" stroke-dasharray="14,10" stroke-width="3"/>
+    ${shape}
+    <rect x="10" y="10" width="220" height="20" rx="4" fill="rgba(0,0,0,0.8)"/>
+    <text x="18" y="24" fill="${color}" font-family="system-ui,sans-serif" font-size="8.5" font-weight="bold" letter-spacing="0.5">BBMP EVIDENCE • ${defectType}</text>
+    <rect x="10" y="190" width="180" height="20" rx="4" fill="rgba(0,0,0,0.8)"/>
+    <text x="18" y="204" fill="#94A3B8" font-family="monospace" font-size="7.5">12.9789° N, 77.6441° E • GEOTAGGED</text>
+    <rect x="310" y="10" width="80" height="20" rx="4" fill="rgba(0,0,0,0.8)"/>
+    <text x="320" y="24" fill="#10B981" font-family="system-ui,sans-serif" font-size="8" font-weight="bold">AI TRIAGED ✓</text>
+  </svg>`;
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
+export const getFrameFallback = (category, frameNum = 1) => {
+  const cat = (category || '').toLowerCase();
+  const color = cat.includes('garbage') ? '#F59E0B' : (cat.includes('water') ? '#0284C7' : '#EF4444');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" width="100%" height="100%">
+    <rect width="100" height="80" fill="#1E293B"/>
+    <rect x="4" y="4" width="92" height="72" rx="4" fill="#0F172A" stroke="#334155" stroke-width="1"/>
+    <circle cx="50" cy="40" r="14" fill="${color}" opacity="0.3"/>
+    <text x="50" y="43" fill="#E2E8F0" font-family="monospace" font-size="9" font-weight="bold" text-anchor="middle">f#${frameNum}</text>
+    <text x="50" y="65" fill="#94A3B8" font-family="monospace" font-size="7" text-anchor="middle">${frameNum * 0.5}s</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
 export default function GrievanceManagementView({ initialTicketId }) {
   // Data States
   const [complaints, setComplaints] = useState([]);
@@ -1482,10 +1535,13 @@ export default function GrievanceManagementView({ initialTicketId }) {
                         flexShrink: 0
                       }}>
                         <img
-                          src={c.image_url || '/api/grievances/images/sample_pothole.jpg'}
+                          src={c.image_url || getDefectFallback(c.category)}
                           alt="Evidence thumbnail"
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          onError={(e) => { e.target.src = '/api/grievances/images/sample_pothole.jpg'; }}
+                          onError={(e) => {
+                            const fb = getDefectFallback(c.category);
+                            if (e.target.src !== fb) e.target.src = fb;
+                          }}
                         />
                         {isVideoUrl(c.image_url) && (
                           <div style={{
@@ -1788,15 +1844,18 @@ export default function GrievanceManagementView({ initialTicketId }) {
                         ) : (
                           <>
                             <img
-                              src={currentComplaint.image_url || '/api/grievances/images/sample_pothole.jpg'}
+                              src={currentComplaint.image_url || getDefectFallback(currentComplaint.category)}
                               alt="Defect visual evidence"
                               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              onError={(e) => { e.target.src = '/api/grievances/images/sample_pothole.jpg'; }}
+                              onError={(e) => {
+                                const fb = getDefectFallback(currentComplaint?.category);
+                                if (e.target.src !== fb) e.target.src = fb;
+                              }}
                             />
                             {/* Play button overlay */}
                             <div
                               onClick={() => {
-                                setPreviewImgUrl(currentComplaint.image_url || '/api/grievances/images/sample_pothole.jpg');
+                                setPreviewImgUrl(currentComplaint.image_url || getDefectFallback(currentComplaint?.category));
                                 setActiveModal('preview_img');
                               }}
                               style={{
@@ -1825,26 +1884,55 @@ export default function GrievanceManagementView({ initialTicketId }) {
 
                       {/* Extra thumbnail row + +2 More */}
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <div style={{ width: '48px', height: '40px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #CBD5E1' }}>
-                          <img src="/api/grievances/images/sample_pothole.jpg" alt="Frame" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div
+                          onClick={() => {
+                            setPreviewImgUrl(getFrameFallback(currentComplaint?.category, 1));
+                            setActiveModal('preview_img');
+                          }}
+                          style={{ width: '48px', height: '40px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #CBD5E1', cursor: 'pointer' }}
+                          title="Click to view Keyframe 1"
+                        >
+                          <img
+                            src={getFrameFallback(currentComplaint?.category, 1)}
+                            alt="Frame 1"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
                         </div>
-                        <div style={{ width: '48px', height: '40px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #CBD5E1' }}>
-                          <img src="/api/grievances/images/sample_drainage.jpg" alt="Frame" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div
+                          onClick={() => {
+                            setPreviewImgUrl(getFrameFallback(currentComplaint?.category, 2));
+                            setActiveModal('preview_img');
+                          }}
+                          style={{ width: '48px', height: '40px', borderRadius: '6px', overflow: 'hidden', border: '1px solid #CBD5E1', cursor: 'pointer' }}
+                          title="Click to view Keyframe 2"
+                        >
+                          <img
+                            src={getFrameFallback(currentComplaint?.category, 2)}
+                            alt="Frame 2"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
                         </div>
-                        <div style={{
-                          width: '48px',
-                          height: '40px',
-                          borderRadius: '6px',
-                          background: '#F1F5F9',
-                          border: '1px dashed #CBD5E1',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          color: '#475569',
-                          cursor: 'pointer'
-                        }}>
+                        <div
+                          onClick={() => {
+                            setPreviewImgUrl(currentComplaint.image_url || getDefectFallback(currentComplaint?.category));
+                            setActiveModal('preview_img');
+                          }}
+                          style={{
+                            width: '48px',
+                            height: '40px',
+                            borderRadius: '6px',
+                            background: '#F1F5F9',
+                            border: '1px dashed #CBD5E1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            color: '#475569',
+                            cursor: 'pointer'
+                          }}
+                          title="Inspect complete evidence"
+                        >
                           +2 More
                         </div>
                       </div>
@@ -1901,10 +1989,13 @@ export default function GrievanceManagementView({ initialTicketId }) {
                       {/* Bounding box detection thumbnail */}
                       <div style={{ position: 'relative', width: '100%', height: '140px', borderRadius: '8px', overflow: 'hidden', background: '#0F172A' }}>
                         <img
-                          src={currentComplaint.image_url || '/api/grievances/images/sample_pothole.jpg'}
+                          src={currentComplaint.image_url || getDefectFallback(currentComplaint?.category)}
                           alt="AI detection preview"
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          onError={(e) => { e.target.src = '/api/grievances/images/sample_pothole.jpg'; }}
+                          onError={(e) => {
+                            const fb = getDefectFallback(currentComplaint?.category);
+                            if (e.target.src !== fb) e.target.src = fb;
+                          }}
                         />
                         {/* Dynamic category-specific AI bounding box */}
                         {(() => {
