@@ -505,12 +505,6 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
 
         const compMarker = window.L.marker([cLat, cLng], { icon: compIcon });
 
-        const photoSnippet = comp.image_url ? `
-          <div style="margin-top: 8px; border-radius: 6px; overflow: hidden; max-height: 110px; border: 1px solid #E2E8F0;">
-            <img src="${comp.image_url}" alt="Civic complaint evidence" style="width: 100%; height: 100px; object-fit: cover; display: block;" onerror="this.style.display='none'" />
-          </div>
-        ` : '';
-
         const roadGeomNotice = (isVerified && isRoadDamage) ? `
           <div style="margin-top: 4px; font-size: 0.68rem; font-weight: 700; color: #DC2626; display: flex; align-items: center; gap: 4px;">
             <span>${Array.isArray(comp.road_geometry) && comp.road_geometry.length > 1 ? '• Red outline road segment active' : '• Red damage marker (Point location)'}</span>
@@ -533,7 +527,6 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
             <div style="font-size: 0.74rem; color: #475569; line-height: 1.4; margin-bottom: 6px;">
               ${comp.description ? (comp.description.slice(0, 95) + (comp.description.length > 95 ? '...' : '')) : ''}
             </div>
-            ${photoSnippet}
             ${roadGeomNotice}
             <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #E2E8F0; font-size: 0.7rem; color: #64748B;">
               <div><strong>Dept:</strong> <span style="color: #334155;">${comp.assigned_authority || comp.assigned_department || 'BBMP Redressal Cell'}</span></div>
@@ -1083,12 +1076,6 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
                 <div style={{ fontSize: '0.78rem', color: '#475569', lineHeight: 1.45, marginBottom: '12px' }}>
                   {selectedComplaint.description}
                 </div>
-
-                {selectedComplaint.image_url && (
-                  <div style={{ marginBottom: '12px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E2E8F0' }}>
-                    <img src={selectedComplaint.image_url} alt="Evidence" style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }} />
-                  </div>
-                )}
 
                 <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.75rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
