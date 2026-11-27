@@ -148,6 +148,14 @@ def startup_db_init():
             init_community_seeds()
         except Exception as e_comm:
             print(f"[UrbanPulse] Community Help seeding note: {e_comm}")
+        try:
+            try:
+                from app.map_dataset_integration import sync_additional_ward_grievances
+            except ImportError:
+                from map_dataset_integration import sync_additional_ward_grievances
+            sync_additional_ward_grievances()
+        except Exception as e_map_seed:
+            print(f"[UrbanPulse] Additional ward grievances seeding note: {e_map_seed}")
         print("[UrbanPulse] Database, alerts, complaints, community help, and default municipal officers initialized successfully.")
     except Exception as e:
         print(f"[UrbanPulse] Database initialization note: {e}")
@@ -1356,6 +1364,27 @@ def fetch_dynamic_map_incidents(status_filter: Optional[str] = "all"):
                     {"id": f"act-{a.id}-3", "text": "Broadcast Commuter VMS Notification", "checked": a.severity == "Critical"}
                 ]
             })
+
+        # Ingest full BMRCL 83 Metro Stations and 35 Arterial Traffic Corridors from datasets
+        try:
+            try:
+                from app.map_dataset_integration import generate_metro_station_incidents, generate_traffic_corridor_incidents
+            except ImportError:
+                from map_dataset_integration import generate_metro_station_incidents, generate_traffic_corridor_incidents
+
+            metro_nodes = generate_metro_station_incidents()
+            traffic_nodes = generate_traffic_corridor_incidents()
+            if status_filter and status_filter.lower() in ["active", "active incidents"]:
+                incidents.extend([m for m in metro_nodes if m.get("is_active")])
+                incidents.extend([t for t in traffic_nodes if t.get("is_active")])
+            elif status_filter and status_filter.lower() == "resolved":
+                incidents.extend([m for m in metro_nodes if m.get("is_resolved")])
+                incidents.extend([t for t in traffic_nodes if t.get("is_resolved")])
+            else:
+                incidents.extend(metro_nodes)
+                incidents.extend(traffic_nodes)
+        except Exception as e_ds:
+            print(f"[Map Incidents] Extended dataset integration notice: {e_ds}")
     except Exception as e:
         print(f"[Map Incidents] Dynamic generation notice: {e}")
     finally:
@@ -1578,6 +1607,78 @@ def get_map_weather_stations():
             "condition": cond_val,
             "humidity": f"{humid_val}%",
             "source": "Weather API Station 43298"
+        },
+        {
+            "id": "weather-obs-05",
+            "name": "Electronic City Micro-Climate Observatory",
+            "lat": 12.8450,
+            "lng": 77.6650,
+            "temp": f"{temp_val + 0.6:g}°C",
+            "temp_c": round(temp_val + 0.6, 1),
+            "rain": f"{max(0.0, rain_val - 0.4):g} mm",
+            "condition": cond_val,
+            "humidity": f"{max(50, humid_val - 3)}%",
+            "source": "Weather API Station 43299"
+        },
+        {
+            "id": "weather-obs-06",
+            "name": "Whitefield ITPL Meteorological Post",
+            "lat": 12.9860,
+            "lng": 77.7310,
+            "temp": f"{temp_val + 0.2:g}°C",
+            "temp_c": round(temp_val + 0.2, 1),
+            "rain": f"{max(0.0, rain_val + 0.8):g} mm",
+            "condition": "Light Rain" if rain_val > 1.0 else cond_val,
+            "humidity": f"{min(98, humid_val + 5)}%",
+            "source": "Weather API Station 43300"
+        },
+        {
+            "id": "weather-obs-07",
+            "name": "Peenya Industrial Air Quality & Met Grid",
+            "lat": 13.0300,
+            "lng": 77.5180,
+            "temp": f"{temp_val + 0.5:g}°C",
+            "temp_c": round(temp_val + 0.5, 1),
+            "rain": f"{max(0.0, rain_val - 0.3):g} mm",
+            "condition": cond_val,
+            "humidity": f"{humid_val}%",
+            "source": "Weather API Station 43301"
+        },
+        {
+            "id": "weather-obs-08",
+            "name": "Jayanagar South Met Observatory",
+            "lat": 12.9308,
+            "lng": 77.5838,
+            "temp": f"{temp_val:g}°C",
+            "temp_c": temp_val,
+            "rain": f"{rain_val:g} mm",
+            "condition": cond_val,
+            "humidity": f"{humid_val}%",
+            "source": "Weather API Station 43302"
+        },
+        {
+            "id": "weather-obs-09",
+            "name": "Kengeri Satellite Town Weather Post",
+            "lat": 12.9177,
+            "lng": 77.4838,
+            "temp": f"{temp_val - 0.4:g}°C",
+            "temp_c": round(temp_val - 0.4, 1),
+            "rain": f"{max(0.0, rain_val + 0.4):g} mm",
+            "condition": cond_val,
+            "humidity": f"{min(98, humid_val + 2)}%",
+            "source": "Weather API Station 43303"
+        },
+        {
+            "id": "weather-obs-10",
+            "name": "Bannerghatta National Park Weather Post",
+            "lat": 12.8000,
+            "lng": 77.5750,
+            "temp": f"{temp_val - 1.1:g}°C",
+            "temp_c": round(temp_val - 1.1, 1),
+            "rain": f"{max(0.0, rain_val + 1.2):g} mm",
+            "condition": "Light Rain" if rain_val > 0.5 else cond_val,
+            "humidity": f"{min(98, humid_val + 8)}%",
+            "source": "Weather API Station 43304"
         }
     ]
     return {"stations": stations, "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
@@ -2340,25 +2441,23 @@ PREDICTIVE_EVENTS_DATABASE = [
     {
         "id": "evt-103",
         "date": "2026-09-03",
-        "title": "Ganesh Visarjan",
-        "type": "Festival / Holiday",
-        "badge_color": "#D1FAE5",
-        "text_color": "#059669",
-        "icon": "crowd",
-        "severity": "High",
-        "time": "14:00 – 22:00",
-        "location": "MG Road & Ulsoor Lake",
-        "confidence": "92%",
-        "description": "Large crowd processions expected with major traffic diversions along central arterial corridors.",
+        "title": "Waterlogging & Drain Overflow",
+        "type": "Drainage & Waterlogging",
+        "badge_color": "#E0F2FE",
+        "text_color": "#0284C7",
+        "icon": "weather",
+        "severity": "Moderate",
+        "time": "14:00 – 19:00",
+        "location": "Commercial Street / Shivajinagar",
+        "confidence": "80%",
+        "description": "Monsoon runoff accumulation and stormwater drain overflow causing lane restriction.",
         "why": [
-            "Annual cultural procession route impacts primary arterial flow.",
-            "Municipal crowd telemetry estimates over 15,000 footfall participants.",
-            "Police department route closure notifications active."
+            "Stormwater drain sensor registers water level at 85% capacity.",
+            "Historical topography shows high runoff accumulation at Shivajinagar depression."
         ],
         "impact": [
-            {"category": "Crowd Movement", "level": "High", "pct": 95, "color": "#EF4444"},
-            {"category": "Mobility", "level": "High", "pct": 88, "color": "#EF4444"},
-            {"category": "Public Safety", "level": "Moderate", "pct": 60, "color": "#F97316"}
+            {"category": "Drainage Flow", "level": "Moderate", "pct": 65, "color": "#F97316"},
+            {"category": "Road Condition", "level": "Moderate", "pct": 60, "color": "#F97316"}
         ]
     },
     {
@@ -2386,23 +2485,23 @@ PREDICTIVE_EVENTS_DATABASE = [
     {
         "id": "evt-107",
         "date": "2026-09-07",
-        "title": "Tech Summit",
-        "type": "Public Event",
-        "badge_color": "#F3E8FF",
-        "text_color": "#7C3AED",
-        "icon": "event",
-        "severity": "Moderate",
-        "time": "09:00 – 18:00",
-        "location": "Whitefield IT Corridor",
-        "confidence": "88%",
-        "description": "International technology conference causing increased VIP motorcade and shuttle bus density.",
+        "title": "Corridor Congestion & Signal Failure",
+        "type": "Traffic Surge",
+        "badge_color": "#FEE2E2",
+        "text_color": "#EF4444",
+        "icon": "traffic",
+        "severity": "High",
+        "time": "08:30 – 12:30",
+        "location": "Whitefield ITPL Main Road",
+        "confidence": "91%",
+        "description": "Adaptive traffic signal malfunction combined with peak IT corridor vehicular surge.",
         "why": [
-            "Conference delegate registration exceeds 8,000 attendees.",
-            "Shuttle bus frequency increased to 5-minute intervals along KTPO access routes."
+            "Traffic telemetry detects cycle sync degradation at ITPL main gate intersection.",
+            "Morning peak queue lengths forecast to exceed 1.4 km."
         ],
         "impact": [
-            {"category": "Traffic Flow", "level": "Moderate", "pct": 60, "color": "#F97316"},
-            {"category": "Crowd Movement", "level": "Moderate", "pct": 52, "color": "#F97316"}
+            {"category": "Traffic Flow", "level": "High", "pct": 85, "color": "#EF4444"},
+            {"category": "Mobility", "level": "High", "pct": 78, "color": "#EF4444"}
         ]
     },
     {
@@ -2430,22 +2529,23 @@ PREDICTIVE_EVENTS_DATABASE = [
     {
         "id": "evt-111",
         "date": "2026-09-11",
-        "title": "Large Crowd",
-        "type": "Large Crowd",
-        "badge_color": "#DBEAFE",
-        "text_color": "#2563EB",
-        "icon": "crowd",
+        "title": "Water Main Burst & Road Cut",
+        "type": "Road Work",
+        "badge_color": "#FFEDD5",
+        "text_color": "#EA580C",
+        "icon": "incident",
         "severity": "Moderate",
-        "time": "18:00 – 23:00",
-        "location": "Indiranagar 100ft Road",
-        "confidence": "81%",
-        "description": "Friday evening commercial activity and dining footfall leading to dense pedestrian movement.",
+        "time": "10:00 – 16:30",
+        "location": "Brigade Road / MG Road Junction",
+        "confidence": "88%",
+        "description": "Emergency BWSSB pipeline repair requiring partial carriageway restriction.",
         "why": [
-            "Weekend eve footfall index reaches 3x normal weekday baseline.",
-            "Valet parking vehicles causing curb lane occupancy."
+            "Water pressure sensors report rupture along distribution line under westbound lane.",
+            "Excavation and barricading notice issued for utility maintenance."
         ],
         "impact": [
-            {"category": "Crowd Movement", "level": "Moderate", "pct": 68, "color": "#F97316"}
+            {"category": "Road Condition", "level": "Moderate", "pct": 65, "color": "#F97316"},
+            {"category": "Mobility", "level": "Moderate", "pct": 58, "color": "#F97316"}
         ]
     },
     {
@@ -2499,34 +2599,45 @@ PREDICTIVE_EVENTS_DATABASE = [
     {
         "id": "evt-119",
         "date": "2026-09-19",
-        "title": "Weekend Rush",
-        "type": "Festival / Holiday",
-        "badge_color": "#D1FAE5",
-        "text_color": "#059669",
-        "icon": "crowd",
+        "title": "Stormwater Drain De-silting Work",
+        "type": "Road Work",
+        "badge_color": "#FFEDD5",
+        "text_color": "#EA580C",
+        "icon": "incident",
         "severity": "Moderate",
-        "time": "11:00 – 21:00",
-        "location": "Commercial Street & MG Road",
-        "confidence": "83%",
-        "description": "High shopping footfall and dense pedestrian crosswalk activity.",
-        "why": ["Weekend retail shoppers surge in central business district."],
-        "impact": [{"category": "Crowd Movement", "level": "Moderate", "pct": 65, "color": "#F97316"}]
+        "time": "11:00 – 18:00",
+        "location": "Indiranagar 100ft Road",
+        "confidence": "84%",
+        "description": "Municipal stormwater drain excavation and maintenance along curb lane.",
+        "why": [
+            "Scheduled pre-monsoon clearing of stormwater conduits.",
+            "Heavy machinery occupying outer lane between 12th Main and Double Road."
+        ],
+        "impact": [
+            {"category": "Road Condition", "level": "Moderate", "pct": 60, "color": "#F97316"}
+        ]
     },
     {
         "id": "evt-121",
         "date": "2026-09-21",
-        "title": "Cricket Match",
-        "type": "Public Event",
-        "badge_color": "#DBEAFE",
-        "text_color": "#2563EB",
-        "icon": "event",
+        "title": "Arterial Bottleneck & Gridlock Risk",
+        "type": "Traffic Surge",
+        "badge_color": "#FEE2E2",
+        "text_color": "#EF4444",
+        "icon": "traffic",
         "severity": "High",
-        "time": "16:00 – 23:30",
-        "location": "Chinnaswamy Stadium",
-        "confidence": "94%",
-        "description": "T20 Cricket match attracting 35,000 spectators to Cubbon Road area.",
-        "why": ["Ticket sales confirmed sold out for stadium venue."],
-        "impact": [{"category": "Crowd Movement", "level": "High", "pct": 92, "color": "#EF4444"}]
+        "time": "16:30 – 21:00",
+        "location": "Cubbon Road & Queen's Road Approach",
+        "confidence": "89%",
+        "description": "High volume arterial gridlock risk at key city center intersections.",
+        "why": [
+            "Telemetry projects simultaneous multi-corridor volume overflow.",
+            "Inflow rate exceeds bottleneck throughput by 38%."
+        ],
+        "impact": [
+            {"category": "Traffic Flow", "level": "High", "pct": 88, "color": "#EF4444"},
+            {"category": "Mobility", "level": "High", "pct": 80, "color": "#EF4444"}
+        ]
     },
     {
         "id": "evt-123",
@@ -2572,22 +2683,22 @@ PREDICTIVE_EVENTS_DATABASE = [
     {
         "id": "evt-24-2",
         "date": "2026-09-24",
-        "title": "Large Crowd Expected",
-        "type": "Large Crowd",
-        "badge_color": "#DBEAFE",
-        "text_color": "#2563EB",
-        "icon": "crowd",
+        "title": "Waterlogging & Storm Drain Inflow",
+        "type": "Drainage & Waterlogging",
+        "badge_color": "#E0F2FE",
+        "text_color": "#0284C7",
+        "icon": "weather",
         "severity": "Moderate",
-        "time": "16:00 – 20:00",
-        "location": "MG Road",
+        "time": "15:30 – 19:30",
+        "location": "Bellandur Eco-Space Underpass",
         "confidence": "82%",
-        "description": "High crowd density expected due to public event in the area.",
+        "description": "Monsoon runoff accumulation and stormwater drain overflow causing lane restriction.",
         "why": [
-            "Promotional outdoor launch event scheduled at MG Road plaza.",
-            "Footfall sensors project peak 650 people/km² between 17:00 and 19:00."
+            "Low-lying underpass elevation susceptible to stormwater pooling.",
+            "Upstream drain sensor indicates 78% volume saturation."
         ],
         "impact": [
-            {"category": "Crowd Movement", "level": "Moderate", "pct": 65, "color": "#F97316"},
+            {"category": "Drainage Flow", "level": "Moderate", "pct": 65, "color": "#F97316"},
             {"category": "Mobility", "level": "Moderate", "pct": 55, "color": "#F97316"}
         ]
     },
@@ -2615,18 +2726,24 @@ PREDICTIVE_EVENTS_DATABASE = [
     {
         "id": "evt-126",
         "date": "2026-09-26",
-        "title": "Music Festival",
-        "type": "Public Event",
-        "badge_color": "#F3E8FF",
-        "text_color": "#7C3AED",
-        "icon": "event",
-        "severity": "High",
-        "time": "15:00 – 23:00",
-        "location": "Palace Grounds",
+        "title": "Highway Resurfacing & Lane Closure",
+        "type": "Road Work",
+        "badge_color": "#FFEDD5",
+        "text_color": "#EA580C",
+        "icon": "incident",
+        "severity": "Moderate",
+        "time": "14:00 – 22:00",
+        "location": "Bellary Road / Palace Grounds Corridor",
         "confidence": "90%",
-        "description": "Major international concert expected to draw 25,000 attendees to Bellary Road.",
-        "why": ["Concert ticket venue pass scan count reaches max capacity."],
-        "impact": [{"category": "Crowd Movement", "level": "High", "pct": 90, "color": "#EF4444"}]
+        "description": "Highway carriageway milling and asphalt resurfacing restricting lane capacity.",
+        "why": [
+            "PWD municipal asphalt rehabilitation schedule.",
+            "Two lanes restricted with dynamic cones and diversion signage."
+        ],
+        "impact": [
+            {"category": "Road Condition", "level": "Moderate", "pct": 75, "color": "#F97316"},
+            {"category": "Traffic Flow", "level": "Moderate", "pct": 65, "color": "#F97316"}
+        ]
     },
     {
         "id": "evt-127",
@@ -2678,24 +2795,24 @@ UPCOMING_PREDICTIONS_LIST = [
     {
         "date": "2 Oct 2026",
         "date_iso": "2026-10-02",
-        "event": "Dasara Celebrations",
-        "icon": "crowd",
-        "type": "Festival",
-        "type_icon": "crowd",
+        "event": "Water Main Pipeline Replacement",
+        "icon": "incident",
+        "type": "Road Work",
+        "type_icon": "incident",
         "location": "Bengaluru (Citywide)",
-        "impact": "Large crowd movement",
-        "severity": "High",
-        "severity_color": "#EF4444"
+        "impact": "Single lane road cut and diversion",
+        "severity": "Moderate",
+        "severity_color": "#F97316"
     },
     {
         "date": "7 Oct 2026",
         "date_iso": "2026-10-07",
-        "event": "Tech Conference",
-        "icon": "event",
-        "type": "Public Event",
-        "type_icon": "event",
+        "event": "Stormwater Drain Overflow Risk",
+        "icon": "weather",
+        "type": "Drainage & Waterlogging",
+        "type_icon": "weather",
         "location": "Whitefield",
-        "impact": "Increased traffic and crowd",
+        "impact": "Localized water accumulation and slow traffic",
         "severity": "Moderate",
         "severity_color": "#F97316"
     },

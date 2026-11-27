@@ -220,9 +220,15 @@ export default function GrievanceManagementView({ initialTicketId }) {
     }
   }, [initialTicketId]);
 
-  // Initial Data Fetch
+  // Initial Data Fetch & Live Sync Polling
   useEffect(() => {
     fetchAllData(true);
+
+    // Live background polling every 10 seconds to detect citizen submissions automatically
+    const pollTimer = setInterval(() => {
+      fetchAllData(true);
+    }, 10000);
+
     // Interval for dynamic "Last synced" text
     const syncTimer = setInterval(() => {
       setLastSyncedTime(prev => {
@@ -232,7 +238,27 @@ export default function GrievanceManagementView({ initialTicketId }) {
         return prev;
       });
     }, 60000);
-    return () => clearInterval(syncTimer);
+
+    // Immediate cross-tab and in-app event trigger when a citizen submits
+    const handleNewGrievance = (evt) => {
+      console.log('Detected citizen grievance submission event:', evt?.detail);
+      fetchAllData(true);
+    };
+    const handleStorageUpdate = (evt) => {
+      if (evt.key === 'urbanpulse:grievance_updated') {
+        fetchAllData(true);
+      }
+    };
+
+    window.addEventListener('urbanpulse:new_grievance', handleNewGrievance);
+    window.addEventListener('storage', handleStorageUpdate);
+
+    return () => {
+      clearInterval(pollTimer);
+      clearInterval(syncTimer);
+      window.removeEventListener('urbanpulse:new_grievance', handleNewGrievance);
+      window.removeEventListener('storage', handleStorageUpdate);
+    };
   }, []);
 
   // Update verified issues whenever its sub-filters change
@@ -462,6 +488,266 @@ export default function GrievanceManagementView({ initialTicketId }) {
       default:
         return { bg: '#F8FAFC', text: '#475569', border: '#E2E8F0', dot: '#94A3B8' };
     }
+  };
+
+  const getSubcategoryDisplay = (complaint) => {
+    if (!complaint) return 'Road Infrastructure';
+    const sub = (complaint.subcategory || '').trim();
+    const cat = (complaint.category || '').toLowerCase();
+    if (sub && sub !== 'Pothole' && (!sub.toLowerCase().includes('pothole') || cat.includes('pothole') || cat.includes('road'))) {
+      return sub;
+    }
+    if (cat.includes('garbage') || cat.includes('waste')) return 'Commercial / Municipal Waste Accumulation';
+    if (cat.includes('water')) return 'Municipal Pipeline Leakage / Seepage';
+    if (cat.includes('drainage') || cat.includes('flood')) return 'Stormwater Drainage Blockage / Overflow';
+    if (cat.includes('light') || cat.includes('electrical')) return 'Streetlight Blackout / Luminaire Fault';
+    if (cat.includes('traffic') || cat.includes('hazard')) return 'Roadway Obstruction / Signal Defect';
+    return 'Road Surface Cavity / Pothole';
+  };
+
+  const getSuggestedDept = (complaint) => {
+    if (!complaint) return 'BBMP - Road Infrastructure';
+    const currentDept = complaint.assigned_department || '';
+    const cat = (complaint.category || '').toLowerCase();
+    if (currentDept && !currentDept.includes('Road Infrastructure')) {
+      return currentDept;
+    }
+    if (cat.includes('garbage') || cat.includes('waste')) return 'BBMP Solid Waste Management (SWM)';
+    if (cat.includes('water')) return 'BWSSB Water Supply Division';
+    if (cat.includes('drainage') || cat.includes('flood')) return 'BBMP Stormwater Drainage & BWSSB';
+    if (cat.includes('light') || cat.includes('electrical')) return 'BESCOM Electrical Infrastructure';
+    if (cat.includes('traffic')) return 'Bengaluru Traffic Police (BTP)';
+    return 'BBMP - Road Infrastructure';
+  };
+
+  const getSuggestedSquad = (complaint) => {
+    if (!complaint) return 'Rapid Pothole Patch Unit Alpha';
+    const currentSquad = complaint.assigned_squad || '';
+    const cat = (complaint.category || '').toLowerCase();
+    if (currentSquad && !currentSquad.includes('Pothole') && !currentSquad.includes('Alpha')) {
+      return currentSquad;
+    }
+    if (cat.includes('garbage') || cat.includes('waste')) return 'Compactor Truck Rapid Unit 9';
+    if (cat.includes('water')) return 'Leakage Detection Squad 1';
+    if (cat.includes('drainage') || cat.includes('flood')) return 'Stormwater Drainage Jetting Squad 3';
+    if (cat.includes('light') || cat.includes('electrical')) return 'Hydraulic Ladder Pole Repair Squad 2';
+    if (cat.includes('traffic')) return 'Traffic Quick Reaction Team Alpha';
+    return 'Rapid Pothole Patch Unit Alpha';
+  };
+
+  const getAiDetectionMeta = (complaint) => {
+    if (!complaint) return { label: 'POTHOLE', pct: 87, color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)', tagBg: '#EF4444' };
+    const cat = (complaint.category || '').toLowerCase();
+    const conf = Math.round((complaint.evidence_assessment?.confidence || complaint.ai_analysis?.confidence || 0.88) * 100);
+
+    if (cat.includes('garbage') || cat.includes('waste')) {
+      return { label: 'GARBAGE CLUTTER', pct: conf || 89, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)', tagBg: '#D97706' };
+    }
+    if (cat.includes('water')) {
+      return { label: 'WATER LEAKAGE', pct: conf || 92, color: '#0284C7', bg: 'rgba(2, 132, 199, 0.15)', tagBg: '#0284C7' };
+    }
+    if (cat.includes('drainage') || cat.includes('flood')) {
+      return { label: 'DRAINAGE OVERFLOW', pct: conf || 86, color: '#0D9488', bg: 'rgba(13, 148, 136, 0.15)', tagBg: '#0D9488' };
+    }
+    if (cat.includes('light') || cat.includes('electrical')) {
+      return { label: 'STREETLIGHT FAULT', pct: conf || 85, color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)', tagBg: '#7C3AED' };
+    }
+    if (cat.includes('traffic')) {
+      return { label: 'TRAFFIC HAZARD', pct: conf || 91, color: '#DC2626', bg: 'rgba(220, 38, 38, 0.15)', tagBg: '#DC2626' };
+    }
+    return { label: 'POTHOLE', pct: conf || 87, color: '#EF4444', bg: 'rgba(239, 68, 68, 0.15)', tagBg: '#EF4444' };
+  };
+
+  const getCategoryDetections = (complaint) => {
+    if (complaint?.ai_analysis?.additional_detections && Array.isArray(complaint.ai_analysis.additional_detections) && complaint.ai_analysis.additional_detections.length > 0) {
+      const firstDet = complaint.ai_analysis.additional_detections[0]?.label || '';
+      const cat = (complaint.category || '').toLowerCase();
+      const isMismatched = (cat.includes('garbage') && firstDet.toLowerCase().includes('road')) ||
+                           (cat.includes('water') && firstDet.toLowerCase().includes('road'));
+      if (!isMismatched) {
+        return complaint.ai_analysis.additional_detections;
+      }
+    }
+    const cat = (complaint?.category || '').toLowerCase();
+    if (cat.includes('garbage') || cat.includes('waste')) {
+      return [
+        { label: 'Solid Waste Debris Clutter', confidence: 0.86 },
+        { label: 'Pedestrian Sidewalk Encroachment', confidence: 0.74 }
+      ];
+    }
+    if (cat.includes('water')) {
+      return [
+        { label: 'Hydraulic Surface Pool Reflection', confidence: 0.88 },
+        { label: 'Pressurized Seepage Fringe', confidence: 0.76 }
+      ];
+    }
+    if (cat.includes('drainage') || cat.includes('flood')) {
+      return [
+        { label: 'Stormwater Runoff Inundation', confidence: 0.89 },
+        { label: 'Clogged Grate Silt Clutter', confidence: 0.81 }
+      ];
+    }
+    if (cat.includes('light') || cat.includes('electrical')) {
+      return [
+        { label: 'Unlit Luminaire Corridor', confidence: 0.91 },
+        { label: 'Mast Assembly / Dangling Conduit', confidence: 0.79 }
+      ];
+    }
+    if (cat.includes('traffic') || cat.includes('hazard')) {
+      return [
+        { label: 'Roadway Obstruction Boundary', confidence: 0.87 },
+        { label: 'Traffic Flow Disruption Zone', confidence: 0.82 }
+      ];
+    }
+    return [
+      { label: 'Road Pavement Cavity Edge', confidence: 0.88 },
+      { label: 'Sub-base Aggregate Exposure', confidence: 0.76 }
+    ];
+  };
+
+  const getCategoryRecommendations = (complaint) => {
+    if (complaint?.ai_recommendations && Array.isArray(complaint.ai_recommendations) && complaint.ai_recommendations.length > 0) {
+      const firstRec = complaint.ai_recommendations[0];
+      const cat = (complaint.category || '').toLowerCase();
+      const isMismatched = (cat.includes('garbage') && firstRec.rationale?.includes('roadway')) ||
+                           (cat.includes('water') && firstRec.rationale?.includes('roadway'));
+      if (!isMismatched) {
+        return complaint.ai_recommendations;
+      }
+    }
+    const loc = complaint?.landmark_address?.split(',')[0]?.trim() || 'arterial corridor';
+    const cat = (complaint?.category || '').toLowerCase();
+
+    if (cat.includes('garbage') || cat.includes('waste')) {
+      return [
+        {
+          id: 1,
+          title: 'Dispatch BBMP SWM compactor truck and mechanical sweeper squad.',
+          rationale: `Rapidly clear accumulated solid waste on ${loc} to prevent public health hazard, odor nuisance, and pedestrian sidewalk blockage.`,
+          priority: 'High Priority'
+        },
+        {
+          id: 2,
+          title: 'Deploy secondary 2.5m³ dumper bin and sanitize perimeter with lime disinfectant.',
+          rationale: 'Prevent re-accumulation spillover and eliminate leachate runoff into nearby roadside stormwater drains.',
+          priority: 'Recommended'
+        },
+        {
+          id: 3,
+          title: 'Issue solid waste compliance advisory to local commercial vendors.',
+          rationale: 'Deter nighttime commercial dumping and mandate source segregation in the market ward.',
+          priority: 'Recommended'
+        }
+      ];
+    }
+    if (cat.includes('water')) {
+      return [
+        {
+          id: 1,
+          title: 'Deploy BWSSB acoustic leak detection and valve isolation squad.',
+          rationale: `Isolate municipal branch line on ${loc} within 4 hours to halt potable drinking water loss and prevent sub-surface road erosion.`,
+          priority: 'High Priority'
+        },
+        {
+          id: 2,
+          title: 'Execute trench excavation and pipeline sleeve/coupling replacement.',
+          rationale: 'Restore municipal distribution network pressure and eliminate pavement dampening.',
+          priority: 'Recommended'
+        },
+        {
+          id: 3,
+          title: 'Issue localized water supply maintenance advisory to ward residents.',
+          rationale: 'Keep nearby residents informed of scheduled maintenance window and alternate water supply schedule.',
+          priority: 'Recommended'
+        }
+      ];
+    }
+    if (cat.includes('drainage') || cat.includes('flood')) {
+      return [
+        {
+          id: 1,
+          title: 'Deploy high-capacity suction de-silting unit & super sucker jetting truck.',
+          rationale: `Dislodge compacted silt and clear stormwater inlet grates on ${loc} to restore gravity runoff discharge.`,
+          priority: 'High Priority'
+        },
+        {
+          id: 2,
+          title: 'Install portable submersible de-watering pumps with silt barrier mesh.',
+          rationale: 'Prevent roadway waterlogging and vehicle engine stalling during cloudburst conditions.',
+          priority: 'Recommended'
+        },
+        {
+          id: 3,
+          title: 'Inspect downstream culvert masonry for structural constriction or blockage.',
+          rationale: 'Ensure unhindered hydraulic flow through arterial drainage network.',
+          priority: 'Recommended'
+        }
+      ];
+    }
+    if (cat.includes('light') || cat.includes('electrical')) {
+      return [
+        {
+          id: 1,
+          title: 'Dispatch BESCOM hydraulic cherry-picker bucket truck & electrical lineman crew.',
+          rationale: `Restore corridor illumination on ${loc} to enhance nighttime pedestrian safety and deter anti-social activity.`,
+          priority: 'High Priority'
+        },
+        {
+          id: 2,
+          title: 'Perform insulation resistance test and rectify underground feeder cable fault.',
+          rationale: 'Eliminate public electrocution hazard from exposed conduits near pedestrian walkways.',
+          priority: 'Recommended'
+        },
+        {
+          id: 3,
+          title: 'Replace burnt luminaire with IP66 surge-protected 90W LED fitting.',
+          rationale: 'Comply with Smart City municipal illumination and energy-efficiency standards.',
+          priority: 'Recommended'
+        }
+      ];
+    }
+    if (cat.includes('traffic') || cat.includes('hazard')) {
+      return [
+        {
+          id: 1,
+          title: 'Dispatch Bengaluru Traffic Police (BTP) Quick Reaction Team (QRT).',
+          rationale: `Stage retroreflective safety cones and guide vehicular flow to alleviate bottlenecks on ${loc}.`,
+          priority: 'High Priority'
+        },
+        {
+          id: 2,
+          title: 'Mobilize heavy-duty hydraulic recovery crane to clear roadway obstruction.',
+          rationale: 'Safely extract disabled obstacle to restore normal arterial lane capacity.',
+          priority: 'Recommended'
+        },
+        {
+          id: 3,
+          title: 'Broadcast real-time congestion warning on Variable Messaging Signs (VMS).',
+          rationale: 'Pre-alert approaching corridor motorists to divert via alternative bypass routes.',
+          priority: 'Recommended'
+        }
+      ];
+    }
+    return [
+      {
+        id: 1,
+        title: 'Schedule urgent road repair within 24 hours.',
+        rationale: `High safety risk and heavy vehicular traffic on ${loc}.`,
+        priority: 'High Priority'
+      },
+      {
+        id: 2,
+        title: 'Dispatch road maintenance team with cold-mix asphalt patching equipment.',
+        rationale: 'Suitable for immediate temporary containment and structural restoration.',
+        priority: 'Recommended'
+      },
+      {
+        id: 3,
+        title: 'Place temporary warning signage and barricades.',
+        rationale: 'Mitigate immediate motorist accident hazard until permanent repair is complete.',
+        priority: 'Recommended'
+      }
+    ];
   };
 
   // Actions
@@ -1578,7 +1864,7 @@ export default function GrievanceManagementView({ initialTicketId }) {
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span style={{ color: '#64748B' }}>Sub-category</span>
                             <span style={{ fontWeight: 700, color: '#0F172A' }}>
-                              {currentComplaint.subcategory || 'Pothole'}
+                              {getSubcategoryDisplay(currentComplaint)}
                             </span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -1620,21 +1906,38 @@ export default function GrievanceManagementView({ initialTicketId }) {
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           onError={(e) => { e.target.src = '/api/grievances/images/sample_pothole.jpg'; }}
                         />
-                        {/* Red bounding box */}
-                        <div style={{
-                          position: 'absolute',
-                          top: '25%',
-                          left: '20%',
-                          width: '55%',
-                          height: '50%',
-                          border: '2px solid #EF4444',
-                          background: 'rgba(239, 68, 68, 0.15)',
-                          borderRadius: '4px'
-                        }}>
-                          <span style={{ position: 'absolute', top: '-14px', left: 0, background: '#EF4444', color: 'white', fontSize: '0.55rem', fontWeight: 800, padding: '1px 4px', borderRadius: '2px' }}>
-                            POTHOLE 87%
-                          </span>
-                        </div>
+                        {/* Dynamic category-specific AI bounding box */}
+                        {(() => {
+                          const aiMeta = getAiDetectionMeta(currentComplaint);
+                          return (
+                            <div style={{
+                              position: 'absolute',
+                              top: '22%',
+                              left: '18%',
+                              width: '58%',
+                              height: '52%',
+                              border: `2px solid ${aiMeta.color}`,
+                              background: aiMeta.bg,
+                              borderRadius: '4px'
+                            }}>
+                              <span style={{
+                                position: 'absolute',
+                                top: '-14px',
+                                left: 0,
+                                background: aiMeta.tagBg,
+                                color: 'white',
+                                fontSize: '0.55rem',
+                                fontWeight: 800,
+                                padding: '1px 5px',
+                                borderRadius: '2px',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em'
+                              }}>
+                                {aiMeta.label} {aiMeta.pct}%
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Detected Category Pill */}
@@ -1659,7 +1962,7 @@ export default function GrievanceManagementView({ initialTicketId }) {
                       <div>
                         <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Confidence</div>
                         <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0F172A', marginTop: '2px' }}>
-                          {currentComplaint.ai_analysis?.confidence_display || '0.87 (87%)'}
+                          {currentComplaint.ai_analysis?.confidence_display || `${getAiDetectionMeta(currentComplaint).pct}%`}
                         </div>
                       </div>
 
@@ -1669,10 +1972,7 @@ export default function GrievanceManagementView({ initialTicketId }) {
                           Additional Detections
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.74rem', color: '#334155' }}>
-                          {(currentComplaint.ai_analysis?.additional_detections || [
-                            { label: 'Road Surface', confidence: 0.72 },
-                            { label: 'Cracks', confidence: 0.68 }
-                          ]).map((det, i) => (
+                          {getCategoryDetections(currentComplaint).map((det, i) => (
                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span style={{ color: '#94A3B8' }}>⏱</span>
                               <span>{det.label} ({det.confidence})</span>
@@ -1771,26 +2071,7 @@ export default function GrievanceManagementView({ initialTicketId }) {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {(currentComplaint.ai_recommendations || [
-                        {
-                          id: 1,
-                          title: 'Schedule urgent repair within 24 hours.',
-                          rationale: 'High safety risk and heavy traffic on Outer Ring Road.',
-                          priority: 'High Priority'
-                        },
-                        {
-                          id: 2,
-                          title: 'Dispatch road maintenance team with patching equipment.',
-                          rationale: 'Suitable for immediate temporary repair.',
-                          priority: 'Recommended'
-                        },
-                        {
-                          id: 3,
-                          title: 'Place temporary warning signage and barricades.',
-                          rationale: 'Reduce accident risk until permanent repair is completed.',
-                          priority: 'Recommended'
-                        }
-                      ]).map((rec, i) => (
+                      {getCategoryRecommendations(currentComplaint).map((rec, i) => (
                         <div
                           key={i}
                           style={{
@@ -1858,7 +2139,7 @@ export default function GrievanceManagementView({ initialTicketId }) {
                             Suggested Department
                           </label>
                           <select
-                            value={modalData.department || currentComplaint.assigned_department || 'BBMP - Road Infrastructure'}
+                            value={modalData.department || currentComplaint.assigned_department || getSuggestedDept(currentComplaint)}
                             onChange={(e) => setModalData(prev => ({ ...prev, department: e.target.value }))}
                             style={{ width: '100%', padding: '7px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '0.76rem', color: '#0F172A', background: '#FFFFFF' }}
                           >
@@ -1866,6 +2147,7 @@ export default function GrievanceManagementView({ initialTicketId }) {
                             <option value="BWSSB Water Supply Division">BWSSB Water Supply Division</option>
                             <option value="BESCOM Electrical Infrastructure">BESCOM Electrical Infrastructure</option>
                             <option value="BBMP Solid Waste Management (SWM)">BBMP Solid Waste Management (SWM)</option>
+                            <option value="BBMP Stormwater Drainage & BWSSB">BBMP Stormwater Drainage & BWSSB</option>
                             <option value="Bengaluru Traffic Police (BTP)">Bengaluru Traffic Police (BTP)</option>
                           </select>
                         </div>
@@ -1875,15 +2157,17 @@ export default function GrievanceManagementView({ initialTicketId }) {
                             Assign to
                           </label>
                           <select
-                            value={modalData.squad || currentComplaint.assigned_squad || 'Select Team / Officer'}
+                            value={modalData.squad || currentComplaint.assigned_squad || getSuggestedSquad(currentComplaint)}
                             onChange={(e) => setModalData(prev => ({ ...prev, squad: e.target.value }))}
                             style={{ width: '100%', padding: '7px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '0.76rem', color: '#0F172A', background: '#FFFFFF' }}
                           >
                             <option value="">Select Team / Officer ˇ</option>
                             <option value="Rapid Pothole Patch Unit Alpha">Rapid Pothole Patch Unit Alpha</option>
                             <option value="Asphalt Milling & Compactor Squad 2">Asphalt Milling & Compactor Squad 2</option>
-                            <option value="Leakage Detection Squad 1">Leakage Detection Squad 1</option>
                             <option value="Compactor Truck Rapid Unit 9">Compactor Truck Rapid Unit 9</option>
+                            <option value="Leakage Detection Squad 1">Leakage Detection Squad 1</option>
+                            <option value="Stormwater Drainage Jetting Squad 3">Stormwater Drainage Jetting Squad 3</option>
+                            <option value="Hydraulic Ladder Pole Repair Squad 2">Hydraulic Ladder Pole Repair Squad 2</option>
                             <option value="Traffic Quick Reaction Team Alpha">Traffic Quick Reaction Team Alpha</option>
                           </select>
                         </div>

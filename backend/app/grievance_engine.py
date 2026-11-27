@@ -1537,17 +1537,125 @@ def compute_risk_profile(complaint_dict: Dict[str, Any]) -> Dict[str, Any]:
             {"label": "Pedestrian Right of Way", "confidence": 0.69}
         ]
 
-    if base_score >= 8.5:
+    loc_str = landmark.split(',')[0].strip() if landmark else "municipal corridor"
+    cat_lower = cat.lower()
+
+    if "garbage" in cat_lower or "waste" in cat_lower:
         recs = [
             {
                 "id": 1,
-                "title": "Schedule urgent repair within 24 hours.",
-                "rationale": f"High safety risk and heavy vehicular traffic on {landmark.split(',')[0] if landmark else 'arterial corridor'}.",
+                "title": "Dispatch BBMP SWM compactor truck and mechanical sweeper squad.",
+                "rationale": f"Rapidly clear accumulated solid waste on {loc_str} to prevent public health hazard, odor nuisance, and pedestrian sidewalk blockage.",
+                "priority": "High Priority" if base_score >= 6.5 else "Standard Priority"
+            },
+            {
+                "id": 2,
+                "title": "Deploy secondary 2.5m³ dumper bin and sanitize perimeter with lime disinfectant.",
+                "rationale": "Prevent re-accumulation spillover and eliminate leachate runoff into nearby roadside stormwater drains.",
+                "priority": "Recommended"
+            },
+            {
+                "id": 3,
+                "title": "Issue solid waste compliance advisory to local commercial vendors.",
+                "rationale": "Deter nighttime commercial dumping and mandate source segregation in the market ward.",
+                "priority": "Recommended"
+            }
+        ]
+    elif "water" in cat_lower:
+        recs = [
+            {
+                "id": 1,
+                "title": "Deploy BWSSB acoustic leak detection and valve isolation squad.",
+                "rationale": f"Isolate municipal branch line on {loc_str} within 4 hours to halt potable drinking water loss and prevent sub-surface road erosion.",
+                "priority": "High Priority" if base_score >= 6.5 else "Standard Priority"
+            },
+            {
+                "id": 2,
+                "title": "Execute trench excavation and pipeline sleeve/coupling replacement.",
+                "rationale": "Restore municipal distribution network pressure and eliminate pavement dampening.",
+                "priority": "Recommended"
+            },
+            {
+                "id": 3,
+                "title": "Issue localized water supply maintenance advisory to ward residents.",
+                "rationale": "Keep nearby residents informed of scheduled maintenance window and alternate water supply schedule.",
+                "priority": "Recommended"
+            }
+        ]
+    elif "drainage" in cat_lower or "flood" in cat_lower:
+        recs = [
+            {
+                "id": 1,
+                "title": "Deploy high-capacity suction de-silting unit & super sucker jetting truck.",
+                "rationale": f"Dislodge compacted silt and clear stormwater inlet grates on {loc_str} to restore gravity runoff discharge.",
+                "priority": "High Priority" if base_score >= 6.5 else "Standard Priority"
+            },
+            {
+                "id": 2,
+                "title": "Install portable submersible de-watering pumps with silt barrier mesh.",
+                "rationale": "Prevent roadway waterlogging and vehicle engine stalling during cloudburst conditions.",
+                "priority": "Recommended"
+            },
+            {
+                "id": 3,
+                "title": "Inspect downstream culvert masonry for structural constriction or blockage.",
+                "rationale": "Ensure unhindered hydraulic flow through arterial drainage network.",
+                "priority": "Recommended"
+            }
+        ]
+    elif "light" in cat_lower or "electrical" in cat_lower:
+        recs = [
+            {
+                "id": 1,
+                "title": "Dispatch BESCOM hydraulic cherry-picker bucket truck & electrical lineman crew.",
+                "rationale": f"Restore corridor illumination on {loc_str} to enhance nighttime pedestrian safety and deter anti-social activity.",
+                "priority": "High Priority" if base_score >= 6.5 else "Standard Priority"
+            },
+            {
+                "id": 2,
+                "title": "Perform insulation resistance test and rectify underground feeder cable fault.",
+                "rationale": "Eliminate public electrocution hazard from exposed conduits near pedestrian walkways.",
+                "priority": "Recommended"
+            },
+            {
+                "id": 3,
+                "title": "Replace burnt luminaire with IP66 surge-protected 90W LED fitting.",
+                "rationale": "Comply with Smart City municipal illumination and energy-efficiency standards.",
+                "priority": "Recommended"
+            }
+        ]
+    elif "traffic" in cat_lower or "hazard" in cat_lower:
+        recs = [
+            {
+                "id": 1,
+                "title": "Dispatch Bengaluru Traffic Police (BTP) Quick Reaction Team (QRT).",
+                "rationale": f"Stage retroreflective safety cones and guide vehicular flow to alleviate bottlenecks on {loc_str}.",
+                "priority": "High Priority" if base_score >= 6.5 else "Standard Priority"
+            },
+            {
+                "id": 2,
+                "title": "Mobilize heavy-duty hydraulic recovery crane to clear roadway obstruction.",
+                "rationale": "Safely extract disabled obstacle to restore normal arterial lane capacity.",
+                "priority": "Recommended"
+            },
+            {
+                "id": 3,
+                "title": "Broadcast real-time congestion warning on Variable Messaging Signs (VMS).",
+                "rationale": "Pre-alert approaching corridor motorists to divert via alternative bypass routes.",
+                "priority": "Recommended"
+            }
+        ]
+    elif base_score >= 8.5:
+        recs = [
+            {
+                "id": 1,
+                "title": "Schedule urgent road repair within 24 hours.",
+                "rationale": f"High safety risk and heavy vehicular traffic on {loc_str}.",
                 "priority": "High Priority"
             },
             {
                 "id": 2,
-                "title": "Dispatch road maintenance team with patching equipment.",
+                "title": "Dispatch road maintenance team with cold-mix asphalt patching equipment.",
                 "rationale": "Suitable for immediate temporary containment and structural restoration.",
                 "priority": "Recommended"
             },
@@ -1562,20 +1670,20 @@ def compute_risk_profile(complaint_dict: Dict[str, Any]) -> Dict[str, Any]:
         recs = [
             {
                 "id": 1,
-                "title": "Mobilize utility inspection squad within 48 hours.",
-                "rationale": "Prevent progressive structural or hydraulic degradation to roadway foundation.",
+                "title": "Deploy road maintenance patch squad within 48 hours.",
+                "rationale": f"Prevent progressive structural deterioration and base course unraveling on {loc_str}.",
                 "priority": "High Priority"
             },
             {
                 "id": 2,
-                "title": "Isolate localized pipeline or electrical feeder branch.",
-                "rationale": "Minimize public service disruption and ensure field officer safety during repair.",
+                "title": "Compact sub-base aggregate and seal with cationic emulsion.",
+                "rationale": "Arrest water infiltration into sub-grade and ensure field officer safety during repair.",
                 "priority": "Recommended"
             },
             {
                 "id": 3,
-                "title": "Issue civic advisory to ward resident welfare association.",
-                "rationale": "Keep nearby residents informed of scheduled maintenance window.",
+                "title": "Place high-visibility retroreflective warning barricades.",
+                "rationale": "Shield road maintenance crew and guide approaching traffic safely around active repair.",
                 "priority": "Recommended"
             }
         ]
@@ -1589,7 +1697,7 @@ def compute_risk_profile(complaint_dict: Dict[str, Any]) -> Dict[str, Any]:
             },
             {
                 "id": 2,
-                "title": "Assign to ward sanitation / inspection route.",
+                "title": "Assign to ward maintenance and inspection route.",
                 "rationale": "Integrate into scheduled municipal sector sweep.",
                 "priority": "Recommended"
             }
@@ -1615,14 +1723,54 @@ def compute_risk_profile(complaint_dict: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 def enrich_complaint_record(record: Dict[str, Any]) -> Dict[str, Any]:
+    cat_str = str(record.get("category") or "").lower()
     profile = compute_risk_profile(record)
     record["risk_score"] = profile["risk_score"]
     record["risk_level"] = profile["risk_level"]
     record["risk_breakdown"] = profile["risk_breakdown"]
-    if not record.get("ai_analysis"):
-        record["ai_analysis"] = profile["ai_analysis"]
-    if not record.get("ai_recommendations"):
-        record["ai_recommendations"] = profile["ai_recommendations"]
+    record["ai_analysis"] = profile["ai_analysis"]
+    record["ai_recommendations"] = profile["ai_recommendations"]
+    
+    # Auto-rectify mismatched or missing subcategory
+    current_sub = str(record.get("subcategory") or "").strip()
+    if not current_sub or (current_sub == "Pothole" and "pothole" not in cat_str and "road" not in cat_str):
+        if "garbage" in cat_str or "waste" in cat_str:
+            record["subcategory"] = "Commercial / Municipal Waste Accumulation"
+        elif "water" in cat_str:
+            record["subcategory"] = "Municipal Pipeline Leakage / Seepage"
+        elif "drainage" in cat_str or "flood" in cat_str:
+            record["subcategory"] = "Stormwater Drainage Blockage / Overflow"
+        elif "light" in cat_str or "electrical" in cat_str:
+            record["subcategory"] = "Streetlight Blackout / Luminaire Fault"
+        elif "traffic" in cat_str or "hazard" in cat_str:
+            record["subcategory"] = "Roadway Obstruction / Signal Defect"
+        else:
+            record["subcategory"] = "Road Surface Cavity / Pothole"
+
+    # Auto-rectify department if wrongly mapped or defaulted to Road Infrastructure
+    dept_val = str(record.get("assigned_department") or record.get("assigned_authority") or "").strip()
+    if not dept_val or ("Road Infrastructure" in dept_val and "road" not in cat_str and "pothole" not in cat_str):
+        if "garbage" in cat_str or "waste" in cat_str:
+            record["assigned_department"] = "BBMP Solid Waste Management (SWM)"
+            record["assigned_authority"] = "BBMP Solid Waste Management (SWM)"
+            record["assigned_squad"] = record.get("assigned_squad") or "Compactor Truck Rapid Unit 9"
+        elif "water" in cat_str:
+            record["assigned_department"] = "BWSSB Water Supply Division"
+            record["assigned_authority"] = "BWSSB Water Supply Division"
+            record["assigned_squad"] = record.get("assigned_squad") or "Leakage Detection Squad 1"
+        elif "drainage" in cat_str or "flood" in cat_str:
+            record["assigned_department"] = "BBMP Stormwater Drainage & BWSSB"
+            record["assigned_authority"] = "BBMP Stormwater Drainage & BWSSB"
+            record["assigned_squad"] = record.get("assigned_squad") or "Stormwater Drainage Jetting Squad 3"
+        elif "light" in cat_str or "electrical" in cat_str:
+            record["assigned_department"] = "BESCOM Electrical Infrastructure"
+            record["assigned_authority"] = "BESCOM Electrical Infrastructure"
+            record["assigned_squad"] = record.get("assigned_squad") or "Hydraulic Ladder Pole Repair Squad 2"
+        elif "traffic" in cat_str or "hazard" in cat_str:
+            record["assigned_department"] = "Bengaluru Traffic Police (BTP) Command"
+            record["assigned_authority"] = "Bengaluru Traffic Police (BTP) Command"
+            record["assigned_squad"] = record.get("assigned_squad") or "Traffic Quick Reaction Team (QRT) Alpha"
+
     if not record.get("location"):
         record["location"] = record.get("landmark_address") or record.get("ward_zone") or "Bengaluru"
     return record
@@ -1849,7 +1997,7 @@ async def validate_video_endpoint(
     temp_path = os.path.join(UPLOAD_DIR, temp_name)
     try:
         file_bytes = await video.read()
-        if len(file_bytes) < 20000:
+        if len(file_bytes) < 2048:
             return {
                 "is_valid": False,
                 "verdict": "rejected",
@@ -2035,6 +2183,21 @@ async def create_grievance(
         if top_match["is_likely_duplicate"]:
             duplicate_notes = f"Likely duplicate of {top_match['target_ticket_number']} ({top_match['distance_meters']}m away, match score: {duplicate_score*100:.0f}%)."
             initial_verification_status = "Needs Review"
+
+    if not subcategory or not subcategory.strip():
+        cat_lower = category.lower()
+        if "garbage" in cat_lower or "waste" in cat_lower:
+            subcategory = "Commercial / Municipal Waste Accumulation"
+        elif "water" in cat_lower:
+            subcategory = "Municipal Pipeline Leakage / Seepage"
+        elif "drainage" in cat_lower or "flood" in cat_lower:
+            subcategory = "Stormwater Drainage Blockage / Overflow"
+        elif "light" in cat_lower or "electrical" in cat_lower:
+            subcategory = "Streetlight Blackout / Luminaire Fault"
+        elif "traffic" in cat_lower or "hazard" in cat_lower:
+            subcategory = "Roadway Obstruction / Signal Defect"
+        else:
+            subcategory = "Road Surface Cavity / Pothole"
 
     complaint_data = {
         "id": ticket_id,

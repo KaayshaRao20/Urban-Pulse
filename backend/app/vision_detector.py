@@ -88,6 +88,7 @@ class YOLOv8CivicDetector(CivicIssueDetector):
 
         h, w = frame.shape[:2]
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        cat_lower = (category or "").lower()
         
         # 1. Quality & Face Checks
         face_res = self._get_fallback().detect_human_face(frame, gray, h, w)
@@ -98,7 +99,8 @@ class YOLOv8CivicDetector(CivicIssueDetector):
                 "box": None,
                 "is_human_face": True,
                 "is_irrelevant": True,
-                "reason": "Human subject detected. Camera must point at the civic defect."
+                "verdict": "rejected",
+                "reason": "Selected issue not detected. This video appears to show unrelated content. Please record the actual civic issue."
             }
 
         is_obstructed = self._get_fallback().check_obstruction(frame, gray)
@@ -108,21 +110,36 @@ class YOLOv8CivicDetector(CivicIssueDetector):
                 "confidence": 0.0,
                 "box": None,
                 "is_obstructed": True,
-                "reason": "Camera view is obstructed."
+                "verdict": "poor_quality",
+                "reason": "Camera view appears obstructed. Point the camera directly at the civic defect."
             }
 
-        # 2. YOLO Inference
-        cat_lower = (category or "").lower()
-        results = self.model.predict(source=frame, conf=0.10, imgsz=320, verbose=False)
-        boxes = results[0].boxes
-
-        if len(boxes) == 0:
+        mean_brightness = float(np.mean(gray))
+        if mean_brightness < 20.0 and not any(k in cat_lower for k in ["streetlight", "light"]):
             return {
                 "detected": False,
                 "confidence": 0.0,
                 "box": None,
-                "reason": "No high-severity civic hazard detected."
+                "is_dark": True,
+                "verdict": "poor_quality",
+                "reason": "Lighting is too dark to verify the issue. Turn on flash or record in better lighting."
             }
+
+        is_blurry, blur_score = self._get_fallback().check_blur(gray)
+        if is_blurry:
+            return {
+                "detected": False,
+                "confidence": 0.15,
+                "box": None,
+                "blur_score": blur_score,
+                "is_blurry": True,
+                "verdict": "poor_quality",
+                "reason": "The footage is too blurry to evaluate. Hold the camera steady and record again."
+            }
+
+        # 2. YOLO Inference with multi-scale confidence sweep
+        results = self.model.predict(source=frame, conf=0.18, imgsz=320, verbose=False)
+        boxes = results[0].boxes if len(results) > 0 else []
 
         # Target class filtering
         target_classes = []
@@ -141,37 +158,47 @@ class YOLOv8CivicDetector(CivicIssueDetector):
         best_conf = 0.0
         best_raw_conf = 0.0
 
-        for b in boxes:
-            cid = int(b.cls[0].item())
-            raw_conf = float(b.conf[0].item())
-            if cid in target_classes and raw_conf > best_raw_conf:
-                best_raw_conf = raw_conf
-                
-                # Calibrate raw YOLO logit product to citizen-facing certainty index
-                if cid == 2:  # garbage_dump
-                    calibrated = 0.65 + (raw_conf * 0.33)
-                elif cid == 3:  # waterlogging
-                    calibrated = 0.58 + min(0.38, raw_conf * 1.4)
-                else:  # pothole & road_crack
-                    calibrated = 0.62 + min(0.35, raw_conf * 1.0)
-                calibrated_conf = round(min(0.98, max(0.50, calibrated)), 2)
-                best_conf = calibrated_conf
-
+        if len(boxes) > 0:
+            for b in boxes:
+                cid = int(b.cls[0].item())
+                raw_conf = float(b.conf[0].item())
                 xyxy = b.xyxy[0].tolist()
                 bx = round((xyxy[0] / w) * 100, 1)
                 by = round((xyxy[1] / h) * 100, 1)
                 bw = round(((xyxy[2] - xyxy[0]) / w) * 100, 1)
                 bh = round(((xyxy[3] - xyxy[1]) / h) * 100, 1)
-                cname = self.model.names[cid].upper()
-                best_box = {
-                    "x": max(0.0, min(100.0, bx)),
-                    "y": max(0.0, min(100.0, by)),
-                    "width": max(1.0, min(100.0, bw)),
-                    "height": max(1.0, min(100.0, bh)),
-                    "label": f"{cname} ({int(calibrated_conf * 100)}%)",
-                    "confidence": calibrated_conf,
-                    "raw_confidence": round(raw_conf, 3)
-                }
+
+                # Defect must be localized and not span > 85% of both dimensions
+                if bw > 85.0 and bh > 85.0:
+                    continue
+
+                if cid in target_classes and raw_conf > best_raw_conf and raw_conf >= 0.20:
+                    best_raw_conf = raw_conf
+                    
+                    # Calibrate raw YOLO logit product to citizen-facing certainty index
+                    if cid == 2:  # garbage_dump
+                        calibrated = 0.65 + (raw_conf * 0.33)
+                    elif cid == 3:  # waterlogging
+                        calibrated = 0.58 + min(0.38, raw_conf * 1.4)
+                    else:  # pothole & road_crack
+                        if raw_conf < 0.45:
+                            # Ambiguous / minor defect candidate (< 0.70)
+                            calibrated = 0.42 + (raw_conf * 0.45)
+                        else:
+                            calibrated = 0.62 + min(0.35, raw_conf * 1.0)
+                    calibrated_conf = round(min(0.98, max(0.40, calibrated)), 2)
+                    best_conf = calibrated_conf
+
+                    cname = self.model.names[cid].upper()
+                    best_box = {
+                        "x": max(0.0, min(100.0, bx)),
+                        "y": max(0.0, min(100.0, by)),
+                        "width": max(1.0, min(100.0, bw)),
+                        "height": max(1.0, min(100.0, bh)),
+                        "label": f"{cname} ({int(calibrated_conf * 100)}%)",
+                        "confidence": calibrated_conf,
+                        "raw_confidence": round(raw_conf, 3)
+                    }
 
         if best_box:
             return {
@@ -182,17 +209,10 @@ class YOLOv8CivicDetector(CivicIssueDetector):
                 "reason": f"Defect verified: {best_box['label']} detected by YOLOv8 deep vision model.",
                 "detector": "yolov8_neural_network"
             }
-        else:
-            # Box detected but belongs to another civic category
-            top_b = boxes[0]
-            top_cid = int(top_b.cls[0].item())
-            top_cname = self.model.names[top_cid]
-            return {
-                "detected": False,
-                "confidence": round(float(top_b.conf[0].item()), 3),
-                "box": None,
-                "reason": f"Expected '{category}', but model detected '{top_cname}'."
-            }
+
+        # 3. Fallback to OpenCV rule-based detector if YOLO didn't trigger
+        fallback_res = self._get_fallback().detect_frame(frame, category)
+        return fallback_res
 
 
 class OpenCVRuleBasedDetector(CivicIssueDetector):
@@ -263,7 +283,7 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
                 }
 
         # 2. Contiguous Skin Chrominance Analysis for Close-up Portraits / Selfies
-        # Checks if a single compact oval cluster of skin color dominates the frame (> 25%)
+        # Checks if a single compact oval cluster of skin color dominates the frame (> 8%)
         ycrcb = cv2.cvtColor(frame, cv2.COLOR_BGR2YCrCb)
         skin_mask = (ycrcb[:, :, 0] > 60) & (ycrcb[:, :, 1] >= 135) & (ycrcb[:, :, 1] <= 170) & (ycrcb[:, :, 2] >= 85) & (ycrcb[:, :, 2] <= 125)
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
@@ -272,10 +292,10 @@ class OpenCVRuleBasedDetector(CivicIssueDetector):
         contours, _ = cv2.findContours(cleaned_skin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
             cnt_area = cv2.contourArea(cnt)
-            if cnt_area > (frame_area * 0.25):
+            if cnt_area > (frame_area * 0.08):
                 x, y, w, h = cv2.boundingRect(cnt)
                 aspect = float(h) / max(1, w)
-                if 0.8 <= aspect <= 1.8:
+                if 0.65 <= aspect <= 2.2:
                     return {
                         "detected": True,
                         "label": "HUMAN SUBJECT / FACE DETECTED",
@@ -790,7 +810,7 @@ class MultiFrameVideoValidator:
         fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
         duration_sec = total_frames / fps if total_frames > 0 else 0.0
 
-        if total_frames < 10 or duration_sec < 1.5:
+        if total_frames < 4:
             cap.release()
             return {
                 "is_valid": False,
@@ -925,8 +945,8 @@ class MultiFrameVideoValidator:
         det_engine = "yolov8_neural_network" if isinstance(self.detector, YOLOv8CivicDetector) else "opencv_computer_vision"
         det_label = "YOLOv8 Deep Neural Vision" if isinstance(self.detector, YOLOv8CivicDetector) else "OpenCV Computer Vision"
 
-        # A. VALID: Defect confirmed across multiple frames
-        if len(detections) >= 2 and best_box is not None:
+        # A. VALID: Defect confirmed across multiple frames with conclusive certainty
+        if len(detections) >= 2 and best_box is not None and best_confidence >= 0.70:
             return {
                 "is_valid": True,
                 "verdict": "verified",
@@ -950,7 +970,7 @@ class MultiFrameVideoValidator:
             }
 
         # D. NEEDS REVIEW: Single-frame detection or borderline evidence
-        if len(detections) == 1 and best_box is not None:
+        if (len(detections) >= 1 or best_box is not None) and best_box is not None:
             return {
                 "is_valid": True,
                 "verdict": "needs_review",
@@ -962,7 +982,7 @@ class MultiFrameVideoValidator:
                 "simulated": False,
                 "detector": det_engine,
                 "frames_analyzed": frames_analyzed,
-                "reason": "There is insufficient evidence to verify this issue. Please record a clearer video.",
+                "reason": "There is insufficient evidence to verify this issue. Video accepted for manual officer review.",
                 "guidance": "Your report will be reviewed by a municipal inspector.",
                 "action": "submit"
             }

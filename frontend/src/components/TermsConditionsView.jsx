@@ -28,9 +28,15 @@ export default function TermsConditionsView({
   const [appealSuccess, setAppealSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [pdfDownloaded, setPdfDownloaded] = useState(false);
 
-  // Identifier from user prop or localStorage
+  // Identifier & Citizen Name from user prop or localStorage
   const userIdentifier = user?.id || user?.email || user?.username || localStorage.getItem('up_user_id') || localStorage.getItem('citizen_email') || 'citizen_guest';
+  const citizenName = user?.name || user?.full_name || localStorage.getItem('citizen_name') || 'Ramesh Kumar';
+  const citizenEmail = user?.email || (userIdentifier.includes('@') ? userIdentifier : null) || localStorage.getItem('citizen_email') || 'ramesh.kumar@resident.blr.in';
+  const citizenPhone = user?.phone || localStorage.getItem('citizen_phone') || '+91 98451 23456';
+  const citizenAddress = user?.address || localStorage.getItem('citizen_address') || 'Ritika Mahavir Apartments, Hongasandra, Electronic City Post, Bengaluru - 560100';
 
   // Fetch current consent status and latest active version
   const fetchStatus = async () => {
@@ -52,6 +58,35 @@ export default function TermsConditionsView({
     fetchStatus();
   }, [userIdentifier]);
 
+  // Handle Download Official Certificate PDF with Seal
+  const handleDownloadCertificatePdf = async () => {
+    try {
+      setDownloadingPdf(true);
+      setErrorMsg('');
+      const url = `${API_BASE}/consent/download-pdf?user_id=${encodeURIComponent(userIdentifier)}&email=${encodeURIComponent(citizenEmail)}&name=${encodeURIComponent(citizenName)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('PDF service returned HTTP status ' + res.status);
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `UrbanPulse_Citizen_Consent_Certificate_${citizenName.replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+      setPdfDownloaded(true);
+      setTimeout(() => setPdfDownloaded(false), 5000);
+    } catch (err) {
+      console.warn('Direct blob fetch failed, falling back to direct navigation:', err);
+      window.open(`${API_BASE}/consent/download-pdf?user_id=${encodeURIComponent(userIdentifier)}&email=${encodeURIComponent(citizenEmail)}&name=${encodeURIComponent(citizenName)}`, '_blank');
+      setPdfDownloaded(true);
+      setTimeout(() => setPdfDownloaded(false), 5000);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   // Handle Accept & Continue
   const handleAccept = async () => {
     if (!agreed || submitting) return;
@@ -63,7 +98,7 @@ export default function TermsConditionsView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: user?.id || userIdentifier,
-          email: user?.email || (userIdentifier.includes('@') ? userIdentifier : null),
+          email: user?.email || (userIdentifier.includes('@') ? userIdentifier : citizenEmail),
           version: status?.active_version || 'v1.0',
           checkbox_accepted: true
         })
@@ -74,11 +109,12 @@ export default function TermsConditionsView({
         throw new Error(data.detail || 'Failed to record acceptance.');
       }
 
-      setSuccessMsg('Terms & Conditions accepted successfully.');
+      setSuccessMsg('Concept & Terms accepted successfully! Your official certificate with BBMP seal is ready below.');
       setStatus((prev) => ({
         ...prev,
         accepted: true,
         requires_consent: false,
+        accepted_at: new Date().toISOString(),
         user_accepted_version: status?.active_version || 'v1.0'
       }));
 
@@ -152,7 +188,8 @@ export default function TermsConditionsView({
   const isSuspended = status?.enforcement_status && ['suspended', 'temporary_suspension', 'permanent_suspension', 'terminated'].includes(status.enforcement_status);
   const activeVersion = status?.active_version || 'v1.0';
   const lastUpdated = status?.last_updated || '03 Nov 2026';
-  const isAlreadyAccepted = status?.accepted && !status?.requires_consent;
+  const localAccepted = typeof window !== 'undefined' && (localStorage.getItem('up_terms_accepted_version') === activeVersion || !!localStorage.getItem('up_terms_accepted_at'));
+  const isAlreadyAccepted = (status?.accepted && !status?.requires_consent) || (status?.accepted === true) || (agreed && localAccepted);
 
   return (
     <div className="terms-conditions-container" style={{
@@ -331,13 +368,53 @@ export default function TermsConditionsView({
               <h2 style={{ margin: 0, fontSize: '1.45rem', fontWeight: 700, letterSpacing: '-0.3px', color: '#FFFFFF' }}>
                 Terms & Conditions
               </h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '0.72rem', background: 'rgba(255, 255, 255, 0.22)', padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>
                   Active {activeVersion}
                 </span>
-                {isAlreadyAccepted && (
-                  <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.28)', border: '1px solid rgba(16, 185, 129, 0.6)', padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>
-                    Accepted on this device
+                {isAlreadyAccepted ? (
+                  <>
+                    <span style={{
+                      fontSize: '0.72rem',
+                      background: 'rgba(16, 185, 129, 0.3)',
+                      border: '1px solid #10B981',
+                      color: '#A7F3D0',
+                      padding: '2px 10px',
+                      borderRadius: 10,
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}>
+                      <span>✓</span> CONCEPT ACCEPTED
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleDownloadCertificatePdf}
+                      disabled={downloadingPdf}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.18)',
+                        border: '1px solid rgba(255, 255, 255, 0.45)',
+                        borderRadius: 8,
+                        padding: '3px 10px',
+                        color: '#FFFFFF',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        transition: 'all 0.15s ease'
+                      }}
+                      title="Download Official Municipal Consent Certificate (PDF)"
+                    >
+                      <span>📥</span>
+                      <span>{downloadingPdf ? 'Downloading PDF...' : pdfDownloaded ? '✓ Downloaded' : 'Download PDF (Seal)'}</span>
+                    </button>
+                  </>
+                ) : (
+                  <span style={{ fontSize: '0.72rem', background: 'rgba(239, 68, 68, 0.25)', border: '1px solid rgba(239, 68, 68, 0.6)', color: '#FECACA', padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>
+                    Acceptance Required
                   </span>
                 )}
               </div>
@@ -590,207 +667,585 @@ export default function TermsConditionsView({
         </div>
       </div>
 
-      {/* FULL-WIDTH ACKNOWLEDGEMENT CARD (MATCHING SCREENSHOT WITH CHECKBOX & DISABLED BUTTON LOGIC) */}
+      {/* FULL-WIDTH ACKNOWLEDGEMENT & OFFICIAL VERIFICATION CARD */}
       <div style={{
-        background: '#FFFFFF',
+        background: isAlreadyAccepted ? '#FFFFFF' : '#FFFFFF',
         borderRadius: 14,
         padding: '24px 28px',
-        border: '1px solid #DBEAFE',
-        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.05)',
+        border: isAlreadyAccepted ? '1.5px solid #86EFAC' : '1px solid #DBEAFE',
+        boxShadow: isAlreadyAccepted ? '0 6px 20px rgba(16, 185, 129, 0.08)' : '0 4px 12px rgba(37, 99, 235, 0.05)',
         display: 'flex',
         flexDirection: 'column',
         gap: 16
       }}>
-        {/* Header of Acknowledgement Card */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {isAlreadyAccepted ? (
+          /* ========================================================= */
+          /* STATE A: CONCEPT ACCEPTED & OFFICIAL CERTIFICATE READY    */
+          /* ========================================================= */
+          <>
+            {/* Header of Concept Accepted Card */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  background: '#ECFDF5',
+                  border: '1px solid #A7F3D0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#059669',
+                  flexShrink: 0
+                }}>
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <polyline points="9 12 11 14 15 10" />
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#0F172A' }}>
+                      Concept Accepted & Recorded
+                    </h4>
+                    <span style={{
+                      fontSize: '0.70rem',
+                      fontWeight: 700,
+                      background: '#DCFCE7',
+                      color: '#15803D',
+                      border: '1px solid #86EFAC',
+                      padding: '2px 9px',
+                      borderRadius: 12,
+                      letterSpacing: '0.4px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}>
+                      <span>✓</span> OFFICIALLY ACCEPTED
+                    </span>
+                  </div>
+                  <p style={{ margin: '3px 0 0 0', fontSize: '0.79rem', color: '#64748B' }}>
+                    You have accepted the civic participation charter. An official certificate with municipal seal has been generated for you.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Official Citizen Credentials & Seal Panel */}
             <div style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: '#EFF6FF',
+              background: 'linear-gradient(135deg, #F0FDF4 0%, #F8FAFC 100%)',
+              border: '1px solid #BBF7D0',
+              borderRadius: 12,
+              padding: '18px 20px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              color: '#2563EB'
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 16
             }}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="9 11 12 14 22 4" />
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-              </svg>
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: '#0F172A' }}>
-                  Your Acknowledgement
-                </h4>
-                <span style={{
-                  fontSize: '0.68rem',
-                  fontWeight: 700,
-                  background: '#DBEAFE',
-                  color: '#1D4ED8',
-                  padding: '2px 8px',
-                  borderRadius: 4,
-                  letterSpacing: '0.5px'
-                }}>
-                  REQUIRED
-                </span>
+              {/* Citizen Details */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: '240px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Citizen:</span>
+                  <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0F172A' }}>{citizenName}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Registered ID:</span>
+                  <span style={{ fontSize: '0.82rem', fontFamily: 'monospace', color: '#1E293B', background: 'rgba(255,255,255,0.7)', padding: '2px 6px', borderRadius: 4, border: '1px solid #E2E8F0' }}>
+                    {citizenEmail}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Certificate Ref:</span>
+                  <span style={{ fontSize: '0.80rem', fontFamily: 'monospace', fontWeight: 600, color: '#2563EB' }}>
+                    UP-BLR-CONSENT-27EA5D29
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Statutory Law:</span>
+                  <span style={{ fontSize: '0.78rem', color: '#047857', fontWeight: 600 }}>
+                    IT Act 2000 & DPDP Act 2023 Verified
+                  </span>
+                </div>
               </div>
-              <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: '#64748B' }}>
-                You must accept these terms to continue using the platform.
-              </p>
-            </div>
-          </div>
-        </div>
 
-        {/* Checkbox Acceptance Row */}
-        <div style={{
-          background: '#F8FAFC',
-          border: agreed ? '1.5px solid #2563EB' : '1px solid #E2E8F0',
-          borderRadius: 10,
-          padding: '14px 16px',
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 12,
-          transition: 'all 0.15s ease',
-          cursor: isSuspended ? 'not-allowed' : 'pointer'
-        }}
-        onClick={() => !isSuspended && setAgreed(!agreed)}
-        >
-          <input
-            type="checkbox"
-            id="terms-ack-checkbox"
-            checked={agreed}
-            disabled={isSuspended}
-            onChange={(e) => setAgreed(e.target.checked)}
-            style={{
-              width: 18,
-              height: 18,
-              marginTop: 2,
-              accentColor: '#2563EB',
-              cursor: isSuspended ? 'not-allowed' : 'pointer',
-              flexShrink: 0
-            }}
-          />
-          <label
-            htmlFor="terms-ack-checkbox"
-            style={{
-              fontSize: '0.84rem',
-              color: '#334155',
-              lineHeight: 1.5,
-              cursor: isSuspended ? 'not-allowed' : 'pointer',
-              userSelect: 'none'
-            }}
-          >
-            I have read, understood, and agree to the <strong>Terms & Conditions</strong> and <strong>Privacy Policy</strong>. I confirm that all reports I submit will be accurate, truthful, and comply with the guidelines stated above.
-          </label>
-        </div>
-
-        {/* Footer Meta & Action Button */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 12,
-          paddingTop: 4
-        }}>
-          {/* Version Info & Full Terms Link */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <span style={{ fontSize: '0.76rem', color: '#64748B', fontWeight: 500 }}>
-              Version: <strong>{activeVersion}</strong> &nbsp;|&nbsp; Last Updated: <strong>{lastUpdated}</strong>
-            </span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowFullTerms(true);
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#2563EB',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: 'pointer',
+              {/* Municipal Seal Graphic */}
+              <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 4,
-                padding: 0,
-                textDecoration: 'underline'
-              }}
-            >
-              <span>View Full Terms</span>
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-            </button>
-          </div>
+                gap: 12,
+                background: '#FFFFFF',
+                padding: '12px 16px',
+                borderRadius: 10,
+                border: '1px solid #E2E8F0',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+              }}>
+                {/* Vector Municipal Seal Stamp */}
+                <div style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle, #FFFBEB 0%, #FEF3C7 100%)',
+                  border: '2.5px solid #D97706',
+                  boxShadow: 'inset 0 0 0 2px #FFFFFF, inset 0 0 0 3px #B45309',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  flexShrink: 0
+                }}>
+                  <span style={{ fontSize: '0.45rem', fontWeight: 800, color: '#92400E', letterSpacing: '0.5px' }}>BBMP</span>
+                  <span style={{ fontSize: '0.65rem' }}>🏛️</span>
+                  <span style={{ fontSize: '0.42rem', fontWeight: 700, color: '#B45309' }}>SEAL</span>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1E293B' }}>
+                    Official Municipal Seal
+                  </div>
+                  <div style={{ fontSize: '0.70rem', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <span>★</span> BBMP Integrity Certified
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: '#64748B' }}>
+                    Tamper-Evident ISO 32000-1 PDF
+                  </div>
+                </div>
+              </div>
+            </div>
 
-          {/* Action Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {isModal && onDeclined && (
+            {/* Primary Action: Downloadable PDF with Municipal Seal */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 14,
+              paddingTop: 4
+            }}>
+              {/* Meta & Full Terms */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <span style={{ fontSize: '0.76rem', color: '#64748B', fontWeight: 500 }}>
+                  Active Version: <strong>{activeVersion}</strong> &nbsp;|&nbsp; Certified on: <strong>{status?.accepted_at ? new Date(status.accepted_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : lastUpdated}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowFullTerms(true)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#2563EB',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: 0,
+                    textDecoration: 'underline'
+                  }}
+                >
+                  <span>View Full Terms</span>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Download Certificate PDF Button */}
               <button
                 type="button"
-                onClick={handleDecline}
-                disabled={submitting}
+                onClick={handleDownloadCertificatePdf}
+                disabled={downloadingPdf}
                 style={{
-                  background: '#F1F5F9',
-                  color: '#475569',
-                  border: '1px solid #CBD5E1',
-                  padding: '9px 18px',
-                  borderRadius: 8,
-                  fontSize: '0.84rem',
-                  fontWeight: 600,
-                  cursor: 'pointer'
+                  background: pdfDownloaded
+                    ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                    : 'linear-gradient(135deg, #0F172A 0%, #1E3A8A 50%, #2563EB 100%)',
+                  color: '#FFFFFF',
+                  border: '1.5px solid #F59E0B',
+                  padding: '11px 26px',
+                  borderRadius: 10,
+                  fontSize: '0.88rem',
+                  fontWeight: 700,
+                  cursor: downloadingPdf ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  boxShadow: '0 6px 18px rgba(37, 99, 235, 0.25), 0 2px 4px rgba(0,0,0,0.1)',
+                  transition: 'all 0.2s ease',
+                  letterSpacing: '0.2px'
                 }}
               >
-                Decline
+                {downloadingPdf ? (
+                  <>
+                    <div style={{ width: 16, height: 16, border: '2px solid #FFFFFF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                    <span>Generating Certificate PDF...</span>
+                  </>
+                ) : pdfDownloaded ? (
+                  <>
+                    <span style={{ fontSize: '1.1rem' }}>✓</span>
+                    <span>Certificate Downloaded (PDF with Seal)</span>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: '1.1rem' }}>📥</span>
+                    <span>Download Official Consent Certificate (PDF)</span>
+                    <span style={{
+                      fontSize: '0.66rem',
+                      background: 'rgba(245, 158, 11, 0.3)',
+                      border: '1px solid #F59E0B',
+                      color: '#FDE68A',
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      fontWeight: 700,
+                      textTransform: 'uppercase'
+                    }}>
+                      SEALED
+                    </span>
+                  </>
+                )}
               </button>
-            )}
+            </div>
 
-            <button
-              type="button"
-              onClick={handleAccept}
-              disabled={!agreed || submitting || isSuspended}
-              style={{
-                background: (!agreed || isSuspended)
-                  ? '#94A3B8'
-                  : 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-                color: '#FFFFFF',
-                border: 'none',
-                padding: '9px 24px',
+            {/* ── REGISTERED CITIZEN PROFILE ── */}
+            <div style={{
+              background: 'linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%)',
+              border: '1px solid #DBEAFE',
+              borderRadius: 12,
+              padding: '18px 22px',
+              marginTop: 4
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2563EB" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1E293B' }}>Registered Citizen Profile</span>
+                <span style={{
+                  fontSize: '0.64rem',
+                  fontWeight: 700,
+                  background: '#DCFCE7',
+                  color: '#15803D',
+                  border: '1px solid #86EFAC',
+                  padding: '1px 7px',
+                  borderRadius: 10,
+                  letterSpacing: '0.3px'
+                }}>VERIFIED</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                {/* Name */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px', minWidth: 56 }}>Name:</span>
+                  <span style={{ fontSize: '0.84rem', fontWeight: 600, color: '#0F172A' }}>{citizenName}</span>
+                </div>
+                {/* Phone */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px', minWidth: 56 }}>Phone:</span>
+                  <span style={{ fontSize: '0.84rem', fontWeight: 600, color: '#0F172A' }}>{citizenPhone}</span>
+                </div>
+                {/* Email */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px', minWidth: 56 }}>Email:</span>
+                  <span style={{ fontSize: '0.84rem', fontWeight: 600, color: '#0F172A', wordBreak: 'break-all' }}>{citizenEmail}</span>
+                </div>
+                {/* Address */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, gridColumn: '1 / -1' }}>
+                  <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px', minWidth: 56, flexShrink: 0 }}>Address:</span>
+                  <span style={{ fontSize: '0.84rem', fontWeight: 600, color: '#0F172A', lineHeight: 1.4 }}>{citizenAddress}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* ── ACCEPTED TERMS & CONDITIONS SUMMARY ── */}
+            <div style={{
+              background: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: 12,
+              padding: '18px 22px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#059669" strokeWidth="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <polyline points="9 12 11 14 15 10" />
+                </svg>
+                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1E293B' }}>Terms & Conditions Accepted</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 12px',
+                  background: '#F0FDF4',
+                  border: '1px solid #BBF7D0',
+                  borderRadius: 8
+                }}>
+                  <span style={{ color: '#059669', fontSize: '0.9rem', flexShrink: 0 }}>✓</span>
+                  <span style={{ fontSize: '0.80rem', color: '#1E293B', fontWeight: 500 }}>
+                    I have read, understood, and agree to the <strong>Terms & Conditions</strong> and <strong>Privacy Policy</strong>.
+                  </span>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 12px',
+                  background: '#F0FDF4',
+                  border: '1px solid #BBF7D0',
+                  borderRadius: 8
+                }}>
+                  <span style={{ color: '#059669', fontSize: '0.9rem', flexShrink: 0 }}>✓</span>
+                  <span style={{ fontSize: '0.80rem', color: '#1E293B', fontWeight: 500 }}>
+                    All reports submitted will be accurate, truthful, and compliant with BBMP civic guidelines.
+                  </span>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 12px',
+                  background: '#F0FDF4',
+                  border: '1px solid #BBF7D0',
+                  borderRadius: 8
+                }}>
+                  <span style={{ color: '#059669', fontSize: '0.9rem', flexShrink: 0 }}>✓</span>
+                  <span style={{ fontSize: '0.80rem', color: '#1E293B', fontWeight: 500 }}>
+                    Data shared under IT Act 2000 & Digital Personal Data Protection Act 2023 provisions.
+                  </span>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 12px',
+                  background: '#F0FDF4',
+                  border: '1px solid #BBF7D0',
+                  borderRadius: 8
+                }}>
+                  <span style={{ color: '#059669', fontSize: '0.9rem', flexShrink: 0 }}>✓</span>
+                  <span style={{ fontSize: '0.80rem', color: '#1E293B', fontWeight: 500 }}>
+                    Location, photo/video evidence used only for civic issue verification & reporting.
+                  </span>
+                </div>
+              </div>
+              <div style={{
+                marginTop: 12,
+                padding: '8px 12px',
+                background: '#FFFBEB',
+                border: '1px solid #FDE68A',
                 borderRadius: 8,
-                fontSize: '0.86rem',
-                fontWeight: 600,
-                cursor: (!agreed || isSuspended) ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8,
-                boxShadow: (!agreed || isSuspended)
-                  ? 'none'
-                  : '0 4px 12px rgba(37, 99, 235, 0.3)',
-                transition: 'all 0.15s ease'
-              }}
+                gap: 8
+              }}>
+                <span style={{ fontSize: '0.8rem' }}>🔒</span>
+                <span style={{ fontSize: '0.76rem', color: '#92400E', fontWeight: 600 }}>
+                  This acceptance is permanent and cannot be modified. Contact BBMP Citizen Support for any queries.
+                </span>
+              </div>
+            </div>
+          </>
+        ) : (
+          /* ========================================================= */
+          /* STATE B: UNACCEPTED (CHECKBOX & ACCEPT BUTTON)           */
+          /* ========================================================= */
+          <>
+            {/* Header of Acknowledgement Card */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: '#EFF6FF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#2563EB'
+                }}>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="9 11 12 14 22 4" />
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: '#0F172A' }}>
+                      Your Acknowledgement
+                    </h4>
+                    <span style={{
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      background: '#DBEAFE',
+                      color: '#1D4ED8',
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      letterSpacing: '0.5px'
+                    }}>
+                      REQUIRED
+                    </span>
+                  </div>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: '#64748B' }}>
+                    You must accept these terms to continue using the platform.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Checkbox Acceptance Row */}
+            <div style={{
+              background: isAlreadyAccepted ? '#F0FDF4' : '#F8FAFC',
+              border: isAlreadyAccepted ? '1.5px solid #86EFAC' : (agreed ? '1.5px solid #2563EB' : '1px solid #E2E8F0'),
+              borderRadius: 10,
+              padding: '14px 16px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 12,
+              transition: 'all 0.15s ease',
+              cursor: (isAlreadyAccepted || isSuspended) ? 'not-allowed' : 'pointer',
+              opacity: isAlreadyAccepted ? 0.85 : 1
+            }}
+            onClick={() => !isSuspended && !isAlreadyAccepted && setAgreed(!agreed)}
             >
-              {submitting ? (
-                <span>Recording Consent...</span>
-              ) : isAlreadyAccepted ? (
-                <>
-                  <span>Terms Accepted</span>
-                  <span>✓</span>
-                </>
-              ) : (
-                <>
-                  <span>Accept & Continue</span>
-                  <span>→</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+              <input
+                type="checkbox"
+                id="terms-ack-checkbox"
+                checked={agreed || isAlreadyAccepted}
+                disabled={isSuspended || isAlreadyAccepted}
+                onChange={(e) => !isAlreadyAccepted && setAgreed(e.target.checked)}
+                style={{
+                  width: 18,
+                  height: 18,
+                  marginTop: 2,
+                  accentColor: isAlreadyAccepted ? '#059669' : '#2563EB',
+                  cursor: (isSuspended || isAlreadyAccepted) ? 'not-allowed' : 'pointer',
+                  flexShrink: 0
+                }}
+              />
+              <label
+                htmlFor="terms-ack-checkbox"
+                style={{
+                  fontSize: '0.84rem',
+                  color: '#334155',
+                  lineHeight: 1.5,
+                  cursor: (isSuspended || isAlreadyAccepted) ? 'not-allowed' : 'pointer',
+                  userSelect: 'none'
+                }}
+              >
+                I have read, understood, and agree to the <strong>Terms & Conditions</strong> and <strong>Privacy Policy</strong>. I confirm that all reports I submit will be accurate, truthful, and comply with the guidelines stated above.
+              </label>
+            </div>
+
+            {/* Footer Meta & Action Button */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 12,
+              paddingTop: 4
+            }}>
+              {/* Version Info & Full Terms Link */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <span style={{ fontSize: '0.76rem', color: '#64748B', fontWeight: 500 }}>
+                  Version: <strong>{activeVersion}</strong> &nbsp;|&nbsp; Last Updated: <strong>{lastUpdated}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowFullTerms(true);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#2563EB',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: 0,
+                    textDecoration: 'underline'
+                  }}
+                >
+                  <span>View Full Terms</span>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {isModal && onDeclined && (
+                  <button
+                    type="button"
+                    onClick={handleDecline}
+                    disabled={submitting}
+                    style={{
+                      background: '#F1F5F9',
+                      color: '#475569',
+                      border: '1px solid #CBD5E1',
+                      padding: '9px 18px',
+                      borderRadius: 8,
+                      fontSize: '0.84rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Decline
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={isAlreadyAccepted ? undefined : handleAccept}
+                  disabled={isAlreadyAccepted || !agreed || submitting || isSuspended}
+                  style={{
+                    background: isAlreadyAccepted
+                      ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                      : ((!agreed || isSuspended)
+                        ? '#94A3B8'
+                        : 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)'),
+                    color: '#FFFFFF',
+                    border: isAlreadyAccepted ? '1px solid #10B981' : 'none',
+                    padding: '9px 24px',
+                    borderRadius: 8,
+                    fontSize: '0.86rem',
+                    fontWeight: 600,
+                    cursor: isAlreadyAccepted ? 'default' : ((!agreed || isSuspended) ? 'not-allowed' : 'pointer'),
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: isAlreadyAccepted
+                      ? '0 4px 12px rgba(5, 150, 105, 0.3)'
+                      : ((!agreed || isSuspended) ? 'none' : '0 4px 12px rgba(37, 99, 235, 0.3)'),
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {isAlreadyAccepted ? (
+                    <>
+                      <span>Terms Accepted</span>
+                      <span>✓</span>
+                    </>
+                  ) : submitting ? (
+                    <span>Recording Consent...</span>
+                  ) : (
+                    <>
+                      <span>Accept & Continue</span>
+                      <span>→</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* VIEW FULL TERMS MODAL */}

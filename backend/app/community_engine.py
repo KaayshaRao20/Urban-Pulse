@@ -72,6 +72,179 @@ def haversine_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float
 # -----------------------------------------------------------------------------
 SEED_COMMUNITY_ISSUES = [
     {
+        "id": "UP-2026-3841",
+        "ticket_number": "UP-2026-3841",
+        "title": "Major asphalt cavity & road depression near Electronic City Toll Plaza",
+        "landmark_address": "Hosur Road near Electronic City Phase 1 Toll Gate, Bengaluru - 560100",
+        "description": "Dangerous deep pothole crater measuring 1.2m across lane 2, posing acute skidding risk for two-wheelers during peak traffic.",
+        "category": "Pothole / Road Damage",
+        "urgency": "High",
+        "latitude": 12.8472,
+        "longitude": 77.6618,
+        "ward_zone": "Bommanahalli Zone (Electronic City / Anekal / Begur)",
+        "image_url": "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600&auto=format&fit=crop&q=80",
+        "media_count": 2,
+        "is_video": False,
+        "video_duration": None,
+        "citizen_name": "Ramesh Kumar",
+        "citizen_email": "ramesh.kumar@resident.blr.in",
+        "citizen_phone": "+91 98450 12345",
+        "is_user_reported": True,
+        "status": "Under Review",
+        "assigned_authority": "BBMP Road Infrastructure Cell",
+        "assigned_department": "BBMP Road Infrastructure Cell (Ward 192)",
+        "assigned_squad": "Rapid Patch Squad Alpha",
+        "assigned_officer": "Eng. R. Kumar (BBMP South-East)",
+        "sla_hours": 24,
+        "dispatch_eta": "Inspection queued (1.5 hrs)",
+        "support_count": 38,
+        "challenge_count": 1,
+        "on_site_verified_count": 14,
+        "created_at": "2026-11-26 10:15:00"
+    },
+    {
+        "id": "UP-2026-3845",
+        "ticket_number": "UP-2026-3845",
+        "title": "Severe storm drain overflow & culvert blockage near Wipro Gate 5",
+        "landmark_address": "Wipro Avenue, Electronic City Phase 1, Bengaluru - 560100",
+        "description": "Clogged culvert drain slab overflowing onto pedestrian sidewalk with murky stormwater causing severe pedestrian obstruction.",
+        "category": "Waterlogging / Drainage",
+        "urgency": "Critical",
+        "latitude": 12.8436,
+        "longitude": 77.6585,
+        "ward_zone": "Bommanahalli Zone (Electronic City / Anekal / Begur)",
+        "image_url": "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=600&auto=format&fit=crop&q=80",
+        "media_count": 1,
+        "is_video": True,
+        "video_duration": "0:26",
+        "citizen_name": "Pooja Hegde",
+        "citizen_email": "pooja.hegde@resident.blr.in",
+        "citizen_phone": "+91 97412 88921",
+        "is_user_reported": False,
+        "status": "Assigned",
+        "assigned_authority": "BWSSB Stormwater Maintenance",
+        "assigned_department": "BWSSB Stormwater Drain Cell",
+        "assigned_squad": "Drain Clearing Unit 2",
+        "assigned_officer": "Insp. K. S. Murthy",
+        "sla_hours": 12,
+        "dispatch_eta": "Dispatched to site",
+        "support_count": 45,
+        "challenge_count": 0,
+        "on_site_verified_count": 22,
+        "created_at": "2026-11-25 15:40:00"
+    },
+    {
+        "id": "UP-2026-3849",
+        "ticket_number": "UP-2026-3849",
+        "title": "Commercial garbage dump overflowing on pedestrian pathway near Neeladri Junction",
+        "landmark_address": "Neeladri Road Cross, Electronic City Phase 1, Bengaluru - 560100",
+        "description": "Unattended municipal commercial garbage accumulation spilling into roadside shoulder creating severe odor and hygiene hazard.",
+        "category": "Garbage / Solid Waste",
+        "urgency": "High",
+        "latitude": 12.8488,
+        "longitude": 77.6595,
+        "ward_zone": "Bommanahalli Zone (Electronic City / Anekal / Begur)",
+        "image_url": "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=600&auto=format&fit=crop&q=80",
+        "media_count": 3,
+        "is_video": False,
+        "video_duration": None,
+        "citizen_name": "Ramesh Kumar",
+        "citizen_email": "ramesh.kumar@resident.blr.in",
+        "citizen_phone": "+91 98450 12345",
+        "is_user_reported": True,
+        "status": "Crew Dispatched",
+        "assigned_authority": "BBMP Solid Waste Management",
+        "assigned_department": "BBMP Solid Waste Management Division",
+        "assigned_squad": "Waste Clearance Quick Squad 4",
+        "assigned_officer": "Insp. S. Narayana",
+        "sla_hours": 18,
+        "dispatch_eta": "Within 45 mins",
+        "support_count": 29,
+        "challenge_count": 2,
+        "on_site_verified_count": 16,
+        "created_at": "2026-11-25 09:20:00"
+    },
+    {
+        "id": "UP-2026-2101",
+        "ticket_number": "UP-2026-2101",
+        "title": "Severe road crater on Anekal Main Road opposite Alliance University",
+        "landmark_address": "Alliance University Main Gate, Chandapura-Anekal Road, Bengaluru - 562106",
+        "description": "Dangerous pothole crater spanning lane 1 causing motorbikes to skid near campus entrance.",
+        "category": "Pothole / Road Damage",
+        "urgency": "High",
+        "latitude": 12.7317,
+        "longitude": 77.7078,
+        "ward_zone": "Bommanahalli Zone (Electronic City / Anekal / Begur)",
+        "image_url": "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600&auto=format&fit=crop&q=80",
+        "media_count": 2,
+        "is_video": False,
+        "video_duration": None,
+        "support_count": 32,
+        "challenge_count": 1,
+        "on_site_verified_count": 21,
+        "created_at": "2026-11-04 09:15:00"
+    },
+    {
+        "id": "UP-2026-2102",
+        "ticket_number": "UP-2026-2102",
+        "title": "Broken drain slab & waterlogging near Alliance University sports arena",
+        "landmark_address": "Sports Arena Road, Alliance University Campus, Anekal - 562106",
+        "description": "Clogged culvert drain with broken concrete slab creating water stagnation and fall hazard.",
+        "category": "Drainage / Open Manhole",
+        "urgency": "High",
+        "latitude": 12.7308,
+        "longitude": 77.7065,
+        "ward_zone": "Bommanahalli Zone (Electronic City / Anekal / Begur)",
+        "image_url": "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=600&auto=format&fit=crop&q=80",
+        "media_count": 1,
+        "is_video": True,
+        "video_duration": "0:22",
+        "support_count": 24,
+        "challenge_count": 0,
+        "on_site_verified_count": 15,
+        "created_at": "2026-11-03 16:40:00"
+    },
+    {
+        "id": "UP-2026-2103",
+        "ticket_number": "UP-2026-2103",
+        "title": "Non-functional streetlight along Chandapura-Anekal corridor",
+        "landmark_address": "Anekal Main Road Junction, Bengaluru - 562106",
+        "description": "Streetlight pole wiring severed, junction pitch dark causing safety concerns for students.",
+        "category": "Streetlight / Electrical",
+        "urgency": "Medium",
+        "latitude": 12.7335,
+        "longitude": 77.7092,
+        "ward_zone": "Bommanahalli Zone (Electronic City / Anekal / Begur)",
+        "image_url": "https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=600&auto=format&fit=crop&q=80",
+        "media_count": 1,
+        "is_video": False,
+        "video_duration": None,
+        "support_count": 19,
+        "challenge_count": 1,
+        "on_site_verified_count": 11,
+        "created_at": "2026-11-03 14:10:00"
+    },
+    {
+        "id": "UP-2026-2104",
+        "ticket_number": "UP-2026-2104",
+        "title": "Garbage accumulation along campus perimeter road",
+        "landmark_address": "Near Alliance Campus Gate 2, Anekal - 562106",
+        "description": "Unattended solid waste heap overflowing onto pedestrian walkway shoulder.",
+        "category": "Garbage / Solid Waste",
+        "urgency": "Medium",
+        "latitude": 12.7292,
+        "longitude": 77.7051,
+        "ward_zone": "Bommanahalli Zone (Electronic City / Anekal / Begur)",
+        "image_url": "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=600&auto=format&fit=crop&q=80",
+        "media_count": 2,
+        "is_video": False,
+        "video_duration": None,
+        "support_count": 27,
+        "challenge_count": 2,
+        "on_site_verified_count": 18,
+        "created_at": "2026-11-02 11:30:00"
+    },
+    {
         "id": "UP-2026-1846",
         "ticket_number": "UP-2026-1846",
         "title": "Severe pothole on Marathahalli flyover ingress",
@@ -310,6 +483,197 @@ SEED_COMMUNITY_ISSUES = [
         "challenge_count": 0,
         "on_site_verified_count": 24,
         "created_at": "2026-10-24 10:00:00"
+    },
+    # -------------------------------------------------------------------------
+    # Issues near Ritika Mahavir Apartments / Electronic City South area
+    # (lat ~12.9269, lng ~77.6006) — Hongasandra, Singasandra, Kudlu Gate
+    # All are within 2 km of the resident's detected GPS location
+    # -------------------------------------------------------------------------
+    {
+        "id": "UP-2026-4101",
+        "ticket_number": "UP-2026-4101",
+        "title": "Deep pothole crater blocking lane near Hongasandra flyover service road",
+        "landmark_address": "Hongasandra Main Road near BSNL Tower, Electronic City South, Bengaluru - 560068",
+        "description": "A large pothole approximately 1.5 metres wide has formed on the service road beneath the Hongasandra flyover, causing two-wheelers to swerve dangerously during peak hours. The pothole appears to have deepened after last week's rain.",
+        "category": "Pothole / Road Damage",
+        "urgency": "High",
+        "latitude": 12.9218,
+        "longitude": 77.6052,
+        "ward_zone": "South Zone (Koramangala / BTM / Jayanagar)",
+        "image_url": "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600&auto=format&fit=crop&q=80",
+        "media_count": 2,
+        "is_video": False,
+        "video_duration": None,
+        "citizen_name": "Ramesh Kumar",
+        "citizen_email": "ramesh.kumar@resident.blr.in",
+        "citizen_phone": "+91 98450 12345",
+        "is_user_reported": True,
+        "status": "Under Review",
+        "assigned_authority": "BBMP Road Infrastructure Cell",
+        "assigned_department": "BBMP Road Infrastructure Cell (Ward 150 - Hongasandra)",
+        "assigned_squad": "Rapid Patch Squad Gamma",
+        "assigned_officer": "Eng. P. Krishnamurthy (BBMP South)",
+        "sla_hours": 24,
+        "dispatch_eta": "Inspection queued (2 hrs)",
+        "support_count": 41,
+        "challenge_count": 1,
+        "on_site_verified_count": 17,
+        "created_at": "2026-11-27 07:30:00"
+    },
+    {
+        "id": "UP-2026-4102",
+        "ticket_number": "UP-2026-4102",
+        "title": "Overflowing storm drain causing waterlogging near Singasandra junction",
+        "landmark_address": "Singasandra Cross Road, Kudlu Gate, Bengaluru - 560068",
+        "description": "The storm water drain beside Singasandra junction is completely blocked with silt and debris. During overnight rain, water overflowed onto the main road causing knee-deep waterlogging for over 3 hours disrupting morning traffic.",
+        "category": "Waterlogging / Drainage",
+        "urgency": "Critical",
+        "latitude": 12.9301,
+        "longitude": 77.6038,
+        "ward_zone": "South Zone (Koramangala / BTM / Jayanagar)",
+        "image_url": "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=600&auto=format&fit=crop&q=80",
+        "media_count": 3,
+        "is_video": True,
+        "video_duration": "0:31",
+        "citizen_name": "Priya Suresh",
+        "citizen_email": "priya.suresh@resident.blr.in",
+        "citizen_phone": "+91 94481 77654",
+        "is_user_reported": False,
+        "status": "Crew Dispatched",
+        "assigned_authority": "BWSSB Stormwater Maintenance",
+        "assigned_department": "BBMP Stormwater Drain Cell (Ward 149 - Singasandra)",
+        "assigned_squad": "Drain Clearing Unit 3",
+        "assigned_officer": "Insp. R. Venkatesh (BBMP SWM South)",
+        "sla_hours": 12,
+        "dispatch_eta": "Within 30 mins",
+        "support_count": 63,
+        "challenge_count": 0,
+        "on_site_verified_count": 28,
+        "created_at": "2026-11-27 06:15:00"
+    },
+    {
+        "id": "UP-2026-4103",
+        "ticket_number": "UP-2026-4103",
+        "title": "Broken streetlight pole near Ritika Mahavir Apartment main gate",
+        "landmark_address": "Ritika Mahavir Apartments, Electronic City, Bengaluru - 560068",
+        "description": "The BBMP streetlight pole directly opposite Ritika Mahavir Apartments main gate is tilting at 45 degrees after being hit by a heavy vehicle. The pole and hanging live wire are a serious electrocution and fall hazard. Area is completely dark at night.",
+        "category": "Streetlight / Electrical",
+        "urgency": "Critical",
+        "latitude": 12.9271,
+        "longitude": 77.6009,
+        "ward_zone": "South Zone (Koramangala / BTM / Jayanagar)",
+        "image_url": "https://images.unsplash.com/photo-1508873696983-2df5293cb32b?w=600&auto=format&fit=crop&q=80",
+        "media_count": 2,
+        "is_video": False,
+        "video_duration": None,
+        "citizen_name": "Ramesh Kumar",
+        "citizen_email": "ramesh.kumar@resident.blr.in",
+        "citizen_phone": "+91 98450 12345",
+        "is_user_reported": True,
+        "status": "Assigned",
+        "assigned_authority": "BESCOM Electrical Distribution",
+        "assigned_department": "BESCOM South Division (Electronic City Feeder)",
+        "assigned_squad": "Electrical Emergency Response Unit 1",
+        "assigned_officer": "JE Suresh Kumar (BESCOM S-Zone)",
+        "sla_hours": 6,
+        "dispatch_eta": "Dispatched – ETA 45 mins",
+        "support_count": 54,
+        "challenge_count": 0,
+        "on_site_verified_count": 31,
+        "created_at": "2026-11-26 21:40:00"
+    },
+    {
+        "id": "UP-2026-4104",
+        "ticket_number": "UP-2026-4104",
+        "title": "Garbage black spot overflowing near Kudlu Gate bus stand",
+        "landmark_address": "Kudlu Gate Bus Stop, Hosa Road, Bengaluru - 560068",
+        "description": "Commercial and household solid waste has been accumulating at the Kudlu Gate bus stand corner for over 10 days. The dump is overflowing onto the footpath and bus shelter with severe odour affecting commuters. BBMP collection truck has not visited this spot.",
+        "category": "Garbage / Solid Waste",
+        "urgency": "High",
+        "latitude": 12.9340,
+        "longitude": 77.6075,
+        "ward_zone": "South Zone (Koramangala / BTM / Jayanagar)",
+        "image_url": "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=600&auto=format&fit=crop&q=80",
+        "media_count": 2,
+        "is_video": False,
+        "video_duration": None,
+        "citizen_name": "Anand Shetty",
+        "citizen_email": "anand.shetty@resident.blr.in",
+        "citizen_phone": "+91 90359 44210",
+        "is_user_reported": False,
+        "status": "Under Review",
+        "assigned_authority": "BBMP Solid Waste Management",
+        "assigned_department": "BBMP SWM Division (Ward 150)",
+        "assigned_squad": "Waste Clearance Quick Squad 2",
+        "assigned_officer": "Insp. D. Murthy (BBMP SWM)",
+        "sla_hours": 24,
+        "dispatch_eta": "Scheduled collection tomorrow 7 AM",
+        "support_count": 47,
+        "challenge_count": 2,
+        "on_site_verified_count": 19,
+        "created_at": "2026-11-26 11:00:00"
+    },
+    {
+        "id": "UP-2026-4105",
+        "ticket_number": "UP-2026-4105",
+        "title": "Open manhole cover missing on Hosa Road pedestrian pathway",
+        "landmark_address": "Hosa Road, Near Meenakshi Temple, Electronic City South, Bengaluru - 560068",
+        "description": "A BBMP sewage manhole cover has been missing for approximately 5 days on the Hosa Road pedestrian footpath near Meenakshi Temple junction. The open manhole is concealed by muddy water and poses extreme fall hazard especially at night.",
+        "category": "Drainage / Open Manhole",
+        "urgency": "Critical",
+        "latitude": 12.9248,
+        "longitude": 77.5980,
+        "ward_zone": "South Zone (Koramangala / BTM / Jayanagar)",
+        "image_url": "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=600&auto=format&fit=crop&q=80",
+        "media_count": 1,
+        "is_video": True,
+        "video_duration": "0:19",
+        "citizen_name": "Kavitha Reddy",
+        "citizen_email": "kavitha.reddy@resident.blr.in",
+        "citizen_phone": "+91 99861 55302",
+        "is_user_reported": False,
+        "status": "Under Review",
+        "assigned_authority": "BBMP Road Infrastructure Cell",
+        "assigned_department": "BBMP Drainage Maintenance (Ward 148 - Hosa Road)",
+        "assigned_squad": "Manhole Cover Replacement Team",
+        "assigned_officer": "Eng. L. Narayanan (BBMP Infrastructure)",
+        "sla_hours": 6,
+        "dispatch_eta": "Emergency inspection queued (1 hr)",
+        "support_count": 72,
+        "challenge_count": 0,
+        "on_site_verified_count": 38,
+        "created_at": "2026-11-26 16:20:00"
+    },
+    {
+        "id": "UP-2026-4106",
+        "ticket_number": "UP-2026-4106",
+        "title": "Damaged footpath slabs and broken railing near KSRTC Depot Hongasandra",
+        "landmark_address": "KSRTC Bus Depot Road, Hongasandra, Bengaluru - 560068",
+        "description": "Multiple footpath tiles are upheaved and broken along the KSRTC depot access road. The safety railing is bent and collapsed over 15 metres of stretch. Elderly and school children using this path daily are at risk of tripping and falling.",
+        "category": "Footpath / Pedestrian",
+        "urgency": "Medium",
+        "latitude": 12.9192,
+        "longitude": 77.6029,
+        "ward_zone": "South Zone (Koramangala / BTM / Jayanagar)",
+        "image_url": "https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=600&auto=format&fit=crop&q=80",
+        "media_count": 3,
+        "is_video": False,
+        "video_duration": None,
+        "citizen_name": "Mohammed Rashid",
+        "citizen_email": "m.rashid@resident.blr.in",
+        "citizen_phone": "+91 98863 20045",
+        "is_user_reported": False,
+        "status": "Under Review",
+        "assigned_authority": "BBMP Road Infrastructure Cell",
+        "assigned_department": "BBMP Footpath Maintenance (Ward 150 - Hongasandra)",
+        "assigned_squad": "Footpath Repair Squad B",
+        "assigned_officer": "Eng. T. Govinda (BBMP Infrastructure South)",
+        "sla_hours": 48,
+        "dispatch_eta": "Scheduled within 48 hrs",
+        "support_count": 33,
+        "challenge_count": 1,
+        "on_site_verified_count": 14,
+        "created_at": "2026-11-25 14:50:00"
     }
 ]
 
@@ -367,13 +731,41 @@ def init_community_seeds():
                         longitude=seed["longitude"],
                         ward_zone=seed["ward_zone"],
                         image_url=seed["image_url"],
-                        status="Submitted",
+                        citizen_name=seed.get("citizen_name", "Local Resident"),
+                        citizen_email=seed.get("citizen_email", "resident@citizen.blr.in"),
+                        citizen_phone=seed.get("citizen_phone", "+91 98450 12345"),
+                        status=seed.get("status", "Submitted"),
                         verification_status="Verified",
-                        assigned_authority="BBMP Road Infrastructure Cell",
+                        assigned_authority=seed.get("assigned_authority", "BBMP Road Infrastructure Cell"),
+                        assigned_department=seed.get("assigned_department", "BBMP Road Infrastructure Cell"),
+                        assigned_squad=seed.get("assigned_squad", "Rapid Response Squad Alpha"),
+                        assigned_officer=seed.get("assigned_officer", "Eng. R. Kumar (BBMP)"),
+                        dispatch_eta=seed.get("dispatch_eta"),
+                        sla_hours=seed.get("sla_hours", 24),
                         created_at=datetime.strptime(seed["created_at"], "%Y-%m-%d %H:%M:%S")
                     )
                     db.add(c)
                     db.commit()
+                except Exception:
+                    db.rollback()
+            else:
+                # Synchronize any missing citizen or workflow attributes
+                try:
+                    updated = False
+                    if not existing.citizen_name and seed.get("citizen_name"):
+                        existing.citizen_name = seed["citizen_name"]
+                        updated = True
+                    if not existing.citizen_email and seed.get("citizen_email"):
+                        existing.citizen_email = seed["citizen_email"]
+                        updated = True
+                    if seed.get("assigned_department") and not existing.assigned_department:
+                        existing.assigned_department = seed["assigned_department"]
+                        updated = True
+                    if seed.get("assigned_squad") and not existing.assigned_squad:
+                        existing.assigned_squad = seed["assigned_squad"]
+                        updated = True
+                    if updated:
+                        db.commit()
                 except Exception:
                     db.rollback()
 
@@ -422,7 +814,8 @@ def get_nearby_community_issues(
     radius_km: float = Query(2.0, ge=0.5, le=25.0, description="Discovery radius in km"),
     citizen_id: Optional[str] = Query(None, description="Active citizen identifier (e.g. email)"),
     tab: str = Query("nearby", description="nearby | contributions | verifications"),
-    sort: str = Query("newest", description="newest | most_supported | most_verified")
+    sort: str = Query("newest", description="newest | most_supported | most_verified"),
+    locality: Optional[str] = Query(None, description="Client geocoded live locality name")
 ):
     """
     Returns nearby civic issues within the configured geographic radius (default 2km),
@@ -449,6 +842,16 @@ def get_nearby_community_issues(
                 "longitude": float(c.longitude or 77.7011),
                 "ward_zone": c.ward_zone or "East Zone (Mahadevapura / Indiranagar)",
                 "image_url": c.image_url or "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600&auto=format&fit=crop&q=80",
+                "citizen_name": c.citizen_name or "Local Resident",
+                "citizen_email": c.citizen_email or "",
+                "citizen_phone": c.citizen_phone or "",
+                "status": c.status or "Submitted",
+                "assigned_authority": c.assigned_authority or "BBMP Road Infrastructure Cell",
+                "assigned_department": c.assigned_department or "BBMP Road Infrastructure Cell",
+                "assigned_squad": c.assigned_squad,
+                "assigned_officer": c.assigned_officer,
+                "dispatch_eta": c.dispatch_eta,
+                "sla_hours": c.sla_hours or 24,
                 "created_at": c.created_at.strftime("%Y-%m-%d %H:%M:%S") if c.created_at else "2026-11-03 10:00:00"
             })
 
@@ -522,6 +925,19 @@ def get_nearby_community_issues(
 
                 dist_display = f"{int(dist_m)}m away" if dist_m < 1000 else f"{dist_m/1000:.1f} km away"
 
+                # Determine if this grievance was lodged by the currently active citizen
+                is_user_reported = False
+                if citizen_id:
+                    cid_clean = citizen_id.strip().lower()
+                    c_mail = str(issue.get("citizen_email") or "").strip().lower()
+                    c_name = str(issue.get("citizen_name") or "").strip().lower()
+                    if c_mail and (c_mail == cid_clean or cid_clean in c_mail or c_mail.split("@")[0] in cid_clean or cid_clean.split("@")[0] in c_mail):
+                        is_user_reported = True
+                    elif "ramesh" in cid_clean and "ramesh" in c_name:
+                        is_user_reported = True
+                    elif issue.get("is_user_reported"):
+                        is_user_reported = True
+
                 nearby_issues.append({
                     "id": iid,
                     "ticket_number": issue.get("ticket_number") or iid,
@@ -539,6 +955,17 @@ def get_nearby_community_issues(
                     "media_count": issue.get("media_count", 1),
                     "is_video": bool(issue.get("is_video", False)),
                     "video_duration": issue.get("video_duration"),
+                    "citizen_name": issue.get("citizen_name") or "Local Resident",
+                    "citizen_email": issue.get("citizen_email") or "",
+                    "citizen_phone": issue.get("citizen_phone") or "",
+                    "is_user_reported": is_user_reported,
+                    "status": issue.get("status", "Submitted"),
+                    "assigned_authority": issue.get("assigned_authority", "BBMP Road Infrastructure Cell"),
+                    "assigned_department": issue.get("assigned_department", "BBMP Road Infrastructure Cell"),
+                    "assigned_squad": issue.get("assigned_squad"),
+                    "assigned_officer": issue.get("assigned_officer"),
+                    "dispatch_eta": issue.get("dispatch_eta"),
+                    "sla_hours": issue.get("sla_hours", 24),
                     "support_count": total_support,
                     "challenge_count": total_challenge,
                     "on_site_verified_count": total_verif,
@@ -557,24 +984,50 @@ def get_nearby_community_issues(
         else: # newest / closest
             nearby_issues.sort(key=lambda x: x["distance_meters"])
 
-        # 5. Locality naming resolution
-        locality_name = "Marathahalli, Bengaluru"
-        if haversine_distance_meters(lat, lng, 12.9352, 77.6953) < 1800:
-            locality_name = "Bellandur, Bengaluru"
-        elif haversine_distance_meters(lat, lng, 12.9784, 77.6408) < 1800:
-            locality_name = "Indiranagar, Bengaluru"
-        elif haversine_distance_meters(lat, lng, 12.8452, 77.6602) < 1800:
-            locality_name = "Electronic City, Bengaluru"
-        elif haversine_distance_meters(lat, lng, 12.9121, 77.6446) < 1800:
-            locality_name = "HSR Layout, Bengaluru"
-        elif haversine_distance_meters(lat, lng, 12.9352, 77.6245) < 1800:
-            locality_name = "Koramangala, Bengaluru"
-        elif nearby_issues:
-            locality_name = nearby_issues[0]["landmark_address"].split(",")[0] + ", Bengaluru"
+        # 5. Locality naming resolution (Dynamic Haversine matching across Bengaluru Metro)
+        if locality and locality.strip():
+            locality_name = locality.strip()
+            if not locality_name.endswith("Bengaluru") and not locality_name.endswith("Bangalore"):
+                locality_name = f"{locality_name}, Bengaluru"
+        else:
+            known_localities = [
+                ("Alliance University, Anekal", 12.7316, 77.7072),
+                ("Anekal Town", 12.7108, 77.6974),
+                ("Electronic City Phase 1", 12.8452, 77.6602),
+                ("Electronic City Phase 2", 12.8488, 77.6800),
+                ("Bommasandra / Chandapura", 12.8170, 77.6940),
+                ("Jigani Industrial Area", 12.7845, 77.6385),
+                ("Begur / Hulimavu", 12.8790, 77.6240),
+                ("Bommanahalli", 12.9030, 77.6250),
+                ("HSR Layout", 12.9121, 77.6446),
+                ("Bellandur / Kadubeesanahalli", 12.9352, 77.6953),
+                ("Koramangala", 12.9352, 77.6245),
+                ("Marathahalli", 12.9569, 77.7011),
+                ("Indiranagar", 12.9784, 77.6408),
+                ("Whitefield / ITPL", 12.9863, 77.7308),
+                ("Mahadevapura / KR Puram", 12.9930, 77.6880),
+                ("MG Road / CBD", 12.9756, 77.6067),
+                ("Malleshwaram / Rajajinagar", 12.9920, 77.5680),
+                ("Hebbal / RT Nagar", 13.0358, 77.5970),
+                ("Yelahanka", 13.1007, 77.5963),
+                ("Peenya / Dasarahalli", 13.0285, 77.5180),
+                ("Rajarajeshwari Nagar / Kengeri", 12.9260, 77.5150),
+                ("Jayanagar / JP Nagar", 12.9250, 77.5938),
+                ("Banashankari", 12.9150, 77.5736),
+                ("Sarjapur Road", 12.9100, 77.7000)
+            ]
+            closest_loc = min(known_localities, key=lambda item: haversine_distance_meters(lat, lng, item[1], item[2]))
+            dist_to_closest = haversine_distance_meters(lat, lng, closest_loc[1], closest_loc[2])
+            if dist_to_closest <= 5000:
+                locality_name = f"{closest_loc[0]}, Bengaluru"
+            elif nearby_issues:
+                locality_name = nearby_issues[0]["landmark_address"].split(",")[0].strip() + ", Bengaluru"
+            else:
+                locality_name = f"Near Coordinates ({lat:.4f}, {lng:.4f}), Bengaluru"
 
         # 6. Tab filtering (contributions / verifications)
         if tab == "contributions" and citizen_id:
-            filtered_by_tab = [iss for iss in nearby_issues if iss["user_vote"] or iss["user_verified"]]
+            filtered_by_tab = [iss for iss in nearby_issues if iss["user_vote"] or iss["user_verified"] or iss.get("is_user_reported")]
         elif tab == "verifications":
             filtered_by_tab = [iss for iss in nearby_issues if iss["on_site_verified_count"] > 0]
         else:
@@ -970,6 +1423,15 @@ def get_issue_details(issue_id: str):
                 "longitude": issue.longitude,
                 "ward_zone": issue.ward_zone,
                 "image_url": issue.image_url,
+                "citizen_name": issue.citizen_name or "Local Resident",
+                "citizen_email": issue.citizen_email or "",
+                "status": issue.status or "Submitted",
+                "assigned_authority": issue.assigned_authority or "BBMP Road Infrastructure Cell",
+                "assigned_department": issue.assigned_department or "BBMP Road Infrastructure Cell",
+                "assigned_squad": issue.assigned_squad,
+                "assigned_officer": issue.assigned_officer,
+                "dispatch_eta": issue.dispatch_eta,
+                "sla_hours": issue.sla_hours or 24,
                 "created_at": issue.created_at.strftime("%Y-%m-%d %H:%M:%S") if issue.created_at else ""
             }
         else:

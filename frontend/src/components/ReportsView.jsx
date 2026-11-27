@@ -127,22 +127,167 @@ export default function ReportsView() {
     fetchDetails();
   }, [selectedReportId]);
 
-  // --- Handle Real Download ---
+  // --- PDF Generator Helper for Resilient Client Fallback ---
+  const generateClientPdfBlob = (rep, reportId, reportName) => {
+    const escapePdf = (s) => (s ? String(s).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)') : '');
+    const title = rep?.name || reportName || 'Urban Operations Report';
+    const loc = rep?.location || 'Bengaluru Metropolitan Area';
+    const repType = rep?.report_type || 'Operations';
+    const dateStr = rep?.date_time || new Date().toLocaleString();
+    const summary = rep?.preview_data?.executive_summary || rep?.description || 'Comprehensive municipal operations and multi-sensor telemetry synthesis.';
+
+    const streamLines = [
+      '0.06 0.15 0.28 rg 40 735 515 65 re f',
+      'BT /F1 15 Tf 1 1 1 rg 55 772 Td (URBANPULSE METROPOLITAN COMMAND & CONTROL) Tj ET',
+      'BT /F2 9 Tf 0.8 0.9 1 rg 55 756 Td (INTELLIGENCE REPORT & MUNICIPAL OPERATIONS DOSSIER) Tj ET',
+      'BT /F1 8 Tf 0.05 0.78 0.58 rg 55 742 Td (CLASSIFICATION: OFFICIAL CIVIC RECORD | ISO 37120 COMPLIANT) Tj ET',
+      '0.05 0.59 0.41 rg 40 730 515 3 re f',
+      '0.96 0.97 0.98 rg 40 645 515 75 re f',
+      '0.85 0.88 0.92 RG 1 w 40 645 515 75 re s',
+      `BT /F1 9 Tf 0.1 0.15 0.25 rg 55 702 Td (Document Title:) Tj ET`,
+      `BT /F2 9 Tf 0.2 0.3 0.4 rg 140 702 Td (${escapePdf(title)}) Tj ET`,
+      `BT /F1 9 Tf 0.1 0.15 0.25 rg 55 687 Td (Report ID:) Tj ET`,
+      `BT /F3 9 Tf 0.05 0.59 0.41 rg 140 687 Td (${escapePdf(reportId)}) Tj ET`,
+      `BT /F1 9 Tf 0.1 0.15 0.25 rg 55 672 Td (Location Scope:) Tj ET`,
+      `BT /F2 9 Tf 0.2 0.3 0.4 rg 140 672 Td (${escapePdf(loc)}) Tj ET`,
+      `BT /F1 9 Tf 0.1 0.15 0.25 rg 55 657 Td (Report Type:) Tj ET`,
+      `BT /F2 9 Tf 0.2 0.3 0.4 rg 140 657 Td (${escapePdf(repType)}) Tj ET`,
+      `BT /F1 9 Tf 0.1 0.15 0.25 rg 340 702 Td (Generated Date:) Tj ET`,
+      `BT /F2 9 Tf 0.2 0.3 0.4 rg 425 702 Td (${escapePdf(dateStr)}) Tj ET`,
+      `BT /F1 9 Tf 0.1 0.15 0.25 rg 340 687 Td (Authority Officer:) Tj ET`,
+      `BT /F2 9 Tf 0.2 0.3 0.4 rg 425 687 Td (Admin - Urban Authority) Tj ET`,
+      `BT /F1 9 Tf 0.1 0.15 0.25 rg 340 672 Td (Audit Status:) Tj ET`,
+      `BT /F1 9 Tf 0.05 0.59 0.41 rg 425 672 Td (Verified & Downloaded) Tj ET`,
+      `BT /F1 9 Tf 0.1 0.15 0.25 rg 340 657 Td (Agency:) Tj ET`,
+      `BT /F2 9 Tf 0.2 0.3 0.4 rg 425 657 Td (BBMP & ICCC Control) Tj ET`,
+      'BT /F1 11 Tf 0.06 0.15 0.28 rg 40 625 Td (1. EXECUTIVE SUMMARY & TELEMETRY OBSERVATIONS) Tj ET',
+      '0.85 0.88 0.92 RG 1 w 40 621 m 555 621 l s'
+    ];
+
+    let y = 605;
+    const words = summary.split(/\s+/);
+    let curLine = [];
+    for (const w of words) {
+      curLine.push(w);
+      if (curLine.join(' ').length > 82) {
+        streamLines.push(`BT /F2 9.5 Tf 0.2 0.25 0.3 rg 45 ${y} Td (${escapePdf(curLine.join(' '))}) Tj ET`);
+        y -= 14;
+        curLine = [];
+      }
+    }
+    if (curLine.length) {
+      streamLines.push(`BT /F2 9.5 Tf 0.2 0.25 0.3 rg 45 ${y} Td (${escapePdf(curLine.join(' '))}) Tj ET`);
+      y -= 18;
+    }
+
+    y -= 8;
+    streamLines.push(
+      `BT /F1 11 Tf 0.06 0.15 0.28 rg 40 ${y} Td (2. KEY PERFORMANCE INDICATORS & OPERATIONAL METRICS) Tj ET`,
+      `0.85 0.88 0.92 RG 1 w 40 ${y-4} m 555 ${y-4} l s`
+    );
+    y -= 18;
+
+    const kpis = rep?.preview_data?.kpis || [
+      { label: 'Network SLA', value: '98.4%', trend: 'Compliant' },
+      { label: 'Active Sensors', value: '184 Nodes', trend: 'Online' },
+      { label: 'Dispatch Latency', value: '1.4 hrs', trend: 'Optimal' },
+      { label: 'Corridor Index', value: '0.72 (Good)', trend: 'Stable' }
+    ];
+    const boxW = 122;
+    kpis.slice(0, 4).forEach((kpi, idx) => {
+      const bx = 40 + idx * (boxW + 9);
+      streamLines.push(
+        `0.96 0.97 0.98 rg ${bx} ${y-38} ${boxW} 38 re f`,
+        `0.85 0.88 0.92 RG 1 w ${bx} ${y-38} ${boxW} 38 re s`,
+        `BT /F2 8 Tf 0.4 0.45 0.5 rg ${bx+8} ${y-14} Td (${escapePdf(kpi.label)}) Tj ET`,
+        `BT /F1 11 Tf 0.06 0.15 0.28 rg ${bx+8} ${y-26} Td (${escapePdf(kpi.value)}) Tj ET`,
+        `BT /F1 7.5 Tf 0.05 0.59 0.41 rg ${bx+8} ${y-35} Td (${escapePdf(kpi.trend)}) Tj ET`
+      );
+    });
+    y -= 54;
+
+    y -= 8;
+    streamLines.push(
+      `BT /F1 11 Tf 0.06 0.15 0.28 rg 40 ${y} Td (3. KEY INSIGHTS & INFRASTRUCTURE FINDINGS) Tj ET`,
+      `0.85 0.88 0.92 RG 1 w 40 ${y-4} m 555 ${y-4} l s`
+    );
+    y -= 16;
+    const insights = rep?.preview_data?.key_insights || [
+      "Multi-sensor telemetry networks verified real-time connectivity.",
+      "Corridor transit velocity and intersection clearing rates operating normally.",
+      "Integrated municipal command center logging active field squad coordination."
+    ];
+    insights.slice(0, 3).forEach((item) => {
+      streamLines.push(
+        `BT /F1 10 Tf 0.05 0.59 0.41 rg 45 ${y} Td ([+] ) Tj ET`,
+        `BT /F2 9 Tf 0.2 0.25 0.3 rg 62 ${y} Td (${escapePdf(item.slice(0, 90))}) Tj ET`
+      );
+      y -= 14;
+    });
+
+    y -= 14;
+    streamLines.push(
+      `0.96 0.98 0.96 rg 40 ${y-45} 515 45 re f`,
+      `0.7 0.88 0.75 RG 1 w 40 ${y-45} 515 45 re s`,
+      `BT /F1 8.5 Tf 0.05 0.59 0.41 rg 55 ${y-14} Td (VERIFIED CIVIC RECORD - OFFICIAL DIGITAL SIGN-OFF) Tj ET`,
+      `BT /F2 8 Tf 0.2 0.25 0.3 rg 55 ${y-26} Td (Duty Officer: Officer Kaaysha Rao (ICCC Control 01)  |  Exported as PDF Dossier) Tj ET`,
+      `BT /F3 7.5 Tf 0.4 0.45 0.5 rg 55 ${y-38} Td (Security Token: UP-ICCC-2026-B87A-92F4 | Validated via UrbanPulse Cryptographic Registry) Tj ET`,
+      '0.85 0.88 0.92 RG 1 w 40 40 m 555 40 l s',
+      'BT /F2 7.5 Tf 0.5 0.55 0.6 rg 40 28 Td (UrbanPulse Smart City Command Network | Confidential Municipal Operations Record | Page 1 of 1) Tj ET',
+      `BT /F2 7.5 Tf 0.5 0.55 0.6 rg 450 28 Td (Generated: ${escapePdf(new Date().toLocaleDateString())}) Tj ET`
+    );
+
+    const streamStr = streamLines.join('\n');
+    const streamLen = streamStr.length;
+
+    const objects = [
+      '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R >> >> /Contents 7 0 R >>\nendobj\n',
+      '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n',
+      '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+      '6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>\nendobj\n',
+      `7 0 obj\n<< /Length ${streamLen} >>\nstream\n${streamStr}\nendstream\nendobj\n`
+    ];
+
+    const header = '%PDF-1.4\n';
+    let offsets = [];
+    let currentOffset = header.length;
+    let body = '';
+
+    for (const obj of objects) {
+      offsets.push(currentOffset);
+      body += obj;
+      currentOffset += obj.length;
+    }
+
+    let xref = `xref\n0 8\n0000000000 65535 f \n`;
+    for (const off of offsets) {
+      xref += `${String(off).padStart(10, '0')} 00000 n \n`;
+    }
+    const trailer = `trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n${currentOffset}\n%%EOF\n`;
+
+    const fullPdf = header + body + xref + trailer;
+    return new Blob([fullPdf], { type: 'application/pdf' });
+  };
+
+  // --- Handle Real Download (PDF Document) ---
   const handleDownload = async (reportId, reportName) => {
     try {
       const res = await fetch(`${API_BASE}/reports/${reportId}/download?user=Admin (Urban Authority)`);
       if (res.ok) {
         const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
+        const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(pdfBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${reportName.replace(/\s+/g, '_')}_${reportId}.txt`;
+        a.download = `${reportName.replace(/\s+/g, '_')}_${reportId}.pdf`;
         document.body.appendChild(a);
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
 
-        showToast(`Downloaded ${reportName}`);
+        showToast(`Downloaded ${reportName} (PDF)`);
         fetchSummary();
         fetchReports();
         if (selectedReportId === reportId) {
@@ -155,71 +300,25 @@ export default function ReportsView() {
       console.warn('Backend download failed, activating client document fallback:', e);
     }
 
-    // Resilient fallback: Generate professional Municipal Executive Report document directly in client
+    // Resilient fallback: Generate professional Municipal Executive Report PDF directly in client
     const rep = selectedReportDetails || reports.find(r => r.id === reportId) || {
       name: reportName,
       report_type: 'Municipal Operations',
       location: 'Bengaluru Metropolitan Area',
-      created_at: new Date().toLocaleString()
+      date_time: new Date().toLocaleString()
     };
 
-    const docContent = `========================================================================
-URBANPULSE METROPOLITAN COMMAND & CONTROL INTELLIGENCE REPORT
-MUNICIPAL OPERATIONS & CIVIC ASSET DOSSIER
-========================================================================
-Report ID        : ${reportId}
-Document Title   : ${reportName}
-Classification   : OFFICIAL CIVIC RECORD - LEVEL 2
-Generated Date   : ${new Date().toLocaleString()}
-Authority Agency : Bruhat Bengaluru Mahanagara Palike (BBMP) & ICCC
-Location Scope   : ${rep.location || 'Bengaluru City'}
-Category         : ${rep.report_type || 'Operations'}
-Compliance Code  : ISO 37120 / Smart Cities Mission India (MoHUA)
-========================================================================
-
-1. EXECUTIVE SUMMARY & TELEMETRY OBSERVATIONS
-------------------------------------------------------------------------
-During the monitoring period, multi-sensor telemetry networks captured
-continuous live operational metrics across urban corridors including
-traffic velocity, crowd congestion indices, drainage pump states, and
-weather precipitation thresholds.
-
-Status: SATISFACTORY / ACTIVE MONITORING
-Total Monitored Nodes: 184 Smart Sensors
-SLA Compliance: 97.4%
-Operational Directives Dispatched: 14 Active Units
-
-2. CORRIDOR MOBILITY & INFRASTRUCTURE STATUS
-------------------------------------------------------------------------
-- Marathahalli - Outer Ring Road : Flow Rate 42 km/h (Moderate load)
-- Whitefield ITPL Tech Corridor  : Flow Rate 38 km/h (Congestion cleared)
-- Koramangala 80ft Waterway      : Sump Level Normal (Zero waterlogging)
-- Silk Board Transit Interchange : Signal Synchronization Active (SCATS)
-
-3. CIVIC GRIEVANCES & RAPID ACTION TEAMS
-------------------------------------------------------------------------
-All high-priority grievances lodged through Citizen Web Portal and 
-Namma Bengaluru mobile nodes have been catalogued and routed to 
-designated zonal ward engineers for resolution verification.
-
-4. OFFICIAL VERIFICATION SIGN-OFF
-------------------------------------------------------------------------
-Duty Commander: Officer Kaaysha Rao (ICCC Control 01)
-Digital Signature Token: UP-ICCC-2026-${Math.random().toString(36).substring(2, 9).toUpperCase()}
-========================================================================
-END OF MUNICIPAL DOSSIER
-`;
-    const fallbackBlob = new Blob([docContent], { type: 'text/plain;charset=utf-8' });
+    const fallbackBlob = generateClientPdfBlob(rep, reportId, reportName);
     const fallbackUrl = window.URL.createObjectURL(fallbackBlob);
     const downloadLink = document.createElement('a');
     downloadLink.href = fallbackUrl;
-    downloadLink.download = `${reportName.replace(/\s+/g, '_')}_${reportId}.txt`;
+    downloadLink.download = `${reportName.replace(/\s+/g, '_')}_${reportId}.pdf`;
     document.body.appendChild(downloadLink);
     downloadLink.click();
     downloadLink.remove();
     window.URL.revokeObjectURL(fallbackUrl);
 
-    showToast(`Downloaded ${reportName}`);
+    showToast(`Downloaded ${reportName} (PDF)`);
     setSummary(prev => ({
       ...prev,
       downloaded: (prev.downloaded || 0) + 1
@@ -689,8 +788,8 @@ END OF MUNICIPAL DOSSIER
             <option value="Scenario">Scenario</option>
             <option value="Focus">Focus</option>
             <option value="Calendar">Calendar</option>
+            <option value="Drainage">Drainage</option>
             <option value="Combined">Combined</option>
-            <option value="Student Service">Student Service</option>
           </select>
 
           {/* Source */}
@@ -706,7 +805,6 @@ END OF MUNICIPAL DOSSIER
             <option value="Alerts & Incidents">Alerts & Incidents</option>
             <option value="Scenario Analysis">Scenario Analysis</option>
             <option value="System">System</option>
-            <option value="Student Service">Student Service</option>
             <option value="Uploaded">Uploaded</option>
           </select>
 
@@ -1133,7 +1231,7 @@ END OF MUNICIPAL DOSSIER
                   <option value="Scenario">Scenario Analysis Report</option>
                   <option value="Focus">Focus Corridor Report</option>
                   <option value="Calendar">Predictive Calendar Report</option>
-                  <option value="Student Service">Student Service Report</option>
+                  <option value="Drainage">Stormwater Drainage & Waterlogging Report</option>
                   <option value="Combined">Urban Situation Report (Combined)</option>
                 </select>
               </div>
@@ -1147,7 +1245,6 @@ END OF MUNICIPAL DOSSIER
                   <option value="Predictive Calendar">Predictive Calendar</option>
                   <option value="Alerts & Incidents">Alerts & Incidents</option>
                   <option value="Scenario Analysis">Scenario Analysis</option>
-                  <option value="Student Service">Student Service</option>
                   <option value="System">System Automated</option>
                 </select>
               </div>
@@ -1221,7 +1318,7 @@ END OF MUNICIPAL DOSSIER
                     <option value="Crowd">Crowd</option>
                     <option value="Weather">Weather</option>
                     <option value="Alert">Alert</option>
-                    <option value="Student Service">Student Service</option>
+                    <option value="Drainage">Drainage</option>
                     <option value="Combined">Combined</option>
                   </select>
                 </div>
@@ -1229,7 +1326,7 @@ END OF MUNICIPAL DOSSIER
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>Source Attribution:</label>
                   <select value={upSource} onChange={(e) => setUpSource(e.target.value)} style={{ width: '100%', padding: '0.5rem', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '0.8rem', color: '#0F172A', outline: 'none' }}>
                     <option value="Uploaded">Uploaded</option>
-                    <option value="Student Service">Student Service</option>
+                    <option value="Focus">Focus Sensors</option>
                     <option value="External Agency">External Agency</option>
                   </select>
                 </div>

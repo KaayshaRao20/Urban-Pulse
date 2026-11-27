@@ -150,7 +150,7 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
   // Fetch civic complaints submitted by citizens
   const fetchCivicComplaints = async () => {
     try {
-      const params = new URLSearchParams({ limit: '100' });
+      const params = new URLSearchParams({ limit: '300' });
       if (civicCategoryFilter !== 'all') params.append('category', civicCategoryFilter);
       if (civicStatusFilter !== 'all') params.append('status', civicStatusFilter);
       if (civicDeptFilter !== 'all') params.append('department', civicDeptFilter);
@@ -561,7 +561,13 @@ export default function IntelligenceMapView({ timestamp, onNavigateToGrievance }
         { id: 'weather-obs-01', name: 'Bengaluru City Weather Observatory', lat: 12.9716, lng: 77.5946, temp: '26.8°C', rain: '1.4 mm', condition: 'Partly Cloudy', humidity: '68%' },
         { id: 'weather-obs-02', name: 'HAL Airport Weather Observatory', lat: 12.9500, lng: 77.6680, temp: '27.2°C', rain: '2.1 mm', condition: 'Light Rain', humidity: '72%' },
         { id: 'weather-obs-03', name: 'Kempegowda Intl Airport Weather Station', lat: 13.1986, lng: 77.7066, temp: '25.9°C', rain: '0.8 mm', condition: 'Cloudy', humidity: '64%' },
-        { id: 'weather-obs-04', name: 'GKVK Agro-Meteorological Weather Grid', lat: 13.0768, lng: 77.5750, temp: '26.4°C', rain: '1.6 mm', condition: 'Partly Cloudy', humidity: '70%' }
+        { id: 'weather-obs-04', name: 'GKVK Agro-Meteorological Weather Grid', lat: 13.0768, lng: 77.5750, temp: '26.4°C', rain: '1.6 mm', condition: 'Partly Cloudy', humidity: '70%' },
+        { id: 'weather-obs-05', name: 'Electronic City Micro-Climate Observatory', lat: 12.8450, lng: 77.6650, temp: '27.4°C', rain: '1.0 mm', condition: 'Partly Cloudy', humidity: '65%' },
+        { id: 'weather-obs-06', name: 'Whitefield ITPL Meteorological Post', lat: 12.9860, lng: 77.7310, temp: '27.0°C', rain: '2.2 mm', condition: 'Light Rain', humidity: '74%' },
+        { id: 'weather-obs-07', name: 'Peenya Industrial Air Quality & Met Grid', lat: 13.0300, lng: 77.5180, temp: '27.3°C', rain: '1.1 mm', condition: 'Partly Cloudy', humidity: '67%' },
+        { id: 'weather-obs-08', name: 'Jayanagar South Met Observatory', lat: 12.9308, lng: 77.5838, temp: '26.8°C', rain: '1.4 mm', condition: 'Partly Cloudy', humidity: '68%' },
+        { id: 'weather-obs-09', name: 'Kengeri Satellite Town Weather Post', lat: 12.9177, lng: 77.4838, temp: '26.4°C', rain: '1.8 mm', condition: 'Partly Cloudy', humidity: '70%' },
+        { id: 'weather-obs-10', name: 'Bannerghatta National Park Weather Post', lat: 12.8000, lng: 77.5750, temp: '25.7°C', rain: '2.6 mm', condition: 'Light Rain', humidity: '76%' }
       ];
       const activeWeatherStations = (weatherStations && weatherStations.length > 0) ? weatherStations : defaultStations;
       activeWeatherStations.forEach(st => {

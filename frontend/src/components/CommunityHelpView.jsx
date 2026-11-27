@@ -9,12 +9,14 @@ import { API_BASE } from '../config/api';
 
 // Popular Bengaluru landmark locations for instant location switching
 const PRESET_LOCALITIES = [
-  { name: 'Marathahalli, Bengaluru', lat: 12.9569, lng: 77.7011, ward: 'East Zone (Mahadevapura)' },
+  { name: 'Alliance University / Anekal, Bengaluru', lat: 12.7316, lng: 77.7072, ward: 'Bommanahalli Zone (Electronic City / Anekal / Begur)' },
+  { name: 'Electronic City, Bengaluru', lat: 12.8452, lng: 77.6602, ward: 'Bommanahalli Zone (Electronic City / Anekal / Begur)' },
+  { name: 'Bommasandra / Chandapura, Bengaluru', lat: 12.8170, lng: 77.6940, ward: 'Bommanahalli Zone (Electronic City / Anekal / Begur)' },
   { name: 'Bellandur, Bengaluru', lat: 12.9352, lng: 77.6953, ward: 'East Zone (Mahadevapura)' },
+  { name: 'Marathahalli, Bengaluru', lat: 12.9569, lng: 77.7011, ward: 'East Zone (Mahadevapura)' },
   { name: 'Indiranagar, Bengaluru', lat: 12.9784, lng: 77.6408, ward: 'East Zone (Indiranagar)' },
   { name: 'Koramangala, Bengaluru', lat: 12.9352, lng: 77.6245, ward: 'South Zone (Koramangala)' },
   { name: 'HSR Layout, Bengaluru', lat: 12.9121, lng: 77.6446, ward: 'South Zone (HSR / BTM)' },
-  { name: 'Electronic City, Bengaluru', lat: 12.8452, lng: 77.6602, ward: 'Bommanahalli Zone' },
   { name: 'Whitefield, Bengaluru', lat: 12.9863, lng: 77.7308, ward: 'East Zone (Whitefield)' },
   { name: 'MG Road / CBD, Bengaluru', lat: 12.9756, lng: 77.6067, ward: 'Central Zone (CBD)' },
   { name: 'Hebbal, Bengaluru', lat: 13.0358, lng: 77.5970, ward: 'North Zone (Hebbal)' }
@@ -53,18 +55,23 @@ async function apiCall(endpoint, options = {}) {
 }
 
 export default function CommunityHelpView({ 
-  userLat = 12.9569, 
-  userLng = 77.7011, 
-  userAddress = 'Marathahalli, Bengaluru',
+  userLat = null, 
+  userLng = null, 
+  userAddress = '',
   user = null,
   showToast = (msg) => console.log(msg)
 }) {
-  // Current active location
-  const [coords, setCoords] = useState({ lat: userLat || 12.9569, lng: userLng || 77.7011 });
-  const [localityText, setLocalityText] = useState(userAddress || 'Marathahalli, Bengaluru');
+  // Current active location - auto-synced with live GPS or defaults to Alliance University / Anekal
+  const [coords, setCoords] = useState({ 
+    lat: typeof userLat === 'number' && !isNaN(userLat) ? userLat : 12.7316, 
+    lng: typeof userLng === 'number' && !isNaN(userLng) ? userLng : 77.7072 
+  });
+  const [localityText, setLocalityText] = useState(
+    userAddress || (typeof userLat === 'number' && !isNaN(userLat) ? 'Alliance University / Anekal, Bengaluru' : 'Detecting live location...')
+  );
   const [radiusKm, setRadiusKm] = useState(2.0);
   const [gpsAccuracy, setGpsAccuracy] = useState(8.0);
-  const [gpsStatus, setGpsStatus] = useState('locked'); // 'locating' | 'locked' | 'denied'
+  const [gpsStatus, setGpsStatus] = useState(userLat ? 'locked' : 'locating'); // 'locating' | 'locked' | 'denied'
 
   // Tab & Filter States
   const [activeTab, setActiveTab] = useState('nearby'); // 'nearby' | 'contributions' | 'verifications'
@@ -120,10 +127,18 @@ export default function CommunityHelpView({
   const activeCitizenName = user?.name || user?.citizen_name || 'Ramesh Kumar';
 
   // 1. Fetch nearby issues from backend using geographic filtering
-  const fetchNearbyIssues = useCallback(async (currentLat = coords.lat, currentLng = coords.lng, currentRadius = radiusKm) => {
+  const fetchNearbyIssues = useCallback(async (
+    currentLat = coords.lat, 
+    currentLng = coords.lng, 
+    currentRadius = radiusKm,
+    currentLocality = localityText
+  ) => {
     setLoading(true);
     try {
-      const url = `/community/issues?lat=${currentLat}&lng=${currentLng}&radius_km=${currentRadius}&citizen_id=${encodeURIComponent(activeCitizenId)}&tab=${activeTab}&sort=${sortOption}`;
+      let url = `/community/issues?lat=${currentLat}&lng=${currentLng}&radius_km=${currentRadius}&citizen_id=${encodeURIComponent(activeCitizenId)}&tab=${activeTab}&sort=${sortOption}`;
+      if (currentLocality && !currentLocality.startsWith('Detecting') && !currentLocality.startsWith('Locating')) {
+        url += `&locality=${encodeURIComponent(currentLocality)}`;
+      }
       const res = await apiCall(url);
       if (res.ok) {
         const data = await res.json();
@@ -139,22 +154,10 @@ export default function CommunityHelpView({
     } finally {
       setLoading(false);
     }
-  }, [coords.lat, coords.lng, radiusKm, activeCitizenId, activeTab, sortOption]);
-
-  useEffect(() => {
-    fetchNearbyIssues();
-  }, [fetchNearbyIssues]);
-
-  // Sync coords if parent passes new props
-  useEffect(() => {
-    if (userLat && userLng && (userLat !== coords.lat || userLng !== coords.lng)) {
-      setCoords({ lat: userLat, lng: userLng });
-      if (userAddress) setLocalityText(userAddress);
-    }
-  }, [userLat, userLng, userAddress]);
+  }, [coords.lat, coords.lng, radiusKm, localityText, activeCitizenId, activeTab, sortOption]);
 
   // 2. Real GPS Re-Detection Function
-  const handleDetectLiveGps = (silent = false) => {
+  const handleDetectLiveGps = useCallback((silent = false) => {
     if (!navigator.geolocation) {
       setGpsStatus('denied');
       if (!silent) showToast('Geolocation is not supported by your device browser.');
@@ -162,24 +165,85 @@ export default function CommunityHelpView({
     }
     setGpsStatus('locating');
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const lat = Number(pos.coords.latitude.toFixed(6));
         const lng = Number(pos.coords.longitude.toFixed(6));
         const acc = Math.round(pos.coords.accuracy || 8);
         setCoords({ lat, lng });
         setGpsAccuracy(acc);
         setGpsStatus('locked');
-        fetchNearbyIssues(lat, lng, radiusKm);
-        if (!silent) showToast(`Live GPS locked at ${lat}, ${lng} (±${acc}m accuracy)`);
+
+        // Resolve locality name dynamically
+        let resolvedLocality = '';
+        const closest = PRESET_LOCALITIES.find(p => {
+          const dLat = Math.abs(p.lat - lat);
+          const dLng = Math.abs(p.lng - lng);
+          return dLat < 0.035 && dLng < 0.035;
+        });
+
+        if (closest) {
+          resolvedLocality = closest.name;
+        } else {
+          try {
+            const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`);
+            if (resp.ok) {
+              const data = await resp.json();
+              const addr = data.address || {};
+              const suburb = addr.suburb || addr.neighbourhood || addr.village || addr.town || addr.city_district;
+              const city = addr.city || addr.state_district || 'Bengaluru';
+              if (suburb) {
+                resolvedLocality = `${suburb}, ${city}`;
+              } else if (data.display_name) {
+                resolvedLocality = data.display_name.split(',').slice(0, 2).join(', ');
+              }
+            }
+          } catch (e) {
+            // fallback
+          }
+        }
+
+        if (!resolvedLocality) {
+          if (lat < 12.80) resolvedLocality = 'Alliance University / Anekal, Bengaluru';
+          else if (lat < 12.89) resolvedLocality = 'Electronic City / Bommasandra, Bengaluru';
+          else if (lat > 13.01) resolvedLocality = 'Hebbal / Yelahanka, Bengaluru';
+          else if (lng > 77.68) resolvedLocality = 'Whitefield / Mahadevapura, Bengaluru';
+          else if (lng > 77.62) resolvedLocality = 'Koramangala / Indiranagar, Bengaluru';
+          else resolvedLocality = `Location (${lat.toFixed(4)}, ${lng.toFixed(4)}), Bengaluru`;
+        }
+
+        setLocalityText(resolvedLocality);
+        fetchNearbyIssues(lat, lng, radiusKm, resolvedLocality);
+        if (!silent) showToast(`Live GPS locked: ${resolvedLocality} (±${acc}m accuracy)`);
         setShowLocationModal(false);
       },
       (err) => {
         setGpsStatus('denied');
         if (!silent) showToast('GPS access denied. You can select your area manually.');
+        fetchNearbyIssues(coords.lat, coords.lng, radiusKm, localityText);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
-  };
+  }, [fetchNearbyIssues, radiusKm, coords.lat, coords.lng, localityText, showToast]);
+
+  // On mount: auto-request device GPS immediately
+  useEffect(() => {
+    if (!userLat || !userLng) {
+      handleDetectLiveGps(true);
+    } else {
+      fetchNearbyIssues(userLat, userLng, radiusKm, userAddress);
+    }
+  }, []);
+
+  // Sync coords if parent passes new live GPS props
+  useEffect(() => {
+    if (typeof userLat === 'number' && typeof userLng === 'number' && !isNaN(userLat) && !isNaN(userLng)) {
+      setCoords({ lat: userLat, lng: userLng });
+      setGpsStatus('locked');
+      const addr = userAddress || (userLat < 12.80 ? 'Alliance University / Anekal, Bengaluru' : 'Bengaluru');
+      setLocalityText(addr);
+      fetchNearbyIssues(userLat, userLng, radiusKm, addr);
+    }
+  }, [userLat, userLng, userAddress]);
 
   // 3. Support / Verify Action Handler
   const handleSupportClick = async (issue) => {
@@ -923,20 +987,70 @@ export default function CommunityHelpView({
               {/* Middle Information Area */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
-                  {/* Top Line: Ticket ID + Reported Date */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{
-                      background: '#EFF6FF',
-                      border: '1px solid #BFDBFE',
-                      color: '#2563EB',
-                      fontSize: '0.70rem',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: 6,
-                      fontFamily: 'monospace'
-                    }}>
-                      {issue.ticket_number || issue.id}
-                    </span>
+                  {/* Top Line: Ticket ID + Lodged By + Status + Reported Date */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{
+                        background: '#EFF6FF',
+                        border: '1px solid #BFDBFE',
+                        color: '#2563EB',
+                        fontSize: '0.70rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: 6,
+                        fontFamily: 'monospace'
+                      }}>
+                        {issue.ticket_number || issue.id}
+                      </span>
+
+                      {issue.is_user_reported ? (
+                        <span style={{
+                          background: '#ECFDF5',
+                          border: '1px solid #A7F3D0',
+                          color: '#065F46',
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: 6,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981' }} />
+                          👤 Lodged by You
+                        </span>
+                      ) : (
+                        <span style={{
+                          background: '#F8FAFC',
+                          border: '1px solid #E2E8F0',
+                          color: '#475569',
+                          fontSize: '0.68rem',
+                          fontWeight: 600,
+                          padding: '2px 8px',
+                          borderRadius: 6,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}>
+                          <span>👤</span>
+                          Lodged: {issue.citizen_name || 'Local Resident'}
+                        </span>
+                      )}
+
+                      {issue.status && (
+                        <span style={{
+                          background: issue.status === 'Crew Dispatched' ? '#FEF3C7' : issue.status === 'Assigned' ? '#EFF6FF' : '#F1F5F9',
+                          color: issue.status === 'Crew Dispatched' ? '#92400E' : issue.status === 'Assigned' ? '#1D4ED8' : '#334155',
+                          border: issue.status === 'Crew Dispatched' ? '1px solid #FDE68A' : issue.status === 'Assigned' ? '1px solid #BFDBFE' : '1px solid #E2E8F0',
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: 6
+                        }}>
+                          {issue.status}
+                        </span>
+                      )}
+                    </div>
 
                     <span style={{
                       fontSize: '0.68rem',
@@ -1010,6 +1124,23 @@ export default function CommunityHelpView({
                     }}>
                       <span>◆</span> {issue.urgency}
                     </span>
+
+                    {issue.assigned_squad && (
+                      <span style={{
+                        background: '#F0FDF4',
+                        color: '#15803D',
+                        border: '1px solid #BBF7D0',
+                        fontSize: '0.68rem',
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: 6,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3
+                      }}>
+                        <span>🛡️</span> {issue.assigned_squad}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -1341,7 +1472,7 @@ export default function CommunityHelpView({
                   onClick={() => {
                     setCoords({ lat: loc.lat, lng: loc.lng });
                     setLocalityText(loc.name);
-                    fetchNearbyIssues(loc.lat, loc.lng, radiusKm);
+                    fetchNearbyIssues(loc.lat, loc.lng, radiusKm, loc.name);
                     setShowLocationModal(false);
                     showToast(`Location switched to ${loc.name}`);
                   }}
@@ -1976,6 +2107,56 @@ export default function CommunityHelpView({
             <p style={{ margin: '0 0 14px 0', fontSize: '0.80rem', color: '#334155', lineHeight: 1.45 }}>
               {selectedIssueForDetails.description}
             </p>
+
+            {/* Official Municipal Grievance Metadata */}
+            <div style={{
+              background: '#F8FAFC',
+              borderRadius: 10,
+              border: '1px solid #E2E8F0',
+              padding: '12px 14px',
+              marginBottom: 14,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Lodged by:</span>
+                  <strong style={{ fontSize: '0.76rem', color: '#0F172A' }}>
+                    {selectedIssueForDetails.citizen_name || 'Verified Citizen'}
+                  </strong>
+                  {selectedIssueForDetails.is_user_reported && (
+                    <span style={{ background: '#DCFCE7', color: '#166534', border: '1px solid #86EFAC', padding: '1px 6px', borderRadius: 4, fontSize: '0.66rem', fontWeight: 700 }}>
+                      You
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>Status:</span>
+                  <span style={{
+                    background: selectedIssueForDetails.status === 'Crew Dispatched' ? '#FEF3C7' : selectedIssueForDetails.status === 'Assigned' ? '#EFF6FF' : '#F1F5F9',
+                    color: selectedIssueForDetails.status === 'Crew Dispatched' ? '#92400E' : selectedIssueForDetails.status === 'Assigned' ? '#1D4ED8' : '#334155',
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    fontSize: '0.70rem',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: 6
+                  }}>
+                    {selectedIssueForDetails.status || 'Submitted'}
+                  </span>
+                </div>
+              </div>
+
+              {(selectedIssueForDetails.assigned_department || selectedIssueForDetails.assigned_squad) && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #EEF2F6', paddingTop: 6, fontSize: '0.72rem', color: '#475569', flexWrap: 'wrap', gap: 6 }}>
+                  <span>🏛️ <strong>Department:</strong> {selectedIssueForDetails.assigned_department || 'BBMP Road Infrastructure Cell'}</span>
+                  {selectedIssueForDetails.assigned_squad && (
+                    <span>🛡️ <strong>Squad:</strong> {selectedIssueForDetails.assigned_squad}</span>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Community Stats Bar */}
             <div style={{

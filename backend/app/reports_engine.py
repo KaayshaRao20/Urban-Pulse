@@ -320,43 +320,46 @@ INITIAL_REPORTS: List[Dict[str, Any]] = [
     },
     {
         "id": "rep-009",
-        "name": "Student Service Commute Transit Report",
-        "report_type": "Student Service",
-        "source": "Student Service",
+        "name": "Stormwater Drainage & Waterlogging Audit Report",
+        "report_type": "Drainage",
+        "source": "Focus",
         "location": "Bengaluru",
-        "created_by": "Student Service",
+        "created_by": "BBMP SWD Cell",
         "date_time": "26 Sep 2026 16:30",
         "status": "Submitted",
         "file_format": "PDF",
-        "file_size": "1.9 MB",
+        "file_size": "2.1 MB",
         "download_count": 12,
-        "description": "University and school zone bus transit safety, sidewalk condition, and pedestrian crossing assessment submitted by Student Service field audit team.",
+        "description": "Citywide stormwater primary and secondary conduit capacity audit, silt accumulation levels, and vulnerable underpass telemetry assessment.",
         "preview_data": {
-            "executive_summary": "Field evaluation across 14 university and school campuses along Palace Road and Central College zone. Identified missing pedestrian crossings and recommended dedicated pick-up bays.",
+            "executive_summary": "Comprehensive pre-monsoon engineering assessment across 14 vulnerable low-lying underpasses and arterial drainage corridors. Automated telemetry confirmed de-silting completion across 88% of designated sections.",
             "kpis": [
-                {"label": "Campuses Audited", "value": "14 Sites", "trend": "Complete", "status": "normal"},
-                {"label": "Safety Compliance", "value": "82%", "trend": "Good", "status": "normal"}
+                {"label": "Corridors Audited", "value": "14 Sites", "trend": "Complete", "status": "normal"},
+                {"label": "Conduit Saturation", "value": "42%", "trend": "Optimal", "status": "normal"},
+                {"label": "Pump Readiness", "value": "98%", "trend": "Active", "status": "normal"},
+                {"label": "Underpass Sump Health", "value": "Normal", "trend": "Monitored", "status": "normal"}
             ],
             "key_insights": [
-                "Peak school dismissal window (14:30 - 15:30) experiences heavy sidewalk congestion.",
-                "Dedicated bus queuing bays reduced curbside idling by 40%."
+                "Bellandur Eco-Space and Hebbal flyover sumps operating at nominal clearance speeds.",
+                "Suction super-sucker units cleared 35 metric tons of silt along Koramangala 80ft conduit.",
+                "Continuous Doppler rain-gauge linked automated sluice gates verified functional."
             ],
             "recommendations": [
-                "Repaint zebra crossings near Central College campus entrance.",
-                "Enforce strict 20 km/h school zone speed limits during dispersal hours."
+                "Station auxiliary diesel dewatering pumps at Domlur and Okalipuram underpasses.",
+                "Maintain 24x7 monsoon rapid deployment emergency crew at central control depot."
             ]
         },
         "submission_info": {
-            "submitted_by": "Student Service Field Cell",
-            "submitted_to": "Urban Transport Safety Directorate",
+            "submitted_by": "BBMP Stormwater Drainage Cell",
+            "submitted_to": "Urban Flood Management Directorate",
             "submitted_at": "26 Sep 2026 16:45",
             "submission_status": "Submitted",
-            "notes": "Annual student commute and campus access audit."
+            "notes": "Official municipal stormwater conduit readiness audit."
         },
         "download_history": [],
         "activity_timeline": [
-            {"action": "Uploaded", "user": "Student Service", "timestamp": "26 Sep 2026 16:30", "details": "Field audit document uploaded to central repository."},
-            {"action": "Submitted", "user": "Student Service Field Cell", "timestamp": "26 Sep 2026 16:45", "details": "Submitted to Urban Transport Safety Directorate."}
+            {"action": "Created", "user": "BBMP SWD Cell", "timestamp": "26 Sep 2026 16:30", "details": "Conduit telemetry audit compiled from Focus sensors."},
+            {"action": "Submitted", "user": "BBMP Stormwater Drainage Cell", "timestamp": "26 Sep 2026 16:45", "details": "Submitted to Urban Flood Management Directorate."}
         ]
     },
     {
@@ -576,7 +579,7 @@ def generate_report(req: GenerateReportRequest):
         "Scenario": f"Scenario Simulation Analysis - {req.location}",
         "Focus": f"Focus Multi-Modal Audit - {req.location}",
         "Calendar": f"Predictive Calendar Report - {req.location}",
-        "Student Service": f"Student Service Commute Audit - {req.location}",
+        "Drainage": f"Stormwater Drainage & Waterlogging Audit - {req.location}",
         "Civic Grievance": f"Civic Grievance Redressal Audit - {req.location}",
         "Combined": f"Urban Situation Report - {req.location}"
     }
@@ -751,60 +754,259 @@ def download_report_file(report_id: str, user: Optional[str] = Query("Admin (Urb
         "details": f"Report downloaded in {report.get('file_format', 'PDF')} format."
     })
 
+def escape_pdf(s: str) -> str:
+    if not s:
+        return ""
+    safe = str(s).encode('ascii', errors='replace').decode('ascii')
+    return safe.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+
+def generate_pdf_bytes(report: Dict[str, Any], now_str: str, user: str) -> bytes:
+    """
+    Generates a genuine, ISO 32000-1 compliant PDF document (PDF-1.4) in pure Python.
+    No external heavy C-libraries required. Renders sharp vector typography,
+    official command headers, KPI summary cards, telemetry insights, and digital signature sign-offs.
+    """
+    stream_lines = []
+    
+    # Background accents & header banner
+    # Deep command navy banner: 40 735 515 65
+    stream_lines.append("0.06 0.15 0.28 rg 40 735 515 65 re f")
+    
+    # Banner title
+    stream_lines.append("BT /F1 15 Tf 1 1 1 rg 55 772 Td (URBANPULSE METROPOLITAN COMMAND & CONTROL) Tj ET")
+    stream_lines.append("BT /F2 9 Tf 0.8 0.9 1 rg 55 756 Td (INTELLIGENCE REPORT & MUNICIPAL OPERATIONS DOSSIER) Tj ET")
+    stream_lines.append("BT /F1 8 Tf 0.05 0.78 0.58 rg 55 742 Td (CLASSIFICATION: OFFICIAL CIVIC RECORD | ISO 37120 COMPLIANT) Tj ET")
+    
+    # Top decorative line
+    stream_lines.append("0.05 0.59 0.41 rg 40 730 515 3 re f")
+    
+    # Metadata card box: 40 645 515 75
+    stream_lines.append("0.96 0.97 0.98 rg 40 645 515 75 re f")
+    stream_lines.append("0.85 0.88 0.92 RG 1 w 40 645 515 75 re s")
+    
+    title = report.get('name', 'Urban Operations Report')
+    rep_id = report.get('id', 'REP-001')
+    rep_type = report.get('report_type', 'Operations')
+    loc = report.get('location', 'Bengaluru Metropolitan Area')
+    created_by = report.get('created_by', user or 'Admin')
+    date_str = report.get('date_time', now_str)
+    status = report.get('status', 'Verified')
+    
+    # Column 1
+    stream_lines.append(f"BT /F1 9 Tf 0.1 0.15 0.25 rg 55 702 Td (Document Title:) Tj ET")
+    stream_lines.append(f"BT /F2 9 Tf 0.2 0.3 0.4 rg 140 702 Td ({escape_pdf(title)}) Tj ET")
+    stream_lines.append(f"BT /F1 9 Tf 0.1 0.15 0.25 rg 55 687 Td (Report ID:) Tj ET")
+    stream_lines.append(f"BT /F3 9 Tf 0.05 0.59 0.41 rg 140 687 Td ({escape_pdf(rep_id)}) Tj ET")
+    stream_lines.append(f"BT /F1 9 Tf 0.1 0.15 0.25 rg 55 672 Td (Location Scope:) Tj ET")
+    stream_lines.append(f"BT /F2 9 Tf 0.2 0.3 0.4 rg 140 672 Td ({escape_pdf(loc)}) Tj ET")
+    stream_lines.append(f"BT /F1 9 Tf 0.1 0.15 0.25 rg 55 657 Td (Report Type:) Tj ET")
+    stream_lines.append(f"BT /F2 9 Tf 0.2 0.3 0.4 rg 140 657 Td ({escape_pdf(rep_type)}) Tj ET")
+
+    # Column 2
+    stream_lines.append(f"BT /F1 9 Tf 0.1 0.15 0.25 rg 340 702 Td (Generated Date:) Tj ET")
+    stream_lines.append(f"BT /F2 9 Tf 0.2 0.3 0.4 rg 425 702 Td ({escape_pdf(date_str)}) Tj ET")
+    stream_lines.append(f"BT /F1 9 Tf 0.1 0.15 0.25 rg 340 687 Td (Authority Officer:) Tj ET")
+    stream_lines.append(f"BT /F2 9 Tf 0.2 0.3 0.4 rg 425 687 Td ({escape_pdf(created_by)}) Tj ET")
+    stream_lines.append(f"BT /F1 9 Tf 0.1 0.15 0.25 rg 340 672 Td (Audit Status:) Tj ET")
+    stream_lines.append(f"BT /F1 9 Tf 0.05 0.59 0.41 rg 425 672 Td ({escape_pdf(status)}) Tj ET")
+    stream_lines.append(f"BT /F1 9 Tf 0.1 0.15 0.25 rg 340 657 Td (Agency:) Tj ET")
+    stream_lines.append(f"BT /F2 9 Tf 0.2 0.3 0.4 rg 425 657 Td (BBMP & ICCC Control) Tj ET")
+
+    # Section 1: Executive Summary
+    y = 625
+    stream_lines.append(f"BT /F1 11 Tf 0.06 0.15 0.28 rg 40 {y} Td (1. EXECUTIVE SUMMARY & TELEMETRY OBSERVATIONS) Tj ET")
+    y -= 4
+    stream_lines.append(f"0.85 0.88 0.92 RG 1 w 40 {y} m 555 {y} l s")
+    y -= 16
+    
+    summary_text = report.get('preview_data', {}).get('executive_summary', report.get('description', 'Comprehensive municipal telemetry synthesis.'))
+    words = summary_text.split()
+    cur_line = []
+    for w in words:
+        cur_line.append(w)
+        if len(" ".join(cur_line)) > 82:
+            stream_lines.append(f"BT /F2 9.5 Tf 0.2 0.25 0.3 rg 45 {y} Td ({escape_pdf(' '.join(cur_line))}) Tj ET")
+            y -= 14
+            cur_line = []
+    if cur_line:
+        stream_lines.append(f"BT /F2 9.5 Tf 0.2 0.25 0.3 rg 45 {y} Td ({escape_pdf(' '.join(cur_line))}) Tj ET")
+        y -= 18
+
+    # Section 2: KPIs & Key Performance Indicators
+    y -= 6
+    stream_lines.append(f"BT /F1 11 Tf 0.06 0.15 0.28 rg 40 {y} Td (2. KEY PERFORMANCE INDICATORS & OPERATIONAL METRICS) Tj ET")
+    y -= 4
+    stream_lines.append(f"0.85 0.88 0.92 RG 1 w 40 {y} m 555 {y} l s")
+    y -= 14
+
+    kpis = report.get('preview_data', {}).get('kpis', [])
+    if kpis:
+        box_w = 122
+        for idx, kpi in enumerate(kpis[:4]):
+            bx = 40 + idx * (box_w + 9)
+            stream_lines.append(f"0.96 0.97 0.98 rg {bx} {y-38} {box_w} 38 re f")
+            stream_lines.append(f"0.85 0.88 0.92 RG 1 w {bx} {y-38} {box_w} 38 re s")
+            stream_lines.append(f"BT /F2 8 Tf 0.4 0.45 0.5 rg {bx+8} {y-14} Td ({escape_pdf(kpi.get('label', 'Metric'))}) Tj ET")
+            stream_lines.append(f"BT /F1 11 Tf 0.06 0.15 0.28 rg {bx+8} {y-26} Td ({escape_pdf(kpi.get('value', 'Nominal'))}) Tj ET")
+            stream_lines.append(f"BT /F1 7.5 Tf 0.05 0.59 0.41 rg {bx+8} {y-35} Td ({escape_pdf(kpi.get('trend', 'Verified'))}) Tj ET")
+        y -= 52
+    else:
+        stream_lines.append(f"BT /F2 9 Tf 0.4 0.45 0.5 rg 45 {y} Td (Standard multi-modal telemetry streams verified nominal.) Tj ET")
+        y -= 22
+
+    # Section 3: Key Insights & Operational Findings
+    y -= 6
+    stream_lines.append(f"BT /F1 11 Tf 0.06 0.15 0.28 rg 40 {y} Td (3. KEY INSIGHTS & INFRASTRUCTURE FINDINGS) Tj ET")
+    y -= 4
+    stream_lines.append(f"0.85 0.88 0.92 RG 1 w 40 {y} m 555 {y} l s")
+    y -= 15
+
+    insights = report.get('preview_data', {}).get('key_insights', [
+        "Continuous automated telemetry streams operational across all sector corridors.",
+        "Zero unhandled critical telemetry breaches detected in current observation window.",
+        "Multi-agency operational sync active across civic departments."
+    ])
+    for item in insights[:4]:
+        stream_lines.append(f"BT /F1 10 Tf 0.05 0.59 0.41 rg 45 {y} Td ([+] ) Tj ET")
+        stream_lines.append(f"BT /F2 9 Tf 0.2 0.25 0.3 rg 62 {y} Td ({escape_pdf(item[:90])}) Tj ET")
+        y -= 14
+
+    # Section 4: Action Recommendations
+    y -= 6
+    stream_lines.append(f"BT /F1 11 Tf 0.06 0.15 0.28 rg 40 {y} Td (4. DIRECTIVES & ACTION RECOMMENDATIONS) Tj ET")
+    y -= 4
+    stream_lines.append(f"0.85 0.88 0.92 RG 1 w 40 {y} m 555 {y} l s")
+    y -= 15
+
+    recs = report.get('preview_data', {}).get('recommendations', [
+        "Maintain automated real-time sensory surveillance across high-risk intersections.",
+        "Coordinate rapid response field units upon detection of early warning thresholds."
+    ])
+    for rec in recs[:3]:
+        stream_lines.append(f"BT /F1 9 Tf 0.85 0.2 0.2 rg 45 {y} Td (>> ) Tj ET")
+        stream_lines.append(f"BT /F2 9 Tf 0.2 0.25 0.3 rg 62 {y} Td ({escape_pdf(rec[:90])}) Tj ET")
+        y -= 14
+
+    # Section 5: Official Verification Sign-off Box
+    y -= 10
+    stream_lines.append(f"0.96 0.98 0.96 rg 40 {y-45} 515 45 re f")
+    stream_lines.append(f"0.7 0.88 0.75 RG 1 w 40 {y-45} 515 45 re s")
+    stream_lines.append(f"BT /F1 8.5 Tf 0.05 0.59 0.41 rg 55 {y-14} Td (VERIFIED CIVIC RECORD - OFFICIAL DIGITAL SIGN-OFF) Tj ET")
+    stream_lines.append(f"BT /F2 8 Tf 0.2 0.25 0.3 rg 55 {y-26} Td (Duty Officer: Officer Kaaysha Rao (ICCC Control 01)  |  Exported by: {escape_pdf(user or 'Admin')}) Tj ET")
+    stream_lines.append(f"BT /F3 7.5 Tf 0.4 0.45 0.5 rg 55 {y-38} Td (Security Token: UP-ICCC-2026-B87A-92F4 | Validated via UrbanPulse Cryptographic Registry) Tj ET")
+
+    # Footer
+    stream_lines.append("0.85 0.88 0.92 RG 1 w 40 40 m 555 40 l s")
+    stream_lines.append("BT /F2 7.5 Tf 0.5 0.55 0.6 rg 40 28 Td (UrbanPulse Smart City Command Network | Confidential Municipal Operations Record | Page 1 of 1) Tj ET")
+    stream_lines.append(f"BT /F2 7.5 Tf 0.5 0.55 0.6 rg 450 28 Td (Generated: {escape_pdf(now_str)}) Tj ET")
+
+    stream_content = "\n".join(stream_lines)
+    stream_bytes = stream_content.encode('latin1', errors='replace')
+    stream_len = len(stream_bytes)
+
+    objects = []
+    
+    # Obj 1: Catalog
+    objects.append("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
+    
+    # Obj 2: Pages
+    objects.append("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n")
+    
+    # Obj 3: Page (A4: 595 x 842 pt)
+    objects.append("3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R >> >> /Contents 7 0 R >>\nendobj\n")
+    
+    # Obj 4: Font F1 (Helvetica-Bold)
+    objects.append("4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n")
+    
+    # Obj 5: Font F2 (Helvetica)
+    objects.append("5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n")
+
+    # Obj 6: Font F3 (Courier)
+    objects.append("6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>\nendobj\n")
+    
+    # Obj 7: Contents
+    obj7_header = f"7 0 obj\n<< /Length {stream_len} >>\nstream\n"
+    obj7_footer = "\nendstream\nendobj\n"
+    
+    header = "%PDF-1.4\n"
+    output = io.BytesIO()
+    output.write(header.encode('latin1'))
+    
+    offsets = []
+    current_offset = len(header)
+    
+    for obj_str in objects:
+        offsets.append(current_offset)
+        b = obj_str.encode('latin1')
+        output.write(b)
+        current_offset += len(b)
+        
+    offsets.append(current_offset)
+    b_h = obj7_header.encode('latin1')
+    b_f = obj7_footer.encode('latin1')
+    output.write(b_h)
+    output.write(stream_bytes)
+    output.write(b_f)
+    current_offset += len(b_h) + stream_len + len(b_f)
+    
+    # Xref table
+    xref_offset = current_offset
+    output.write(b"xref\n0 8\n0000000000 65535 f \n")
+    for off in offsets:
+        output.write(f"{off:010d} 00000 n \n".encode('latin1'))
+        
+    output.write(f"trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF\n".encode('latin1'))
+    
+    return output.getvalue()
+
+@router.post("/{report_id}/download")
+@router.get("/{report_id}/download")
+def download_report_file(report_id: str, user: Optional[str] = Query("Admin (Urban Authority)")):
+    """
+    Real backend-connected download:
+    1. Retrieves report file.
+    2. Increments download counter.
+    3. Appends entry to download history and activity timeline.
+    4. Generates and streams real, high-fidelity PDF document to client.
+    """
+    report = next((r for r in REPORTS_DATA if r["id"] == report_id), None)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    now_str = datetime.now().strftime("%d %b %Y %H:%M")
+    
+    # Increment download counter & update status
+    report["download_count"] = (report.get("download_count") or 0) + 1
+    report["status"] = "Downloaded"
+
+    # Add to download history
+    if "download_history" not in report:
+        report["download_history"] = []
+    report["download_history"].insert(0, {
+        "user": user,
+        "downloaded_at": now_str,
+        "file_format": "PDF"
+    })
+
+    # Add to activity timeline
+    if "activity_timeline" not in report:
+        report["activity_timeline"] = []
+    report["activity_timeline"].insert(0, {
+        "action": "Downloaded",
+        "user": user,
+        "timestamp": now_str,
+        "details": f"Official PDF dossier downloaded."
+    })
+
     # Increment global download counter
     STATS_STORE["downloaded"] += 1
 
-    # Synthesize document content
-    content_lines = [
-        f"================================================================================",
-        f"URBANPULSE SMART CITY MONITORING & RESPONSE NETWORK",
-        f"OFFICIAL URBAN REPORT: {report['name'].upper()}",
-        f"================================================================================",
-        f"Report ID:      {report['id']}",
-        f"Report Type:    {report['report_type']}",
-        f"Source:         {report['source']}",
-        f"Location:       {report['location']}",
-        f"Created By:     {report['created_by']}",
-        f"Timestamp:      {report['date_time']}",
-        f"Current Status: {report['status']}",
-        f"================================================================================",
-        f"",
-        f"EXECUTIVE SUMMARY:",
-        f"--------------------------------------------------------------------------------",
-        f"{report.get('preview_data', {}).get('executive_summary', report.get('description', 'Comprehensive telemetry synthesis.'))}",
-        f"",
-        f"KEY INSIGHTS & FINDINGS:",
-        f"--------------------------------------------------------------------------------"
-    ]
+    # Generate genuine PDF binary bytes
+    pdf_bytes = generate_pdf_bytes(report, now_str, user)
+    clean_filename = f"{report['name'].replace(' ', '_')}_{report['id']}.pdf"
 
-    for insight in report.get("preview_data", {}).get("key_insights", []):
-        content_lines.append(f"• {insight}")
-
-    content_lines.extend([
-        f"",
-        f"ACTION RECOMMENDATIONS:",
-        f"--------------------------------------------------------------------------------"
-    ])
-
-    for rec in report.get("preview_data", {}).get("recommendations", []):
-        content_lines.append(f"[ACTION] {rec}")
-
-    content_lines.extend([
-        f"",
-        f"================================================================================",
-        f"CONFIDENTIAL — URBAN AUTHORITY USE ONLY",
-        f"Exported at: {now_str} by {user}",
-        f"UrbanPulse Ingestion & Telemetry Verification Engine v2.8",
-        f"================================================================================"
-    ])
-
-    text_content = "\n".join(content_lines)
-    buf = io.BytesIO(text_content.encode("utf-8"))
-
-    clean_filename = f"{report['name'].replace(' ', '_')}_{report['id']}.txt"
-    media_type = "application/octet-stream" if report.get("file_format") == "PDF" else "text/plain"
-
-    response = StreamingResponse(buf, media_type=media_type)
+    buf = io.BytesIO(pdf_bytes)
+    response = StreamingResponse(buf, media_type="application/pdf")
     response.headers["Content-Disposition"] = f'attachment; filename="{clean_filename}"'
     response.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
     return response

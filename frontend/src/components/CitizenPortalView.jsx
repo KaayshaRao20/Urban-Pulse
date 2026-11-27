@@ -162,6 +162,7 @@ export default function CitizenPortalView({
   const [videoValidationResult, setVideoValidationResult] = useState(null);
   const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
   const [isDemoCameraFeed, setIsDemoCameraFeed] = useState(false);
+  const [isFinalizingRecording, setIsFinalizingRecording] = useState(false);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -170,6 +171,7 @@ export default function CitizenPortalView({
   const recordedChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
   const recordingSecondsRef = useRef(0);
+  const recordingStartTimeRef = useRef(0);
   const nativeVideoInputRef = useRef(null);
   const detectionAnimRef = useRef(null);
   const detectionCanvasRef = useRef(null);
@@ -440,6 +442,37 @@ export default function CitizenPortalView({
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2">
           <path d="M2 12c2.5 0 2.5-3 5-3s2.5 3 5 3 2.5-3 5-3 2.5 3 5 3" />
           <path d="M2 17c2.5 0 2.5-3 5-3s2.5 3 5 3 2.5-3 5-3 2.5 3 5 3" />
+        </svg>
+      )
+    },
+    {
+      id: 'Streetlight Failure',
+      label: t('categories.streetlight.label', 'Streetlight Failure'),
+      desc: t('categories.streetlight.desc', 'Non-functional streetlights, exposed wiring, damaged light poles, and dark spots'),
+      dept: t('categories.streetlight.dept', 'BESCOM Electrical Infrastructure'),
+      icon: (
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <line x1="12" y1="2" x2="12" y2="6" />
+          <line x1="12" y1="18" x2="12" y2="22" />
+          <line x1="4.93" y1="4.93" x2="7.76" y2="7.76" />
+          <line x1="16.24" y1="16.24" x2="19.07" y2="19.07" />
+          <line x1="2" y1="12" x2="6" y2="12" />
+          <line x1="18" y1="12" x2="22" y2="12" />
+          <line x1="4.93" y1="19.07" x2="7.76" y2="16.24" />
+          <line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
+        </svg>
+      )
+    },
+    {
+      id: 'Traffic Hazard',
+      label: t('categories.traffic.label', 'Traffic Hazard'),
+      desc: t('categories.traffic.desc', 'Signal malfunction, road clearance obstruction, disabled vehicles, and safety barriers'),
+      dept: t('categories.traffic.dept', 'Bengaluru Traffic Police (BTP) Command'),
+      icon: (
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
       )
     },
@@ -1020,7 +1053,9 @@ export default function CitizenPortalView({
     setVideoValidationError('');
     setRecordingSeconds(0);
     recordingSecondsRef.current = 0;
+    recordingStartTimeRef.current = Date.now();
     recordedChunksRef.current = [];
+    setIsFinalizingRecording(false);
 
     let mimeType = 'video/webm;codecs=vp9,opus';
     if (!window.MediaRecorder || !MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8,opus';
@@ -1039,7 +1074,8 @@ export default function CitizenPortalView({
       };
 
       recorder.onstop = async () => {
-        const duration = recordingSecondsRef.current || 0;
+        const rawDuration = (Date.now() - (recordingStartTimeRef.current || Date.now())) / 1000;
+        const duration = Math.max(recordingSecondsRef.current || 0, Math.round(rawDuration));
         const blob = new Blob(recordedChunksRef.current, {
           type: recorder.mimeType || 'video/webm'
         });
@@ -1053,7 +1089,7 @@ export default function CitizenPortalView({
           showToast(reasonMsg);
           setRecordedVideoFile(null);
           setRecordedVideoUrl(null);
-          stopLiveCamera();
+          // Keep camera viewfinder open so user doesn't get dumped out abruptly
           return;
         }
 
@@ -1072,7 +1108,7 @@ export default function CitizenPortalView({
           ? 'Video recorded. AI result uncertain - queued for officer review.'
           : 'Live video recorded and validated successfully!');
 
-        // Close camera viewfinder modal
+        // Close camera viewfinder modal on successful validation
         stopLiveCamera();
       };
 
@@ -1100,8 +1136,24 @@ export default function CitizenPortalView({
     }
   };
 
-  // Stop live video recording
+  // Stop live video recording safely with guaranteed minimum payload
   const stopLiveRecording = () => {
+    if (isFinalizingRecording) return;
+    const elapsed = (Date.now() - (recordingStartTimeRef.current || Date.now())) / 1000;
+    if (elapsed < 2.5) {
+      // Ensure at least 2.5 seconds to guarantee valid payload and prevent "Recording is too short"
+      setIsFinalizingRecording(true);
+      const remainingMs = Math.max(150, Math.ceil((2.6 - elapsed) * 1000));
+      setTimeout(() => {
+        setIsFinalizingRecording(false);
+        finalizeRecordingStop();
+      }, remainingMs);
+      return;
+    }
+    finalizeRecordingStop();
+  };
+
+  const finalizeRecordingStop = () => {
     if (recordingTimerRef.current) {
       clearInterval(recordingTimerRef.current);
       recordingTimerRef.current = null;
@@ -1110,6 +1162,9 @@ export default function CitizenPortalView({
 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try {
+        if (typeof mediaRecorderRef.current.requestData === 'function') {
+          mediaRecorderRef.current.requestData();
+        }
         mediaRecorderRef.current.stop();
       } catch (err) {
         console.warn('MediaRecorder stop warning:', err);
@@ -1324,6 +1379,16 @@ export default function CitizenPortalView({
 
     const formData = new FormData();
     formData.append('category', category);
+    // Append category-specific subcategory
+    let derivedSubcategory = 'Road Surface Cavity / Pothole';
+    const cLower = category.toLowerCase();
+    if (cLower.includes('garbage') || cLower.includes('waste')) derivedSubcategory = 'Commercial / Municipal Waste Accumulation';
+    else if (cLower.includes('water')) derivedSubcategory = 'Municipal Pipeline Leakage / Seepage';
+    else if (cLower.includes('drainage') || cLower.includes('flood')) derivedSubcategory = 'Stormwater Drainage Blockage / Overflow';
+    else if (cLower.includes('light') || cLower.includes('electrical')) derivedSubcategory = 'Streetlight Blackout / Luminaire Fault';
+    else if (cLower.includes('traffic') || cLower.includes('hazard')) derivedSubcategory = 'Roadway Obstruction / Signal Defect';
+    formData.append('subcategory', derivedSubcategory);
+
     formData.append('title', title.trim());
     formData.append('description', description.trim());
     const urgencyVal = urgency.includes(' - ') ? urgency.split(' - ')[0] : urgency;
@@ -1367,6 +1432,14 @@ export default function CitizenPortalView({
       setSubmittedTicket(result);
       showToast(`${t('report.successTitle', 'Grievance lodged!')} Ticket ID: ${result.ticket_id}`);
       fetchMyGrievances();
+
+      // Broadcast event across components and tabs for immediate Authority synchronization
+      try {
+        window.dispatchEvent(new CustomEvent('urbanpulse:new_grievance', { detail: result }));
+        localStorage.setItem('urbanpulse:grievance_updated', Date.now().toString());
+      } catch (broadcastErr) {
+        console.warn('Sync broadcast warning:', broadcastErr);
+      }
       
       setNotifications(prev => [
         { id: Date.now(), text: `${t('report.successTitle', 'Grievance lodged')}: ${result.ticket_id}`, time: 'Just now', unread: true },
@@ -5214,28 +5287,55 @@ export default function CitizenPortalView({
                     gap: 8,
                     boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)'
                   }}>
-                    {(realtimeFeedback.toLowerCase().includes('face') || realtimeFeedback.toLowerCase().includes('unrelated')) ? (
-                      <span style={{ fontSize: '1rem', flexShrink: 0 }}>⚠️</span>
-                    ) : detectedIssueBox ? (
-                      <span style={{
-                        display: 'inline-block',
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        background: '#10B981',
-                        boxShadow: '0 0 8px #10B981'
-                      }} />
-                    ) : (
-                      <span style={{
-                        display: 'inline-block',
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        background: '#3B82F6',
-                        boxShadow: '0 0 8px #3B82F6'
-                      }} />
-                    )}
-                    <span>{realtimeFeedback}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+                        {(realtimeFeedback.toLowerCase().includes('face') || realtimeFeedback.toLowerCase().includes('unrelated')) ? (
+                          <span style={{ fontSize: '1rem', flexShrink: 0 }}>⚠️</span>
+                        ) : detectedIssueBox ? (
+                          <span style={{
+                            display: 'inline-block',
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: '#10B981',
+                            boxShadow: '0 0 8px #10B981',
+                            flexShrink: 0
+                          }} />
+                        ) : (
+                          <span style={{
+                            display: 'inline-block',
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            background: '#3B82F6',
+                            boxShadow: '0 0 8px #3B82F6',
+                            flexShrink: 0
+                          }} />
+                        )}
+                        <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{realtimeFeedback}</span>
+                      </div>
+                      {!isDemoCameraFeed && (realtimeFeedback.toLowerCase().includes('face') || realtimeFeedback.toLowerCase().includes('unrelated') || realtimeFeedback.toLowerCase().includes('not detected')) && (
+                        <button
+                          type="button"
+                          onClick={toggleDemoCameraFeed}
+                          title="Switch to Demo Road Defect Stream to test defect detection"
+                          style={{
+                            background: '#F59E0B',
+                            color: '#0F172A',
+                            border: 'none',
+                            borderRadius: 6,
+                            padding: '3px 8px',
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0
+                          }}
+                        >
+                          🛣️ Test With Road Feed
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -5292,17 +5392,58 @@ export default function CitizenPortalView({
                     zIndex: 30,
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'space-between',
                     gap: 10,
                     boxShadow: '0 4px 12px rgba(0,0,0,0.45)'
                   }}>
-                    <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>⚠️</span>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                        Video Verification Notice
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>⚠️</span>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>
+                          Video Verification Notice
+                        </div>
+                        <div style={{ fontSize: '0.74rem', opacity: 0.95, marginTop: 1 }}>
+                          {videoValidationResult?.reason || videoValidationError}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.74rem', opacity: 0.95, marginTop: 1 }}>
-                        {videoValidationResult?.reason || videoValidationError}
-                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      {!isDemoCameraFeed && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setVideoValidationError('');
+                            toggleDemoCameraFeed();
+                          }}
+                          style={{
+                            background: '#2563EB',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: 6,
+                            padding: '5px 10px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          🛣️ Try Demo Feed
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setVideoValidationError('')}
+                        style={{
+                          background: 'transparent',
+                          color: '#991B1B',
+                          border: '1px solid #FCA5A5',
+                          borderRadius: 6,
+                          padding: '4px 8px',
+                          fontSize: '0.72rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
                 )}
@@ -5415,36 +5556,73 @@ export default function CitizenPortalView({
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                    <button
-                      type="button"
-                      onClick={stopLiveRecording}
-                      className="citizen-camera-record-btn"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        padding: '12px 30px',
-                        borderRadius: 999,
-                        background: '#FFFFFF',
-                        color: '#DC2626',
-                        fontSize: '0.92rem',
-                        fontWeight: 700,
-                        border: '3px solid #EF4444',
-                        boxShadow: '0 0 25px rgba(239, 68, 68, 0.8)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <span style={{
-                        width: 14,
-                        height: 14,
-                        borderRadius: 3,
-                        background: '#DC2626',
-                        display: 'inline-block'
-                      }} />
-                      Stop Recording [ 00:{String(recordingSeconds).padStart(2, '0')} ]
-                    </button>
-                    <span style={{ fontSize: '0.72rem', color: '#EF4444', fontWeight: 600 }}>
-                      ● RECORDING IN PROGRESS — REAL-TIME CIVIC DEFECT TRACKING ACTIVE
+                    {isFinalizingRecording ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="citizen-camera-record-btn"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          padding: '12px 30px',
+                          borderRadius: 999,
+                          background: '#FEF2F2',
+                          color: '#DC2626',
+                          fontSize: '0.92rem',
+                          fontWeight: 700,
+                          border: '3px solid #EF4444',
+                          boxShadow: '0 0 25px rgba(239, 68, 68, 0.8)',
+                          cursor: 'wait'
+                        }}
+                      >
+                        <span style={{
+                          width: 14,
+                          height: 14,
+                          border: '2px solid #DC2626',
+                          borderTopColor: 'transparent',
+                          borderRadius: '50%',
+                          display: 'inline-block',
+                          animation: 'spin 0.6s linear infinite'
+                        }} />
+                        Finalizing Evidence... [ 00:{String(recordingSeconds).padStart(2, '0')} ]
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={stopLiveRecording}
+                        className="citizen-camera-record-btn"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          padding: '12px 30px',
+                          borderRadius: 999,
+                          background: '#FFFFFF',
+                          color: '#DC2626',
+                          fontSize: '0.92rem',
+                          fontWeight: 700,
+                          border: '3px solid #EF4444',
+                          boxShadow: '0 0 25px rgba(239, 68, 68, 0.8)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <span style={{
+                          width: 14,
+                          height: 14,
+                          borderRadius: 3,
+                          background: '#DC2626',
+                          display: 'inline-block'
+                        }} />
+                        {recordingSeconds < 2
+                          ? `Stop Recording [ 00:0${recordingSeconds} / min 3s ]`
+                          : `Stop Recording [ 00:${String(recordingSeconds).padStart(2, '0')} ]`}
+                      </button>
+                    )}
+                    <span style={{ fontSize: '0.72rem', color: isFinalizingRecording ? '#10B981' : '#EF4444', fontWeight: 600 }}>
+                      {isFinalizingRecording
+                        ? '✓ Finalizing required frames for high-precision verification...'
+                        : '● RECORDING IN PROGRESS — REAL-TIME CIVIC DEFECT TRACKING ACTIVE'}
                     </span>
                   </div>
                 )}

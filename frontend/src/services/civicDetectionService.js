@@ -161,7 +161,7 @@ export const computeFrameMetrics = (imgData) => {
   const isBlurry = sharpness < 2.0 && meanLuminance > 30.0;
 
   // Face / Person detected if significant skin pixels cluster in center or overall frame
-  const isFaceOrHuman = skinRatio >= 0.045 || skinCenterRatio >= 0.065;
+  const isFaceOrHuman = (skinRatio >= 0.12 && skinCenterRatio >= 0.16) || (skinCenterRatio >= 0.28);
 
   return {
     meanLuminance,
@@ -678,26 +678,26 @@ export const validateVideoEvidence = async (fileOrBlob, category, durationSec = 
   const normCat = normalizeCategory(category);
 
   // 1. Duration & payload checks
-  if (!fileOrBlob || fileOrBlob.size < 18000) {
+  if (!fileOrBlob || fileOrBlob.size < 1024) {
     return {
       valid: false,
       is_valid: false,
       verdict: 'rejected',
       error: 'Recording is too short.',
-      reason: 'Recording is too short. Please record for at least 2 to 5 seconds.',
-      guidance: 'Please hold the device steady and capture at least 3 seconds of footage showing the defect.',
+      reason: 'Recording is too short. Please capture at least 2 to 3 seconds of footage.',
+      guidance: 'Please hold the device steady and capture at least 2 to 3 seconds of footage showing the defect.',
       action: 'record_again'
     };
   }
 
-  if (durationSec > 0 && durationSec < 1.5) {
+  if (durationSec > 0 && durationSec < 0.8) {
     return {
       valid: false,
       is_valid: false,
       verdict: 'rejected',
       error: 'Recording is too short.',
-      reason: 'Recording is too short. Please record for at least 2 to 5 seconds.',
-      guidance: 'Hold the record button and capture at least 3 seconds of steady footage showing the defect.',
+      reason: 'Recording is too short. Please capture at least 2 to 3 seconds of footage.',
+      guidance: 'Hold the record button and capture at least 2 to 3 seconds of steady footage showing the defect.',
       action: 'record_again'
     };
   }

@@ -24,9 +24,6 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
     'evt-24-2': true
   });
 
-  // Table expanded view state
-  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
-
   // Toast feedback
   const [toastMessage, setToastMessage] = useState(null);
 
@@ -61,16 +58,17 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
     {
       id: 'evt-103',
       date: '2026-09-03',
-      title: 'Large Crowd Expected',
-      type: 'Public Event',
-      category: 'crowd',
+      title: 'Waterlogging & Drain Overflow',
+      type: 'Drainage & Waterlogging',
+      category: 'drainage',
       severity: 'Moderate',
       time: '14:00 – 19:00',
-      location: 'Commercial Street',
-      description: 'Festival shopping rush expected to saturate pedestrian pathways.',
+      location: 'Commercial Street / Shivajinagar',
+      description: 'Monsoon runoff accumulation and stormwater drain overflow causing lane restriction.',
       confidence: '80%',
       impact: [
-        { category: 'Crowd Movement', level: 'Moderate', pct: 60, color: '#F97316' }
+        { category: 'Drainage Flow', level: 'Moderate', pct: 65, color: '#F97316' },
+        { category: 'Road Condition', level: 'Moderate', pct: 60, color: '#F97316' }
       ]
     },
     {
@@ -91,17 +89,17 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
     {
       id: 'evt-107',
       date: '2026-09-07',
-      title: 'Tech Summit (Public Event)',
-      type: 'Public Event',
-      category: 'event',
-      severity: 'Moderate',
-      time: '09:00 – 18:00',
-      location: 'Whitefield KTPO',
-      description: 'Annual global technology conference drawing 18,000 delegates.',
-      confidence: '92%',
+      title: 'Corridor Congestion & Signal Failure',
+      type: 'Traffic Surge',
+      category: 'traffic',
+      severity: 'High',
+      time: '08:30 – 12:30',
+      location: 'Whitefield ITPL Main Road',
+      description: 'Adaptive traffic signal malfunction combined with peak IT corridor vehicular surge.',
+      confidence: '91%',
       impact: [
-        { category: 'Traffic Flow', level: 'Moderate', pct: 60, color: '#F97316' },
-        { category: 'Crowd Movement', level: 'High', pct: 75, color: '#EF4444' }
+        { category: 'Traffic Flow', level: 'High', pct: 85, color: '#EF4444' },
+        { category: 'Mobility', level: 'High', pct: 78, color: '#EF4444' }
       ]
     },
     {
@@ -122,16 +120,17 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
     {
       id: 'evt-111',
       date: '2026-09-11',
-      title: 'Large Crowd',
-      type: 'Public Event',
-      category: 'crowd',
+      title: 'Water Main Burst & Road Cut',
+      type: 'Road Work',
+      category: 'road',
       severity: 'Moderate',
-      time: '16:00 – 21:00',
-      location: 'Brigade Road',
-      description: 'Weekend evening footfall peak around shopping and metro precinct.',
-      confidence: '81%',
+      time: '10:00 – 16:30',
+      location: 'Brigade Road / MG Road Junction',
+      description: 'Emergency BWSSB pipeline repair requiring partial carriageway restriction.',
+      confidence: '88%',
       impact: [
-        { category: 'Crowd Movement', level: 'Moderate', pct: 65, color: '#F97316' }
+        { category: 'Road Condition', level: 'Moderate', pct: 65, color: '#F97316' },
+        { category: 'Mobility', level: 'Moderate', pct: 58, color: '#F97316' }
       ]
     },
     {
@@ -182,32 +181,32 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
     {
       id: 'evt-119',
       date: '2026-09-19',
-      title: 'Weekend Rush',
-      type: 'Public Event',
-      category: 'crowd',
+      title: 'Stormwater Drain De-silting Work',
+      type: 'Road Work',
+      category: 'road',
       severity: 'Moderate',
-      time: '12:00 – 22:00',
+      time: '11:00 – 18:00',
       location: 'Indiranagar 100ft Road',
-      description: 'High leisure and dining crowd movement with street parking pressure.',
-      confidence: '82%',
+      description: 'Municipal stormwater drain excavation and maintenance along curb lane.',
+      confidence: '84%',
       impact: [
-        { category: 'Crowd Movement', level: 'Moderate', pct: 60, color: '#F97316' }
+        { category: 'Road Condition', level: 'Moderate', pct: 60, color: '#F97316' }
       ]
     },
     {
       id: 'evt-121',
       date: '2026-09-21',
-      title: 'Cricket Match (Public Event)',
-      type: 'Public Event',
-      category: 'event',
+      title: 'Arterial Bottleneck & Gridlock Risk',
+      type: 'Traffic Surge',
+      category: 'traffic',
       severity: 'High',
-      time: '16:00 – 23:30',
-      location: 'Chinnaswamy Stadium',
-      description: 'T20 match attracting 35,000 spectators to Cubbon Road area.',
-      confidence: '94%',
+      time: '16:30 – 21:00',
+      location: 'Cubbon Road & Queen\'s Road Approach',
+      description: 'High volume arterial gridlock risk at key city center intersections.',
+      confidence: '89%',
       impact: [
-        { category: 'Crowd Movement', level: 'High', pct: 92, color: '#EF4444' },
-        { category: 'Traffic Flow', level: 'High', pct: 85, color: '#EF4444' }
+        { category: 'Traffic Flow', level: 'High', pct: 88, color: '#EF4444' },
+        { category: 'Mobility', level: 'High', pct: 80, color: '#EF4444' }
       ]
     },
     {
@@ -239,39 +238,39 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
       confidence: '84%',
       impact: [
         { category: 'Mobility', level: 'High', pct: 85, color: '#EF4444' },
-        { category: 'Traffic Flow', level: 'High', pct: 85, color: '#EF4444' },
-        { category: 'Crowd Movement', level: 'Moderate', pct: 50, color: '#F97316' }
+        { category: 'Traffic Flow', level: 'High', pct: 85, color: '#EF4444' }
       ]
     },
     {
       id: 'evt-24-2',
       date: '2026-09-24',
-      title: 'Large Crowd Expected',
-      type: 'Public Event',
-      category: 'crowd',
+      title: 'Waterlogging & Storm Drain Inflow',
+      type: 'Drainage & Waterlogging',
+      category: 'drainage',
       severity: 'Moderate',
-      time: '16:00 – 20:00',
-      location: 'MG Road',
-      description: 'High crowd density expected due to public event in the area.',
+      time: '15:30 – 19:30',
+      location: 'Bellandur Eco-Space Underpass',
+      description: 'Monsoon runoff accumulation and stormwater drain overflow causing lane restriction.',
       confidence: '82%',
       impact: [
-        { category: 'Crowd Movement', level: 'Moderate', pct: 55, color: '#F97316' },
-        { category: 'Mobility', level: 'Moderate', pct: 40, color: '#F97316' }
+        { category: 'Drainage Flow', level: 'Moderate', pct: 65, color: '#F97316' },
+        { category: 'Mobility', level: 'Moderate', pct: 55, color: '#F97316' }
       ]
     },
     {
       id: 'evt-126',
       date: '2026-09-26',
-      title: 'Music Event (Public Event)',
-      type: 'Public Event',
-      category: 'event',
+      title: 'Highway Resurfacing & Lane Closure',
+      type: 'Road Work',
+      category: 'road',
       severity: 'Moderate',
-      time: '15:00 – 23:00',
-      location: 'Palace Grounds',
-      description: 'Major music festival expected to draw 25,000 attendees to Bellary Road.',
+      time: '14:00 – 22:00',
+      location: 'Bellary Road / Palace Grounds Corridor',
+      description: 'Highway carriageway milling and asphalt resurfacing restricting lane capacity.',
       confidence: '90%',
       impact: [
-        { category: 'Crowd Movement', level: 'High', pct: 88, color: '#EF4444' }
+        { category: 'Road Condition', level: 'Moderate', pct: 75, color: '#F97316' },
+        { category: 'Traffic Flow', level: 'Moderate', pct: 65, color: '#F97316' }
       ]
     },
     {
@@ -320,76 +319,6 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
       ]
     }
   ]);
-
-  // Upcoming Predictions Table items
-  const upcomingTableRows = [
-    {
-      id: 'up-1',
-      date: '24 Sep 2026',
-      dateIso: '2026-09-24',
-      event: 'High Traffic Congestion',
-      type: 'Traffic Surge',
-      location: 'Marathahalli – ORR',
-      impact: 'Increased travel time (20–40 min)',
-      severity: 'High',
-      category: 'traffic'
-    },
-    {
-      id: 'up-2',
-      date: '24 Sep 2026',
-      dateIso: '2026-09-24',
-      event: 'Large Crowd Expected',
-      type: 'Public Event',
-      location: 'MG Road',
-      impact: 'High crowd density',
-      severity: 'Moderate',
-      category: 'crowd'
-    },
-    {
-      id: 'up-3',
-      date: '26 Sep 2026',
-      dateIso: '2026-09-26',
-      event: 'Music Event',
-      type: 'Public Event',
-      location: 'Palace Grounds',
-      impact: 'Very high crowd expected',
-      severity: 'Moderate',
-      category: 'weather'
-    },
-    {
-      id: 'up-4',
-      date: '5 Oct 2026',
-      dateIso: '2026-10-05',
-      event: 'Heavy Rainfall',
-      type: 'Weather Impact',
-      location: 'Bengaluru (Citywide)',
-      impact: 'Moderate to heavy rainfall',
-      severity: 'Moderate',
-      category: 'weather'
-    },
-    {
-      id: 'up-5',
-      date: '12 Oct 2026',
-      dateIso: '2026-10-12',
-      event: 'Dasara Procession',
-      type: 'Public Event',
-      location: 'City Market / Chickpet',
-      impact: 'Road closures and large pedestrian footfall',
-      severity: 'High',
-      category: 'crowd'
-    },
-    {
-      id: 'up-6',
-      date: '18 Oct 2026',
-      dateIso: '2026-10-18',
-      event: 'Metro Maintenance Surge',
-      type: 'Road Work',
-      location: 'Silk Board – Electronic City',
-      impact: 'Bus lane diversions and slow arterial flow',
-      severity: 'Moderate',
-      category: 'road'
-    }
-  ];
 
   // Try fetching backend events on mount if available
   useEffect(() => {
@@ -735,9 +664,9 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                   paddingRight: '16px'
                 }}
               >
-                <option value="all">All Event Types</option>
+                <option value="all">All Prediction Types</option>
                 <option value="traffic">Traffic Surge</option>
-                <option value="public event">Public Event</option>
+                <option value="drainage">Drainage & Waterlogging</option>
                 <option value="weather">Weather Impact</option>
                 <option value="road work">Road Work</option>
               </select>
@@ -955,7 +884,7 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                 {kpiStats.total}
               </div>
               <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 500, marginTop: '2px' }}>
-                Predicted Events
+                Predicted Disruptions
               </div>
             </div>
           </div>
@@ -1512,137 +1441,7 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
 
       </div>
 
-      {/* 5. BOTTOM SECTION: UPCOMING PREDICTED EVENTS TABLE (Matching media_1792576780327_d495e63f.png) */}
-      <div style={{
-        background: '#FFFFFF',
-        border: '1px solid #E2E8F0',
-        borderRadius: '12px',
-        padding: '14px 18px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-      }}>
-        
-        {/* Table Title & View All Link */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '10px'
-        }}>
-          <h3 style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
-            Upcoming Predicted Events
-          </h3>
-          <span
-            onClick={() => {
-              setShowAllUpcoming(!showAllUpcoming);
-              showToast(showAllUpcoming ? "Showing primary upcoming events" : "Showing extended 30-day forecast");
-            }}
-            style={{
-              fontSize: '0.74rem',
-              fontWeight: 700,
-              color: '#2563EB',
-              cursor: 'pointer'
-            }}
-          >
-            {showAllUpcoming ? 'Show Less' : 'View All'}
-          </span>
-        </div>
 
-        {/* Clean Responsive Table */}
-        <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', minWidth: '640px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.74rem' }}>
-            <thead>
-              <tr style={{ color: '#94A3B8', fontWeight: 600, borderBottom: '1px solid #F1F5F9' }}>
-                <th style={{ padding: '8px 6px', fontWeight: 600 }}>DATE</th>
-                <th style={{ padding: '8px 6px', fontWeight: 600 }}>EVENT</th>
-                <th style={{ padding: '8px 6px', fontWeight: 600 }}>TYPE</th>
-                <th style={{ padding: '8px 6px', fontWeight: 600 }}>LOCATION</th>
-                <th style={{ padding: '8px 6px', fontWeight: 600 }}>PREDICTED IMPACT</th>
-                <th style={{ padding: '8px 6px', fontWeight: 600 }}>SEVERITY</th>
-                <th style={{ padding: '8px 6px', fontWeight: 600, textAlign: 'right' }}>ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(showAllUpcoming ? upcomingTableRows : upcomingTableRows.slice(0, 4)).map((row) => (
-                <tr
-                  key={row.id}
-                  style={{
-                    borderBottom: '1px solid #F8FAFC',
-                    cursor: 'pointer',
-                    transition: 'background 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F8FAFC'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <td style={{ padding: '10px 6px', fontWeight: 500, color: '#334155' }}>
-                    {row.date}
-                  </td>
-                  <td style={{ padding: '10px 6px', fontWeight: 700, color: '#0F172A' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>{row.category === 'traffic' ? '🚗' : row.category === 'crowd' ? '👥' : '☁️'}</span>
-                      <span>{row.event}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '10px 6px', color: '#475569', fontWeight: 500 }}>
-                    {row.type}
-                  </td>
-                  <td style={{ padding: '10px 6px', color: '#475569', fontWeight: 500 }}>
-                    {row.location}
-                  </td>
-                  <td style={{ padding: '10px 6px', color: '#475569', fontWeight: 500 }}>
-                    {row.impact}
-                  </td>
-                  <td style={{ padding: '10px 6px' }}>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '0.67rem',
-                      fontWeight: 700,
-                      background: row.severity === 'High' ? '#FEE2E2' : '#FEF3C7',
-                      color: row.severity === 'High' ? '#EF4444' : '#D97706'
-                    }}>
-                      {row.severity}
-                    </span>
-                  </td>
-                  <td style={{ padding: '10px 6px', textAlign: 'right' }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedDateIso(row.dateIso);
-                        const match = eventsList.find(ev => ev.date === row.dateIso) || {
-                          id: row.id,
-                          title: row.event,
-                          type: row.type,
-                          location: row.location,
-                          severity: row.severity,
-                          time: '08:00 – 14:00',
-                          description: row.impact,
-                          confidence: '85%'
-                        };
-                        setSelectedEventModal(match);
-                        showToast(`Opened ${row.event} on ${row.date}`);
-                      }}
-                      style={{
-                        background: '#FFFFFF',
-                        border: '1px solid #CBD5E1',
-                        borderRadius: '6px',
-                        color: '#2563EB',
-                        padding: '3px 12px',
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      View
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-      </div>
 
       {/* 6. MODAL: DETAILED EVENT DOSSIER POPUP */}
       {selectedEventModal && (
