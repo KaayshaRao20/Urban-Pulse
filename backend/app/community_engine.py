@@ -205,26 +205,6 @@ SEED_COMMUNITY_ISSUES = [
         "created_at": "2026-11-03 16:40:00"
     },
     {
-        "id": "UP-2026-2103",
-        "ticket_number": "UP-2026-2103",
-        "title": "Non-functional streetlight along Chandapura-Anekal corridor",
-        "landmark_address": "Anekal Main Road Junction, Bengaluru - 562106",
-        "description": "Streetlight pole wiring severed, junction pitch dark causing safety concerns for students.",
-        "category": "Streetlight / Electrical",
-        "urgency": "Medium",
-        "latitude": 12.7335,
-        "longitude": 77.7092,
-        "ward_zone": "Anekal Municipal Ward (Alliance University / Chandapura)",
-        "image_url": "https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=600&auto=format&fit=crop&q=80",
-        "media_count": 1,
-        "is_video": False,
-        "video_duration": None,
-        "support_count": 19,
-        "challenge_count": 1,
-        "on_site_verified_count": 11,
-        "created_at": "2026-11-03 14:10:00"
-    },
-    {
         "id": "UP-2026-2104",
         "ticket_number": "UP-2026-2104",
         "title": "Garbage accumulation along campus perimeter road",
