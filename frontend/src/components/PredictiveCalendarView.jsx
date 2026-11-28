@@ -479,7 +479,7 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
   };
 
   return (
-    <div style={{
+    <div className="predictive-calendar-root view-container" style={{
       minHeight: '100vh',
       backgroundColor: '#F8FAFC',
       padding: '1.25rem 1.75rem',
@@ -1016,22 +1016,20 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
 
       </div>
 
-      {/* 4. MAIN CALENDAR GRID & RIGHT DETAIL PANE (Matching media_1792576780327_d495e63f.png) */}
-      <div className="calendar-main-grid" style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1fr) 330px',
-        gap: '14px',
-        alignItems: 'start',
-        marginBottom: '1rem'
-      }}>
+      {/* 4. MAIN CALENDAR GRID & RIGHT DETAIL PANE */}
+      <div className="calendar-main-grid">
 
         {/* LEFT: MONTH CALENDAR GRID */}
-        <div style={{
+        <div className="calendar-month-card" style={{
           background: '#FFFFFF',
           border: '1px solid #E2E8F0',
           borderRadius: '12px',
           padding: '14px 16px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+          minWidth: 0,
+          width: '100%',
+          boxSizing: 'border-box',
+          overflow: 'hidden'
         }}>
           
           {/* Calendar Header inside Card */}
@@ -1103,31 +1101,37 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
           {/* Weekday Labels Header Row */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(7, 1fr)',
+            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
             textAlign: 'left',
             padding: '6px 0',
             borderBottom: '1px solid #F1F5F9',
             fontSize: '0.74rem',
             fontWeight: 600,
-            color: '#64748B'
+            color: '#64748B',
+            minWidth: 0,
+            width: '100%',
+            boxSizing: 'border-box'
           }}>
-            <div style={{ paddingLeft: '6px' }}>Sun</div>
-            <div style={{ paddingLeft: '6px' }}>Mon</div>
-            <div style={{ paddingLeft: '6px' }}>Tue</div>
-            <div style={{ paddingLeft: '6px' }}>Wed</div>
-            <div style={{ paddingLeft: '6px' }}>Thu</div>
-            <div style={{ paddingLeft: '6px' }}>Fri</div>
-            <div style={{ paddingLeft: '6px' }}>Sat</div>
+            <div style={{ paddingLeft: '6px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>Sun</div>
+            <div style={{ paddingLeft: '6px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>Mon</div>
+            <div style={{ paddingLeft: '6px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>Tue</div>
+            <div style={{ paddingLeft: '6px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>Wed</div>
+            <div style={{ paddingLeft: '6px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>Thu</div>
+            <div style={{ paddingLeft: '6px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>Fri</div>
+            <div style={{ paddingLeft: '6px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>Sat</div>
           </div>
 
           {/* 35 Calendar Cells Grid */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(7, 1fr)',
+            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
             gap: '1px',
             background: '#F1F5F9',
             border: '1px solid #F1F5F9',
-            marginTop: '2px'
+            marginTop: '2px',
+            minWidth: 0,
+            width: '100%',
+            boxSizing: 'border-box'
           }}>
             {gridDays.map((cell, idx) => {
               const dayEvents = filteredEvents.filter(e => e.date === cell.dateIso);
@@ -1139,14 +1143,16 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                   className="calendar-day-cell"
                   onClick={() => setSelectedDateIso(cell.dateIso)}
                   style={{
-                    minHeight: '80px',
+                    minHeight: '84px',
                     background: isSelected ? '#F0FDF4' : '#FFFFFF',
                     border: isSelected ? '2px solid #10B981' : 'none',
                     padding: '5px 6px',
                     cursor: 'pointer',
                     position: 'relative',
                     transition: 'all 0.15s ease',
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    minWidth: 0,
+                    overflow: 'hidden'
                   }}
                 >
                   {/* Day Number */}
@@ -1162,7 +1168,8 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                         fontWeight: 800,
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        flexShrink: 0
                       }}>
                         {cell.dayNum}
                       </span>
@@ -1178,7 +1185,7 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                   </div>
 
                   {/* Event Chips inside Cell */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, width: '100%' }}>
                     {dayEvents.slice(0, 2).map(evt => {
                       const isTraffic = evt.type.toLowerCase().includes('traffic');
                       const isCrowd = evt.type.toLowerCase().includes('crowd') || evt.type.toLowerCase().includes('rush');
@@ -1226,15 +1233,24 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
                             display: 'flex',
                             alignItems: 'center',
                             gap: '4px',
-                            whiteSpace: 'nowrap',
+                            minWidth: 0,
+                            width: '100%',
+                            boxSizing: 'border-box',
                             overflow: 'hidden',
-                            textOverflow: 'ellipsis',
                             lineHeight: 1.2
                           }}
                           title={`${evt.title} (${evt.time || ''})`}
                         >
-                          <span style={{ fontSize: '0.65rem' }}>{iconType}</span>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{evt.title}</span>
+                          <span style={{ fontSize: '0.65rem', flexShrink: 0 }}>{iconType}</span>
+                          <span style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            minWidth: 0,
+                            flex: 1
+                          }}>
+                            {evt.title}
+                          </span>
                         </div>
                       );
                     })}
@@ -1253,8 +1269,15 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
 
         </div>
 
-        {/* RIGHT: SELECTED DATE EVENT DOSSIER (24 September 2026) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {/* RIGHT: SELECTED DATE EVENT DOSSIER */}
+        <div className="calendar-detail-pane" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          minWidth: 0,
+          width: '100%',
+          boxSizing: 'border-box'
+        }}>
           
           {/* Header Row: Date & Event Count */}
           <div style={{
@@ -1275,167 +1298,180 @@ export default function PredictiveCalendarView({ timestamp: globalTimestamp }) {
               fontSize: '0.72rem',
               fontWeight: 700
             }}>
-              {selectedDateEvents.length} Events
+              {selectedDateEvents.length} {selectedDateEvents.length === 1 ? 'Event' : 'Events'}
             </span>
           </div>
 
-          {/* Event Cards List */}
-          {selectedDateEvents.length > 0 ? (
-            selectedDateEvents.map((evt, idx) => {
-              const isTraffic = evt.type.toLowerCase().includes('traffic');
-              const isHigh = evt.severity === 'High';
-              const isExpanded = impactExpanded[evt.id] !== false;
+          {/* Event Cards List Container */}
+          <div className="calendar-dossier-list" style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            width: '100%'
+          }}>
+            {selectedDateEvents.length > 0 ? (
+              selectedDateEvents.map((evt, idx) => {
+                const isTraffic = evt.type.toLowerCase().includes('traffic');
+                const isHigh = evt.severity === 'High';
+                const isExpanded = impactExpanded[evt.id] !== false;
 
-              return (
-                <div
-                  key={evt.id}
-                  style={{
-                    background: '#FFFFFF',
-                    border: '1px solid #E2E8F0',
-                    borderLeft: `3px solid ${isTraffic || isHigh ? '#EF4444' : '#2563EB'}`,
-                    borderRadius: '8px',
-                    padding: '12px 14px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-                  }}
-                >
-                  {/* Top Row: Icon + Title + Severity Pill */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: '6px',
-                        background: isTraffic ? '#FEE2E2' : '#DBEAFE',
-                        color: isTraffic ? '#EF4444' : '#2563EB',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
+                return (
+                  <div
+                    key={evt.id}
+                    style={{
+                      background: '#FFFFFF',
+                      border: '1px solid #E2E8F0',
+                      borderLeft: `4px solid ${isTraffic || isHigh ? '#EF4444' : '#2563EB'}`,
+                      borderRadius: '8px',
+                      padding: '12px 14px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                      boxSizing: 'border-box',
+                      minWidth: 0,
+                      width: '100%'
+                    }}
+                  >
+                    {/* Top Row: Icon + Title + Severity Pill */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                        <div style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: '6px',
+                          background: isTraffic ? '#FEE2E2' : '#DBEAFE',
+                          color: isTraffic ? '#EF4444' : '#2563EB',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          {isTraffic ? (
+                            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" strokeWidth="2">
+                              <rect x="3" y="11" width="18" height="8" rx="2"/>
+                              <path d="M5 11l2-5h10l2 5"/>
+                              <circle cx="7.5" cy="15.5" r="1.5"/>
+                              <circle cx="16.5" cy="15.5" r="1.5"/>
+                            </svg>
+                          ) : (
+                            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" strokeWidth="2">
+                              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                              <circle cx="9" cy="7" r="4"/>
+                            </svg>
+                          )}
+                        </div>
+                        <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {evt.title}
+                        </span>
+                      </div>
+
+                      <span style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.67rem',
+                        fontWeight: 700,
+                        background: evt.severity === 'High' ? '#FEE2E2' : '#FEF3C7',
+                        color: evt.severity === 'High' ? '#EF4444' : '#D97706',
                         flexShrink: 0
                       }}>
-                        {isTraffic ? (
-                          <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" strokeWidth="2">
-                            <rect x="3" y="11" width="18" height="8" rx="2"/>
-                            <path d="M5 11l2-5h10l2 5"/>
-                            <circle cx="7.5" cy="15.5" r="1.5"/>
-                            <circle cx="16.5" cy="15.5" r="1.5"/>
-                          </svg>
-                        ) : (
-                          <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" strokeWidth="2">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                            <circle cx="9" cy="7" r="4"/>
-                          </svg>
-                        )}
-                      </div>
-                      <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#0F172A' }}>
-                        {evt.title}
+                        {evt.severity}
                       </span>
                     </div>
 
-                    <span style={{
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '0.67rem',
-                      fontWeight: 700,
-                      background: evt.severity === 'High' ? '#FEE2E2' : '#FEF3C7',
-                      color: evt.severity === 'High' ? '#EF4444' : '#D97706'
-                    }}>
-                      {evt.severity}
-                    </span>
-                  </div>
-
-                  {/* Metadata: Time & Location */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '0.7rem', color: '#64748B', fontWeight: 500, marginBottom: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" fill="none" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                      </svg>
-                      <span>{evt.time || '08:00 – 11:00'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" fill="none" strokeWidth="2">
-                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-                        <circle cx="12" cy="9" r="2.5"/>
-                      </svg>
-                      <span>{evt.location}</span>
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <p style={{
-                    fontSize: '0.7rem',
-                    color: '#64748B',
-                    lineHeight: 1.35,
-                    margin: '0 0 8px 0'
-                  }}>
-                    {evt.description}
-                  </p>
-
-                  {/* Collapsible Predicted Impact Section */}
-                  <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '8px' }}>
-                    <div
-                      onClick={() => toggleImpact(evt.id)}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                        color: '#2563EB',
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        marginBottom: isExpanded ? '6px' : 0
-                      }}
-                    >
-                      <span>Predicted Impact (Confidence {evt.confidence || '84%'})</span>
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="12"
-                        height="12"
-                        stroke="currentColor"
-                        fill="none"
-                        strokeWidth="2.5"
-                        style={{ transform: isExpanded ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }}
-                      >
-                        <polyline points="6 9 12 15 18 9"/>
-                      </svg>
-                    </div>
-
-                    {isExpanded && evt.impact && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
-                        {evt.impact.map((imp, i) => (
-                          <div key={i} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 50px', alignItems: 'center', gap: '6px', fontSize: '0.67rem' }}>
-                            <span style={{ color: '#475569', fontWeight: 600 }}>{imp.category}</span>
-                            <div style={{ background: '#F1F5F9', height: 5, borderRadius: 3, overflow: 'hidden' }}>
-                              <div style={{ background: imp.color, width: `${imp.pct}%`, height: '100%', borderRadius: 3 }} />
-                            </div>
-                            <span style={{ fontWeight: 700, color: imp.color, textAlign: 'right' }}>{imp.level}</span>
-                          </div>
-                        ))}
+                    {/* Metadata: Time & Location */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '0.7rem', color: '#64748B', fontWeight: 500, marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" fill="none" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10"/>
+                          <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        <span>{evt.time || '08:00 – 11:00'}</span>
                       </div>
-                    )}
-                  </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" fill="none" strokeWidth="2">
+                          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                          <circle cx="12" cy="9" r="2.5"/>
+                        </svg>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{evt.location}</span>
+                      </div>
+                    </div>
 
+                    {/* Description */}
+                    <p style={{
+                      fontSize: '0.7rem',
+                      color: '#64748B',
+                      lineHeight: 1.35,
+                      margin: '0 0 8px 0'
+                    }}>
+                      {evt.description}
+                    </p>
+
+                    {/* Collapsible Predicted Impact Section */}
+                    <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '8px' }}>
+                      <div
+                        onClick={() => toggleImpact(evt.id)}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          cursor: 'pointer',
+                          color: '#2563EB',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          marginBottom: isExpanded ? '6px' : 0
+                        }}
+                      >
+                        <span>Predicted Impact (Confidence {evt.confidence || '84%'})</span>
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="12"
+                          height="12"
+                          stroke="currentColor"
+                          fill="none"
+                          strokeWidth="2.5"
+                          style={{ transform: isExpanded ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }}
+                        >
+                          <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                      </div>
+
+                      {isExpanded && evt.impact && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                          {evt.impact.map((imp, i) => (
+                            <div key={i} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 50px', alignItems: 'center', gap: '6px', fontSize: '0.67rem' }}>
+                              <span style={{ color: '#475569', fontWeight: 600 }}>{imp.category}</span>
+                              <div style={{ background: '#F1F5F9', height: 5, borderRadius: 3, overflow: 'hidden' }}>
+                                <div style={{ background: imp.color, width: `${imp.pct}%`, height: '100%', borderRadius: 3 }} />
+                              </div>
+                              <span style={{ fontWeight: 700, color: imp.color, textAlign: 'right' }}>{imp.level}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                );
+              })
+            ) : (
+              <div style={{
+                background: '#FFFFFF',
+                border: '1px solid #E2E8F0',
+                borderRadius: '8px',
+                padding: '24px 16px',
+                textAlign: 'center',
+                color: '#64748B',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}>
+                <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>📅</div>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0F172A', marginBottom: '4px' }}>
+                  No High-Impact Events
                 </div>
-              );
-            })
-          ) : (
-            <div style={{
-              background: '#FFFFFF',
-              border: '1px solid #E2E8F0',
-              borderRadius: '8px',
-              padding: '24px 16px',
-              textAlign: 'center',
-              color: '#64748B'
-            }}>
-              <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>📅</div>
-              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0F172A', marginBottom: '4px' }}>
-                No High-Impact Events
+                <p style={{ fontSize: '0.72rem', margin: 0, lineHeight: 1.4 }}>
+                  Nominal baseline city flow predicted for {formatHeaderDate(selectedDateIso)}.
+                </p>
               </div>
-              <p style={{ fontSize: '0.72rem', margin: 0, lineHeight: 1.4 }}>
-                Nominal baseline city flow predicted for {formatHeaderDate(selectedDateIso)}.
-              </p>
-            </div>
-          )}
+            )}
+          </div>
 
         </div>
 

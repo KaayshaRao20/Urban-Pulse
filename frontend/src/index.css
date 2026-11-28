@@ -7809,5 +7809,69 @@ body {
     }
 }
 
+/* ------------------------------------------------------------- */
+/* PREDICTIVE CALENDAR LAYOUT & RESPONSIVE PERFECTION            */
+/* ------------------------------------------------------------- */
+.calendar-main-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 340px !important;
+    gap: 16px !important;
+    align-items: start !important;
+    margin-bottom: 1rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
 
+.calendar-month-card {
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
 
+.calendar-detail-pane {
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.calendar-day-cell {
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
+
+@media (max-width: 1200px) {
+    .calendar-main-grid {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+
+    .calendar-dossier-list {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
+        gap: 12px !important;
+    }
+
+    .calendar-kpi-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .calendar-kpi-grid {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+
+    .calendar-dossier-list {
+        grid-template-columns: 1fr !important;
+    }
+
+    .calendar-day-cell {
+        min-height: 60px !important;
+        padding: 3px 2px !important;
+    }
+}
