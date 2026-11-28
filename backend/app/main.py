@@ -39,6 +39,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.staticfiles import StaticFiles
+
+# Mount public assets and uploads so static media loads cleanly across all endpoints
+_workspace_root = os.path.dirname(_parent_dir)
+_frontend_assets_dir = os.path.join(_workspace_root, "frontend", "public", "assets")
+if os.path.isdir(_frontend_assets_dir):
+    app.mount("/assets", StaticFiles(directory=_frontend_assets_dir), name="assets")
+
+_uploads_dir = os.path.join(_parent_dir, "uploads")
+if os.path.isdir(_uploads_dir):
+    app.mount("/uploads", StaticFiles(directory=_uploads_dir), name="uploads")
+
 # Alerts & Incidents Engine Integration
 try:
     from app.alerts_engine import router as alerts_router, ALERTS_DATA

@@ -7,9 +7,9 @@ export const CATEGORY_DEFECT_PHOTOS = {
   road: "https://images.unsplash.com/photo-1541888946425-d0fbb186c5f7?w=800&auto=format&fit=crop&q=80",
   garbage: "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=800&auto=format&fit=crop&q=80",
   waste: "https://images.unsplash.com/photo-1528323273322-d81458248d40?w=800&auto=format&fit=crop&q=80",
-  drainage: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=800&auto=format&fit=crop&q=80",
-  flood: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&auto=format&fit=crop&q=80",
-  water: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=800&auto=format&fit=crop&q=80",
+  drainage: "/assets/waterlogging_bangalore.jpg",
+  flood: "/assets/waterlogging_bangalore.jpg",
+  water: "/assets/waterlogging_bangalore.jpg",
   light: "https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=800&auto=format&fit=crop&q=80",
   electrical: "https://images.unsplash.com/photo-1508873696983-2df5293cb32b?w=800&auto=format&fit=crop&q=80",
   traffic: "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=800&auto=format&fit=crop&q=80",
@@ -103,7 +103,7 @@ export default function DefectEvidencePlayer({
 
   // Safe High-Res photo URL
   const resolvedPhotoUrl = useMemo(() => {
-    if (imageUrl && imageUrl.startsWith('http')) return imageUrl;
+    if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('/'))) return imageUrl;
     return getCategoryDefectPhoto(category);
   }, [imageUrl, category]);
 

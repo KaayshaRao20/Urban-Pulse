@@ -1782,7 +1782,7 @@ def get_canonical_category_image(category: Optional[str]) -> str:
     if "garbage" in c or "waste" in c:
         return "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=600&auto=format&fit=crop&q=80"
     if "drainage" in c or "flood" in c or "water" in c:
-        return "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=600&auto=format&fit=crop&q=80"
+        return "/assets/waterlogging_bangalore.jpg"
     if "light" in c or "electrical" in c:
         return "https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=600&auto=format&fit=crop&q=80"
     if "traffic" in c or "hazard" in c:
